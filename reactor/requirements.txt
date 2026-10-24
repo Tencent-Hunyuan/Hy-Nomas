@@ -1,0 +1,40 @@
+# Model dependencies resolved with Reactor Runtime during `reactor build`.
+# `build.runtime_version` in reactor.yaml selects the Runtime release.
+
+# Adapter dependencies.
+numpy==2.4.3
+PyYAML
+huggingface-hub>=0.36,<1
+
+# Native inference imports; released MagiAttention/FA4 are built in build.run.
+torch==2.10.0
+torchvision==0.25.0
+transformers==4.57.1
+diffusers==0.36.0
+accelerate==1.10.1
+safetensors==0.7.0
+peft==0.18.0
+hydra-core>=1.3
+omegaconf==2.3.0
+einops==0.8.0
+loguru
+scipy
+ftfy
+sentencepiece
+timm==1.0.12
+# FA4's released CuTe kernels require the 4.3 DSL API.
+nvidia-cutlass-dsl==4.3.5
+cuda-python==13.0.3
+apache-tvm-ffi==0.1.15.post0
+torch-c-dlpack-ext==0.1.5
+debugpy==1.8.22
+
+# Native kernel build tools.
+setuptools
+wheel
+packaging==25.0
+ninja
+psutil
+cmake==4.4.4
+versioningit==3.3.0
+pybind11

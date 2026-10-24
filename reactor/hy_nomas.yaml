@@ -1,0 +1,19 @@
+source: /opt/hy-nomas
+num_gpus: 4
+height: 720
+width: 1280
+# Released default distilled Euler sampler.
+denoising_steps: 8
+# Retain every native video/text KV entry within the world horizon on GPU.
+history_frames: null
+history_sampling: recent
+precision: bf16
+cpu_offload: false
+# Exact frozen INT8 expansions can be cached in the quantized preset.
+cache_int8_weights: false
+decoder_batch_size: 3
+cutlass: /opt/cutlass
+# Prepare initial/continuation shapes before readiness, then discard that world.
+warmup_frames: 48
+# Let Runtime adapt playback to measured generation throughput.
+playback_fps: null

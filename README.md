@@ -229,6 +229,28 @@ videos = pipe(
 export_to_video(videos[0], "hy_nomas_video.mp4", fps=24, quality=None)
 ```
 
+### Inference with Reactor Runtime
+
+The [Reactor integration guide](reactor/README.md) provides a streaming service and browser demo with live prompt updates, combined WASD/arrow camera control, and uploaded camera trajectories while retaining world history. The tested profile uses four B200 GPUs, Docker with NVIDIA Container Toolkit, the [Reactor CLI](https://docs.reactor.inc/deploy/platform/installation), and Node.js 22.
+
+From this repository root:
+
+```bash
+cd reactor
+reactor build
+reactor run --gpus '"device=0,1,2,3"' --shm-size 8g --port 8080
+```
+
+Wait for `curl -fsS http://localhost:8080/health` to report `available`. In another terminal, from the repository root:
+
+```bash
+cd reactor/demo
+npm ci
+npm run dev -- --port 5173
+```
+
+Open **http://localhost:5173**, use Runtime endpoint **http://localhost:8080**, press **Connect**, enter a prompt, then press **Start world**. Click the video to explore with WASD and arrow keys. **Update prompt** changes future segments without restarting. See the [SSH and WebRTC guidance](reactor/README.md#remote-servers-and-ssh) when the GPU runs remotely.
+
 ### Interactive Demo
 
 Try the [online interactive demo](https://hy-nomas.hy.tencent.com/).

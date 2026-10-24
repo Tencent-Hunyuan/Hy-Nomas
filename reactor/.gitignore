@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+demo/node_modules/
+demo/dist/
+
+# Keep the demo and screenshot despite broader upstream ignore rules.
+!/assets/
+!/assets/demo.png
+!/demo/index.html
