@@ -241,7 +241,15 @@ SGLang 提供以下推理优化：
 - **注意力：** 在 Hopper GPU 上，片段注意力使用 FlashAttention-3，速度约为 FlexAttention 的 2 倍；其他 GPU 回退到 FlexAttention。
 - **算子融合：** 融合了调制、QK 归一化与 RoPE、SwiGLU 等逐元素算子，结果与未融合路径逐位一致。
 
-从源码安装 SGLang。Hy-Nomas 支持尚未包含在 PyPI 发布版中。
+可以使用 SGLang 的 Docker 镜像（推荐），也可以从源码安装。Hy-Nomas 支持尚未包含在正式发布版中：请使用每天从 `main` 构建的 nightly 镜像 `lmsysorg/sglang:dev`，待正式版包含 Hy-Nomas 后再改用 `lmsysorg/sglang:latest`。
+
+```bash
+docker run --rm -it --gpus all --ipc=host --network=host \
+  -v "$HOME/.cache:/root/.cache" \
+  lmsysorg/sglang:dev bash
+```
+
+挂载 `~/.cache` 可以在不同容器之间复用已下载的权重和组装好的推理流水线。如需从源码安装：
 
 ```bash
 git clone https://github.com/sgl-project/sglang.git
@@ -252,7 +260,7 @@ source .venv/bin/activate
 uv pip install -e "python[diffusion]" --prerelease=allow
 ```
 
-在单卡上启动服务，或在双卡上使用序列并行启动：
+在容器或源码环境中，于单卡上启动服务，或在双卡上使用序列并行启动：
 
 ```bash
 sglang serve --model-path tencent/Hy-Nomas --num-gpus 1 --port 30000

@@ -241,7 +241,15 @@ SGLang adds the following inference optimizations:
 - **Attention:** Segment attention runs on FlashAttention-3 on Hopper GPUs, about 2× faster than FlexAttention, which serves as the fallback on other GPUs.
 - **Kernel fusion:** Fused elementwise kernels for modulation, QK norm with RoPE, and SwiGLU, bitwise identical to the unfused path.
 
-Install SGLang from source. Hy-Nomas support is not yet in a PyPI release.
+Run SGLang in its Docker image (recommended) or install it from source. Hy-Nomas support is not yet in a stable release: use the nightly `lmsysorg/sglang:dev` image, rebuilt daily from `main`, and switch to `lmsysorg/sglang:latest` once a release includes Hy-Nomas.
+
+```bash
+docker run --rm -it --gpus all --ipc=host --network=host \
+  -v "$HOME/.cache:/root/.cache" \
+  lmsysorg/sglang:dev bash
+```
+
+Mounting `~/.cache` keeps the downloaded weights and the assembled pipeline across containers. To install from source instead:
 
 ```bash
 git clone https://github.com/sgl-project/sglang.git
@@ -252,7 +260,7 @@ source .venv/bin/activate
 uv pip install -e "python[diffusion]" --prerelease=allow
 ```
 
-Start a server on one GPU, or on two GPUs with sequence parallelism:
+Inside the container or the source environment, start a server on one GPU, or on two GPUs with sequence parallelism:
 
 ```bash
 sglang serve --model-path tencent/Hy-Nomas --num-gpus 1 --port 30000
