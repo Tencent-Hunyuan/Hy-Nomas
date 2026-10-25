@@ -282,7 +282,7 @@ with open("hy_nomas_sglang.mp4", "wb") as f:
     f.write(requests.get(f"{base}/v1/videos/{job['id']}/content").content)
 ```
 
-The same server accepts realtime WebSocket sessions at `/v1/realtime_video/generate`. Each segment is generated as soon as it arrives, and frames stream back as they are decoded. See the [SGLang Hy-Nomas guide](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas) for the realtime protocol, camera control, layerwise offload, and the KV cache budget. SGLang does not host Nomas-PE and does not yet support the INT8/FP8 checkpoints or LoRA adapters.
+The same server accepts realtime WebSocket sessions at `/v1/realtime_video/generate`. Each segment is generated as soon as it arrives, and frames stream back as they are decoded. See the [SGLang Hy-Nomas guide](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas) for the realtime protocol, camera control, layerwise offload, and the KV cache budget.
 
 ### Interactive Demo
 

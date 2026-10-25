@@ -282,7 +282,7 @@ with open("hy_nomas_sglang.mp4", "wb") as f:
     f.write(requests.get(f"{base}/v1/videos/{job['id']}/content").content)
 ```
 
-同一个服务还在 `/v1/realtime_video/generate` 提供实时 WebSocket 会话：每个片段到达后立即生成，解码出的帧会以流式返回。实时协议、相机控制、逐层 offload 和 KV cache 预算等内容请参阅 [SGLang Hy-Nomas 指南](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas)。SGLang 不托管 Nomas-PE，暂不支持 INT8/FP8 权重和 LoRA 适配器。
+同一个服务还在 `/v1/realtime_video/generate` 提供实时 WebSocket 会话：每个片段到达后立即生成，解码出的帧会以流式返回。实时协议、相机控制、逐层 offload 和 KV cache 预算等内容请参阅 [SGLang Hy-Nomas 指南](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas)。
 
 ### 交互式演示
 
