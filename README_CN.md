@@ -234,6 +234,13 @@ export_to_video(videos[0], "hy_nomas_video.mp4", fps=24, quality=None)
 
 [SGLang Diffusion](https://github.com/sgl-project/sglang) 支持以离线视频任务和实时会话两种方式部署 Hy-Nomas，实时会话可以逐个接收片段。它可以直接加载 `tencent/Hy-Nomas`：首次启动时会下载蒸馏版 DiT、PixelUMM 解码器和文本编码器，并在本地缓存组装好的推理流水线。
 
+SGLang 提供以下推理优化：
+
+- **并行：** DiT 支持 Ulysses 序列并行和张量并行，PixelUMM 解码窗口分布到多张 GPU 上并行处理。
+- **显存：** DiT 逐层 offload，按需从主机内存加载 Transformer 块。
+- **注意力：** 在 Hopper GPU 上，片段注意力使用 FlashAttention-3，速度约为 FlexAttention 的 2 倍；其他 GPU 回退到 FlexAttention。
+- **算子融合：** 融合了调制、QK 归一化与 RoPE、SwiGLU 等逐元素算子，结果与未融合路径逐位一致。
+
 从源码安装 SGLang。Hy-Nomas 支持尚未包含在 PyPI 发布版中。
 
 ```bash

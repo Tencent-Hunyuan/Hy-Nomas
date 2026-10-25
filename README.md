@@ -234,6 +234,13 @@ export_to_video(videos[0], "hy_nomas_video.mp4", fps=24, quality=None)
 
 [SGLang Diffusion](https://github.com/sgl-project/sglang) serves Hy-Nomas as offline video jobs and as realtime sessions that receive segments one at a time. It loads `tencent/Hy-Nomas` directly: the first start downloads the distilled DiT, the PixelUMM decoder, and the text encoder, then caches a local pipeline.
 
+SGLang adds the following inference optimizations:
+
+- **Parallelism:** Ulysses sequence parallelism and tensor parallelism for the DiT, with PixelUMM decoding windows spread across GPUs.
+- **Memory:** DiT layerwise offload streams transformer blocks from host memory.
+- **Attention:** Segment attention runs on FlashAttention-3 on Hopper GPUs, about 2× faster than FlexAttention, which serves as the fallback on other GPUs.
+- **Kernel fusion:** Fused elementwise kernels for modulation, QK norm with RoPE, and SwiGLU, bitwise identical to the unfused path.
+
 Install SGLang from source. Hy-Nomas support is not yet in a PyPI release.
 
 ```bash
