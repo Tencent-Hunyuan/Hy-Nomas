@@ -43,6 +43,7 @@ https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
   - [推理](#推理)
     - [低显存 GPU 推理](#低显存-gpu-推理)
     - [使用 Diffusers 推理](#使用-diffusers-推理)
+    - [使用 SGLang 推理](#使用-sglang-推理)
   - [交互式演示](#交互式演示)
 - [LoRA 微调](#lora-微调)
   - [SFT 数据准备](#sft-数据准备)
@@ -228,6 +229,60 @@ videos = pipe(
 )
 export_to_video(videos[0], "hy_nomas_video.mp4", fps=24, quality=None)
 ```
+
+#### 使用 SGLang 推理
+
+[SGLang Diffusion](https://github.com/sgl-project/sglang) 支持以离线视频任务和实时会话两种方式部署 Hy-Nomas，实时会话可以逐个接收片段。它可以直接加载 `tencent/Hy-Nomas`：首次启动时会下载蒸馏版 DiT、PixelUMM 解码器和文本编码器，并在本地缓存组装好的推理流水线。
+
+从源码安装 SGLang。Hy-Nomas 支持尚未包含在 PyPI 发布版中。
+
+```bash
+git clone https://github.com/sgl-project/sglang.git
+cd sglang
+pip install uv
+uv venv --python 3.12
+source .venv/bin/activate
+uv pip install -e "python[diffusion]" --prerelease=allow
+```
+
+在单卡上启动服务，或在双卡上使用序列并行启动：
+
+```bash
+sglang serve --model-path tencent/Hy-Nomas --num-gpus 1 --port 30000
+# sglang serve --model-path tencent/Hy-Nomas --num-gpus 2 --sp-degree 2 --port 30000
+```
+
+每个请求列出若干片段，每个片段包含帧数和结构化描述。以下示例将上方 Diffusers 示例中的 `prompts` 作为两个 120 帧的片段发送：
+
+```python
+import json
+import time
+
+import requests
+
+base = "http://127.0.0.1:30000"
+captions = [json.dumps(prompt) for prompt in prompts]
+job = requests.post(f"{base}/v1/videos", json={
+    "prompt": captions[0],
+    "prompt_format": "json",
+    "segments": [{"frames": 120, "caption": caption} for caption in captions],
+    "num_frames": 240,
+    "height": 704,
+    "width": 1280,
+    "fps": 24,
+    "num_inference_steps": 8,
+    "guidance_scale": 1.0,
+    "seed": 42,
+}).json()
+while job["status"] not in ("completed", "failed"):
+    time.sleep(2)
+    job = requests.get(f"{base}/v1/videos/{job['id']}").json()
+assert job["status"] == "completed", job
+with open("hy_nomas_sglang.mp4", "wb") as f:
+    f.write(requests.get(f"{base}/v1/videos/{job['id']}/content").content)
+```
+
+同一个服务还在 `/v1/realtime_video/generate` 提供实时 WebSocket 会话：每个片段到达后立即生成，解码出的帧会以流式返回。实时协议、相机控制、逐层 offload 和 KV cache 预算等内容请参阅 [SGLang Hy-Nomas 指南](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas)。SGLang 不托管 Nomas-PE，暂不支持 INT8/FP8 权重和 LoRA 适配器。
 
 ### 交互式演示
 
