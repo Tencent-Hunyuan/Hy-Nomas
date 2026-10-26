@@ -8,8 +8,10 @@
 </p>
 
 <h1 align="center">
-    Hy-Nomas: Towards Free-Form Interactive World Generation
+    Hy-Nomas: Towards Free-Form Interactive <br> World Generation
 </h1>
+
+**Hy-Nomas** is a free-form interactive world generation model controlled by multi-turn text and camera inputs. It runs on a single RTX 4090 with low-memory inference, supports LoRA fine-tuning for downstream tasks, and includes an interactive web demo.
 
 <div align="center" style="line-height: 1;">
 
@@ -29,21 +31,49 @@
     📄&nbsp;<a href="https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf"><b>Technical Report</b></a>
 </p>
 
+## 🔥 News
+
+- 🤝 **Oct 26, 2026 — Community integrations:** Run Hy-Nomas with [SGLang](https://github.com/sgl-project/sglang/pull/46124), [ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas), or [Reactor Runtime](reactor/README.md). See [Community Contributions](#-community-contributions) for details.
+- 📄 **Oct 26, 2026 — Technical report:** Updated the [Hy-Nomas technical report](https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf).
+- 🛠️ **Oct 23, 2026 — Diffusers inference:** Added a [Diffusers inference example](#inference-with-diffusers).
+- 🎮 **Oct 21, 2026 — Interactive demo:** Explore multi-turn text and camera control in the [online demo](https://hy-nomas.hy.tencent.com/demo), or follow the [deployment guide](apps/README.md) to run it yourself.
+- 🚀 **Oct 21, 2026 — Initial code release:** Training and inference code include [LoRA fine-tuning](#lora-fine-tuning) and [single-GPU inference](#inference-with-low-mem-gpu). Get the [model weights](https://huggingface.co/tencent/Hy-Nomas) to start exploring.
+
+## 🎥 Demo
+
 https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
+
+## 🧩 Community Contributions
+
+If you develop/use Hy-Nomas in your projects, welcome to let us know.
+
+- **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang), by [@sgl_project](https://x.com/sgl_project): Hy-Nomas support is merged into `main`, covering offline video jobs and real-time streaming sessions. See the [integration PR](https://github.com/sgl-project/sglang/pull/46124).
+- **ComfyUI** — [ComfyUI-Hy-Nomas](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas), by [@LatentSpacer](https://x.com/LatentSpacer): A community integration with chained video segments and interactive WASD camera control.
+- **Reactor Runtime** — [Hy-Nomas integration guide](reactor/README.md), contributed by [@Rising0321](https://github.com/Rising0321): A streaming service and browser demo with live prompt updates, WASD/arrow camera control, and uploaded camera trajectories while retaining world history. See the [integration PR](https://github.com/Tencent-Hunyuan/Hy-Nomas/pull/3).
+
+Thank you to the contributors for building on Hy-Nomas!
+
+Building with Hy-Nomas? We welcome community projects, integrations, tutorials, and LoRA adapters. Share your work by [opening an issue](https://github.com/Tencent-Hunyuan/Hy-Nomas/issues) or submitting a pull request to add it to this section. Contributions to this repository are covered in the [contribution guide](CONTRIBUTING.md).
 
 ---
 
 ## Table of Contents
 
+- [🔥 News](#-news)
+- [🎥 Demo](#-demo)
+- [🧩 Community Contributions](#-community-contributions)
 - [Model Introduction](#model-introduction)
 - [Key Features](#key-features)
 - [Usage](#usage)
   - [Environment Setup](#environment-setup)
   - [Model Assets](#model-assets)
   - [Inference](#inference)
+    - [Inference with Source Code](#inference-with-source-code)
     - [Inference with Low-Mem GPU](#inference-with-low-mem-gpu)
     - [Inference with Diffusers](#inference-with-diffusers)
   - [Interactive Demo](#interactive-demo)
+    - [Reactor Runtime](#reactor-runtime)
+    - [Web Demo](#web-demo)
 - [LoRA Fine-Tuning](#lora-fine-tuning)
   - [SFT Data Preparation](#sft-data-preparation)
   - [Offline Sequence Packing](#offline-sequence-packing)
@@ -127,6 +157,8 @@ Set `Hy_Nomas_Model_Path` to your download directory once. The commands below re
 | PE | **[Nomas-PE](https://huggingface.co/tencent/Hy-Nomas/tree/main/PE)** | Online prompt-enhancement model used by the interactive demo to convert user instructions into structured generation prompts. |
 
 ### Inference
+
+#### Inference with Source Code
 
 Run from the repository root with `configs/experiment/inference.yaml`, overriding the model paths, prompt file, and output directory:
 
@@ -229,7 +261,9 @@ videos = pipe(
 export_to_video(videos[0], "hy_nomas_video.mp4", fps=24, quality=None)
 ```
 
-### Inference with Reactor Runtime
+### Interactive Demo
+
+#### Reactor Runtime
 
 The [Reactor integration guide](reactor/README.md) provides a streaming service and browser demo with live prompt updates, combined WASD/arrow camera control, and uploaded camera trajectories while retaining world history. The tested profile uses eight B200 GPUs, Docker with NVIDIA Container Toolkit, the [Reactor CLI](https://docs.reactor.inc/deploy/platform/installation), and Node.js 22.
 
@@ -251,7 +285,7 @@ npm run dev -- --port 5173
 
 Open **http://localhost:5173**, use Runtime endpoint **http://localhost:8080**, press **Connect**, enter a prompt, then press **Start world**. Click the video to explore with WASD and arrow keys. **Update prompt** changes future segments without restarting. See the [SSH and WebRTC guidance](reactor/README.md#remote-servers-and-ssh) when the GPU runs remotely.
 
-### Interactive Demo
+#### Web Demo
 
 Try the [online interactive demo](https://hy-nomas.hy.tencent.com/).
 

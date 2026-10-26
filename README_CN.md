@@ -8,8 +8,10 @@
 </p>
 
 <h1 align="center">
-    Hy-Nomas: Towards Free-Form Interactive World Generation
+    Hy-Nomas: Towards Free-Form Interactive <br> World Generation
 </h1>
+
+**Hy-Nomas** 是一个通过多轮文本与相机控制的自由形式交互式世界生成模型。采用低显存推理配置可在单张 RTX 4090 上运行，支持下游任务 LoRA 微调，并提供交互式 Web Demo。
 
 <div align="center" style="line-height: 1;">
 
@@ -29,21 +31,49 @@
     📄&nbsp;<a href="https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf"><b>技术报告</b></a>
 </p>
 
+## 🔥 最新动态
+
+- 🤝 **2026 年 10 月 26 日 — 社区集成：** Hy-Nomas 已支持 [SGLang](https://github.com/sgl-project/sglang/pull/46124)、[ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas) 和 [Reactor Runtime](reactor/README.md)，详情请见[社区贡献](#-社区贡献)。
+- 📄 **2026 年 10 月 26 日 — 技术报告：** 更新 [Hy-Nomas 技术报告](https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf)。
+- 🛠️ **2026 年 10 月 23 日 — Diffusers 推理：** 新增 [Diffusers 推理示例](#使用-diffusers-推理)。
+- 🎮 **2026 年 10 月 21 日 — 交互式演示：** 在[在线演示](https://hy-nomas.hy.tencent.com/demo)中体验多轮文本和相机控制，也可参考[部署指南](apps/README.md)自行运行。
+- 🚀 **2026 年 10 月 21 日 — 首次代码发布：** 训练与推理代码包含 [LoRA 微调](#lora-微调)和[单 GPU 推理](#低显存-gpu-推理)。下载[模型权重](https://huggingface.co/tencent/Hy-Nomas)即可开始探索。
+
+## 🎥 演示
+
 https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
+
+## 🧩 社区贡献
+
+如果你在项目中开发或使用 Hy-Nomas，欢迎告诉我们。
+
+- **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang)，由 [@sgl_project](https://x.com/sgl_project) 提供：Hy-Nomas 支持已合入 `main` 分支，可运行离线视频任务和实时流式会话，详见[集成 PR](https://github.com/sgl-project/sglang/pull/46124)。
+- **ComfyUI** — [ComfyUI-Hy-Nomas](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas)，由 [@LatentSpacer](https://x.com/LatentSpacer) 提供：支持视频片段串联生成和交互式 WASD 相机控制。
+- **Reactor Runtime** — [Hy-Nomas 集成指南](reactor/README.md)，由 [@Rising0321](https://github.com/Rising0321) 贡献：提供流式服务和浏览器演示，支持实时更新提示词、WASD/方向键相机控制，以及上传相机轨迹，同时保留世界历史。详见[集成 PR](https://github.com/Tencent-Hunyuan/Hy-Nomas/pull/3)。
+
+感谢各位贡献者基于 Hy-Nomas 构建社区集成！
+
+正在使用 Hy-Nomas 构建项目？欢迎分享社区项目、工具集成、教程和 LoRA 适配器。你可以[提交 Issue](https://github.com/Tencent-Hunyuan/Hy-Nomas/issues)，或通过 Pull Request 将项目添加到本节。 参与本仓库开发请参阅[贡献指南](CONTRIBUTING.md)。
 
 ---
 
 ## 目录
 
+- [🔥 最新动态](#-最新动态)
+- [🎥 演示](#-演示)
+- [🧩 社区贡献](#-社区贡献)
 - [模型介绍](#模型介绍)
 - [核心特性](#核心特性)
 - [使用指南](#使用指南)
   - [环境配置](#环境配置)
   - [模型资源](#模型资源)
   - [推理](#推理)
+    - [使用源码推理](#使用源码推理)
     - [低显存 GPU 推理](#低显存-gpu-推理)
     - [使用 Diffusers 推理](#使用-diffusers-推理)
   - [交互式演示](#交互式演示)
+    - [Reactor Runtime](#reactor-runtime)
+    - [Web Demo](#web-demo)
 - [LoRA 微调](#lora-微调)
   - [SFT 数据准备](#sft-数据准备)
   - [离线序列打包](#离线序列打包)
@@ -127,6 +157,8 @@ hf download tencent/Hy-Nomas --local-dir "${Hy_Nomas_Model_Path}"
 | PE | **[Nomas-PE](https://huggingface.co/tencent/Hy-Nomas/tree/main/PE)** | 交互式演示使用的在线提示词增强模型，将用户指令转换为结构化的生成提示词。 |
 
 ### 推理
+
+#### 使用源码推理
 
 在仓库根目录使用 `configs/experiment/inference.yaml` 启动，覆盖模型路径、提示词文件和输出目录：
 
@@ -230,6 +262,30 @@ export_to_video(videos[0], "hy_nomas_video.mp4", fps=24, quality=None)
 ```
 
 ### 交互式演示
+
+#### Reactor Runtime
+
+[Reactor 集成指南](reactor/README.md)提供流式服务和浏览器演示，支持实时更新提示词、WASD/方向键相机控制，以及上传相机轨迹，同时保留世界历史。已测试的配置使用八张 B200 GPU、Docker 和 NVIDIA Container Toolkit、[Reactor CLI](https://docs.reactor.inc/deploy/platform/installation)及 Node.js 22。
+
+在仓库根目录运行：
+
+```bash
+cd reactor
+reactor build
+reactor run --gpus '"device=0,1,2,3,4,5,6,7"' --shm-size 8g --port 8080
+```
+
+等待 `curl -fsS http://localhost:8080/health` 返回 `available`。在另一终端中，从仓库根目录运行：
+
+```bash
+cd reactor/demo
+npm ci
+npm run dev -- --port 5173
+```
+
+打开 **http://localhost:5173**，将 Runtime endpoint 设为 **http://localhost:8080**，点击 **Connect**，输入提示词后点击 **Start world**。点击视频后可使用 WASD 和方向键探索。**Update prompt** 可更新后续片段而无需重启。远程 GPU 部署请参阅 [SSH 与 WebRTC 指南](reactor/README.md#remote-servers-and-ssh)。
+
+#### Web Demo
 
 访问[在线交互式演示](https://hy-nomas.hy.tencent.com/)，体验 Hy-Nomas。
 
