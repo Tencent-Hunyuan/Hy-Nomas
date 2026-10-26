@@ -1,18 +1,17 @@
-"""Burn camera controls and trajectory telemetry into generated video frames."""
+"""Burn prompt captions, camera controls, and path maps into generated video."""
 
 from __future__ import annotations
 
 import json
 import math
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Sequence
 
-import cv2
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 
 @dataclass(frozen=True)
@@ -35,6 +34,7 @@ class CameraOverlay:
     duration_ms: float
     poses: tuple[CameraPose, ...]
     key_events: tuple[CameraKeyEvent, ...]
+    visual_poses: tuple[CameraPose, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -156,7 +156,42 @@ def parse_camera_overlay(value: str | None, fps: float) -> CameraOverlay | None:
         duration_ms=duration_ms,
         poses=tuple(poses),
         key_events=tuple(key_events),
+        visual_poses=_visual_camera_poses(
+            poses, _positive_float(payload.get("visualization_rotation_scale"), 1.0)
+        ),
     )
+
+
+def _quaternion_product(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    return np.concatenate((
+        a[3] * b[:3] + b[3] * a[:3] + np.cross(a[:3], b[:3]),
+        [a[3] * b[3] - np.dot(a[:3], b[:3])],
+    ))
+
+
+def _visual_camera_poses(
+    poses: Sequence[CameraPose], user_scale: float,
+) -> tuple[CameraPose, ...]:
+    """Apply 0.75 times the user rotation gain for visualization only."""
+    if not poses:
+        return ()
+    gain = .75 * user_scale
+    orientation = poses[0].quaternion.copy()
+    result = [replace(poses[0], quaternion=orientation.copy())]
+    for previous, current in zip(poses, poses[1:]):
+        inverse = previous.quaternion * np.array([-1, -1, -1, 1])
+        delta = _quaternion_product(inverse, current.quaternion)
+        delta /= max(1e-10, np.linalg.norm(delta))
+        if delta[3] < 0:
+            delta = -delta
+        sine = float(np.linalg.norm(delta[:3]))
+        if sine > 1e-10:
+            angle = math.atan2(sine, float(delta[3])) * gain
+            step = np.concatenate((delta[:3] * math.sin(angle) / sine, [math.cos(angle)]))
+            orientation = _quaternion_product(orientation, step)
+            orientation /= max(1e-10, np.linalg.norm(orientation))
+        result.append(replace(current, quaternion=orientation.copy()))
+    return tuple(result)
 
 
 def burn_camera_overlay(
@@ -175,23 +210,8 @@ def burn_camera_overlay(
         return output
 
     for frame_index in range(frame_count):
-        progress = frame_index / max(frame_count - 1, 1) if frame_count > 1 else 0.0
-        pose_index = _pose_index_at_progress(
-            overlay.poses, overlay.duration_ms, progress
-        )
-        actions = _actions_at_time(
-            overlay.key_events,
-            progress * overlay.duration_ms,
-        )
-        # OpenCV accepts RGB arrays, but color tuples are written channel-wise;
-        # use RGB tuples consistently because imageio receives RGB afterward.
-        _draw_overlay_frame(
-            output[frame_index],
-            overlay,
-            pose_index,
-            progress,
-            actions,
-        )
+        progress = frame_index / max(frame_count - 1, 1)
+        _draw_overlay_frame(output[frame_index], overlay, progress)
     return output
 
 
@@ -235,26 +255,11 @@ def burn_video_overlays(
             else:
                 progress = local_index / max(length - 1, 1)
             if current_kind == "camera" and overlay is not None:
-                pose_index = _pose_index_at_progress(
-                    overlay.poses,
-                    overlay.duration_ms,
-                    progress,
-                )
-                _draw_overlay_frame(
-                    output[frame_index],
-                    overlay,
-                    pose_index,
-                    progress,
-                    _actions_at_time(
-                        overlay.key_events,
-                        progress * overlay.duration_ms,
-                    ),
-                )
+                _draw_overlay_frame(output[frame_index], overlay, progress)
             elif current_kind == "text":
                 _draw_text_overlay_frame(
                     output[frame_index],
                     segment.user_prompt,
-                    progress,
                 )
     return output
 
@@ -262,8 +267,8 @@ def burn_video_overlays(
 def burn_shared_overlay_video(
     source: str | Path,
     destination: str | Path,
-    overlay: Dict[str, Any],
-) -> Dict[str, Any]:
+    overlay: dict[str, Any],
+) -> dict[str, Any]:
     """Render the share-page prompt/camera timeline into a downloadable MP4.
 
     Frames are processed one at a time so exporting a long cumulative World
@@ -282,10 +287,6 @@ def burn_shared_overlay_video(
             int(turn.get("number") or 0),
         )
     )
-    theme = str(overlay.get("theme") or "dark").strip().lower()
-    if theme not in {"dark", "light"}:
-        theme = "dark"
-
     reader = imageio.get_reader(str(source_path))
     writer = None
     frame_count = 0
@@ -344,33 +345,12 @@ def burn_shared_overlay_video(
                             )
                         camera = parsed_cameras[key]
                         if camera is not None:
-                            pose_index = _pose_index_at_progress(
-                                camera.poses,
-                                camera.duration_ms,
-                                progress,
-                            )
-                            _draw_overlay_frame(
-                                image,
-                                camera,
-                                pose_index,
-                                progress,
-                                _actions_at_time(
-                                    camera.key_events,
-                                    progress * camera.duration_ms,
-                                ),
-                                turn_number=int(turn.get("number") or 1),
-                                theme=theme,
-                            )
+                            _draw_overlay_frame(image, camera, progress)
                     else:
                         prompt = str(turn.get("prompt") or "").strip()
                         if prompt:
-                            _draw_text_overlay_frame(
-                                image,
-                                prompt,
-                                progress,
-                                turn_number=int(turn.get("number") or 1),
-                                theme=theme,
-                            )
+                            _draw_text_overlay_frame(image, prompt)
+            _draw_demo_timeline(image, turns, timestamp)
             writer.append_data(image)
             frame_count += 1
     finally:
@@ -544,412 +524,91 @@ def _wrap_prompt(
 def _draw_text_overlay_frame(
     image: np.ndarray,
     prompt: str,
-    progress: float,
-    *,
-    turn_number: int = 1,
-    theme: str = "dark",
 ) -> None:
-    layout = _draw_shared_overlay_shell(
-        image,
-        progress,
-        "REAL USER PROMPT",
-        turn_number=turn_number,
-        theme=theme,
+    # Intentionally independent of the UI theme: white captions over video.
+    _composite_rgba_array(
+        image, _cached_demo_caption(image.shape[1], image.shape[0], prompt)
     )
-    width = image.shape[1]
-    left, top, panel_width, _, title_height, pad, _ = layout
-    prompt_layer = _cached_prompt_layer(
-        image.shape[1],
-        image.shape[0],
-        prompt,
-        theme,
-        left,
-        top,
-        panel_width,
-        title_height,
-        pad,
-    )
-    _composite_rgba_array(image, prompt_layer)
-
-
-def _overlay_panel_geometry(
-    image: np.ndarray,
-    *,
-    camera: bool = False,
-) -> tuple[int, int, int, int, int, int, int]:
-    """Return the one canonical right-top overlay geometry for every mode."""
-    height, width = image.shape[:2]
-    scale = max(0.62, min(width / 1280.0, height / 704.0))
-    margin = max(12, min(22, int(round(width * 0.015))))
-    panel_width = min(int(round(390 * scale)), max(210, width - margin * 2))
-    desired_height = 254 if camera else 154
-    panel_height = min(
-        int(round(desired_height * scale)),
-        max(100, height - margin * 2),
-    )
-    left = width - margin - panel_width
-    top = margin
-    title_height = max(26, int(round(43 * scale)))
-    pad = max(12, int(round(20 * scale)))
-    progress_height = max(2, int(round(3 * scale)))
-    return (
-        left,
-        top,
-        panel_width,
-        panel_height,
-        title_height,
-        pad,
-        progress_height,
-    )
-
-
-def _draw_shared_overlay_shell(
-    image: np.ndarray,
-    progress: float,
-    mode: str,
-    *,
-    turn_number: int = 1,
-    theme: str = "dark",
-) -> tuple[int, int, int, int, int, int, int]:
-    """Draw the exact same shell for text and camera overlay contents."""
-    width = image.shape[1]
-    camera = mode == "CAMERA PATH"
-    (
-        left,
-        top,
-        panel_width,
-        panel_height,
-        title_height,
-        pad,
-        progress_height,
-    ) = _overlay_panel_geometry(image, camera=camera)
-    scale = max(0.62, min(width / 1280.0, image.shape[0] / 704.0))
-    dark = theme != "light"
-    accent = (185, 228, 127) if dark else (113, 138, 85)
-    shell = _cached_hud_shell(
-        image.shape[1],
-        image.shape[0],
-        camera,
-        mode,
-        max(1, int(turn_number)),
-        theme,
-    )
-    _composite_rgba_array(image, shell)
-
-    bar_left = left + pad
-    bar_right = left + panel_width - pad
-    bar_top = top + panel_height - _scaled(8, width, 6)
-    cv2.rectangle(
-        image,
-        (bar_left, bar_top),
-        (bar_right, bar_top + progress_height),
-        (66, 62, 54) if not dark else (60, 75, 71),
-        -1,
-    )
-    progress = min(1.0, max(0.0, progress))
-    progress_right = bar_left + max(
-        progress_height,
-        int(round((bar_right - bar_left) * progress)),
-    )
-    cv2.rectangle(
-        image,
-        (bar_left, bar_top),
-        (min(bar_right, progress_right), bar_top + progress_height),
-        accent,
-        -1,
-    )
-    return (
-        left,
-        top,
-        panel_width,
-        panel_height,
-        title_height,
-        pad,
-        progress_height,
-    )
-
-
-@lru_cache(maxsize=24)
-def _cached_hud_shell(
-    width: int,
-    height: int,
-    camera: bool,
-    mode: str,
-    turn_number: int,
-    theme: str,
-) -> np.ndarray:
-    dummy = np.empty((height, width, 3), dtype=np.uint8)
-    (
-        left,
-        top,
-        panel_width,
-        panel_height,
-        title_height,
-        pad,
-        _,
-    ) = _overlay_panel_geometry(dummy, camera=camera)
-    scale = max(0.62, min(width / 1280.0, height / 704.0))
-    dark = theme != "light"
-    accent = (185, 228, 127) if dark else (113, 138, 85)
-    border = (203, 218, 186) if dark else (65, 61, 53)
-    start_color = np.array((35, 39, 31) if dark else (255, 254, 251))
-    end_color = np.array((23, 26, 21) if dark else (243, 236, 223))
-    text_color = (240, 237, 229) if dark else (62, 58, 51)
-    muted_color = (149, 143, 132) if dark else (95, 90, 81)
-    rule_color = (221, 231, 208) if dark else (78, 73, 63)
-    radius = max(10, int(round(18 * scale)))
-
-    layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    shadow = Image.new("RGBA", layer.size, (0, 0, 0, 0))
-    shadow_draw = ImageDraw.Draw(shadow, "RGBA")
-    shadow_draw.rounded_rectangle(
-        (
-            left,
-            top + max(4, int(round(9 * scale))),
-            left + panel_width,
-            top + panel_height + max(4, int(round(9 * scale))),
-        ),
-        radius=radius,
-        fill=(8, 10, 8, 95),
-    )
-    shadow = shadow.filter(ImageFilter.GaussianBlur(max(4, int(round(12 * scale)))))
-    layer = Image.alpha_composite(layer, shadow)
-
-    gradient = np.zeros((panel_height, panel_width, 4), dtype=np.uint8)
-    yy, xx = np.mgrid[0:panel_height, 0:panel_width]
-    blend = (xx + yy) / max(panel_width + panel_height - 2, 1)
-    for channel in range(3):
-        gradient[:, :, channel] = np.rint(
-            start_color[channel] * (1.0 - blend) + end_color[channel] * blend
-        ).astype(np.uint8)
-    gradient[:, :, 3] = 247 if dark else 248
-    panel = Image.fromarray(gradient, "RGBA")
-    mask = Image.new("L", (panel_width, panel_height), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        (0, 0, panel_width - 1, panel_height - 1),
-        radius=radius,
-        fill=255,
-    )
-    layer.paste(panel, (left, top), mask)
-    draw = ImageDraw.Draw(layer, "RGBA")
-    draw.rounded_rectangle(
-        (left, top, left + panel_width, top + panel_height),
-        radius=radius,
-        outline=(*border, 98 if dark else 178),
-        width=max(1, int(round(scale))),
-    )
-
-    icon_size = max(20, int(round(26 * scale)))
-    icon_left = left + pad
-    icon_top = top + max(4, int(round(8 * scale)))
-    draw.ellipse(
-        (
-            icon_left,
-            icon_top,
-            icon_left + icon_size,
-            icon_top + icon_size,
-        ),
-        fill=(*accent, 255) if dark else (45, 44, 39, 255),
-    )
-    icon_color = (25, 32, 16, 255) if dark else (255, 253, 248, 255)
-    icon_center = (icon_left + icon_size // 2, icon_top + icon_size // 2)
-    icon_radius = max(4, int(round(7 * scale)))
-    draw.polygon(
-        [
-            (icon_center[0] + icon_radius, icon_center[1] - icon_radius),
-            (icon_center[0] + icon_radius // 3, icon_center[1] + icon_radius),
-            (icon_center[0], icon_center[1] + icon_radius // 3),
-            (icon_center[0] - icon_radius, icon_center[1] + icon_radius),
-        ],
-        fill=icon_color,
-    )
-
-    label_x = icon_left + icon_size + max(7, int(round(9 * scale)))
-    small_font = _load_font(max(9, int(round(10 * scale))), bold=True)
-    strong_font = _load_font(max(10, int(round(11 * scale))), bold=True)
-    state_font = _load_font(max(8, int(round(9 * scale))), bold=True)
-    draw.text(
-        (label_x, top + max(3, int(round(5 * scale)))),
-        mode,
-        font=small_font,
-        fill=(*accent, 255) if dark else (64, 95, 41, 255),
-    )
-    draw.text(
-        (label_x, top + max(16, int(round(19 * scale)))),
-        f"Turn {turn_number:02d}",
-        font=strong_font,
-        fill=(*text_color, 255),
-    )
-
-    button_size = max(23, int(round(29 * scale)))
-    button_right = left + panel_width - pad
-    button_left = button_right - button_size
-    button_top = top + max(2, (title_height - button_size) // 2)
-    draw.ellipse(
-        (
-            button_left,
-            button_top,
-            button_right,
-            button_top + button_size,
-        ),
-        fill=(25, 29, 23, 225) if dark else (255, 253, 248, 235),
-        outline=(75, 85, 66, 220) if dark else (68, 64, 56, 108),
-        width=max(1, int(round(scale))),
-    )
-    eye_center = (
-        button_left + button_size // 2,
-        button_top + button_size // 2,
-    )
-    eye_w = max(7, int(round(9 * scale)))
-    eye_h = max(4, int(round(5 * scale)))
-    eye_color = (215, 211, 202, 255) if dark else (55, 52, 46, 255)
-    draw.ellipse(
-        (
-            eye_center[0] - eye_w,
-            eye_center[1] - eye_h,
-            eye_center[0] + eye_w,
-            eye_center[1] + eye_h,
-        ),
-        outline=eye_color,
-        width=max(1, int(round(1.4 * scale))),
-    )
-    draw.line(
-        (
-            eye_center[0] - eye_w,
-            eye_center[1] - eye_h - 1,
-            eye_center[0] + eye_w,
-            eye_center[1] + eye_h + 1,
-        ),
-        fill=eye_color,
-        width=max(1, int(round(1.8 * scale))),
-    )
-
-    state = "PLAYBACK"
-    state_width = _text_width(draw, state, state_font)
-    state_right = button_left - max(7, int(round(9 * scale)))
-    state_x = state_right - state_width
-    draw.text(
-        (state_x, top + max(11, int(round(16 * scale)))),
-        state,
-        font=state_font,
-        fill=(*muted_color, 255),
-    )
-    status_dot = max(2, int(round(2.5 * scale)))
-    draw.ellipse(
-        (
-            state_x - status_dot * 3,
-            top + title_height // 2 - status_dot,
-            state_x - status_dot,
-            top + title_height // 2 + status_dot,
-        ),
-        fill=(*muted_color, 255),
-    )
-    draw.line(
-        (
-            left + pad,
-            top + title_height,
-            left + panel_width - pad,
-            top + title_height,
-        ),
-        fill=(*rule_color, 86 if dark else 100),
-        width=max(1, int(round(scale))),
-    )
-    corner = max(12, int(round(17 * scale)))
-    line_width = max(1, int(round(2 * scale)))
-    draw.line(
-        (left, top + corner, left, top + radius),
-        fill=(*accent, 255),
-        width=line_width,
-    )
-    draw.line(
-        (left + radius, top, left + corner * 2, top),
-        fill=(*accent, 255),
-        width=line_width,
-    )
-    draw.line(
-        (
-            left + panel_width - corner * 2,
-            top + panel_height,
-            left + panel_width - radius,
-            top + panel_height,
-        ),
-        fill=(*accent, 255),
-        width=line_width,
-    )
-    draw.line(
-        (
-            left + panel_width,
-            top + panel_height - radius,
-            left + panel_width,
-            top + panel_height - corner,
-        ),
-        fill=(*accent, 255),
-        width=line_width,
-    )
-
-    if camera:
-        body_left = left + pad - max(4, int(round(7 * scale)))
-        body_top = top + title_height + max(5, int(round(9 * scale)))
-        body_right = left + panel_width - pad + max(4, int(round(7 * scale)))
-        body_bottom = top + panel_height - max(10, int(round(17 * scale)))
-        body_radius = max(5, int(round(8 * scale)))
-        draw.rounded_rectangle(
-            (body_left, body_top, body_right, body_bottom),
-            radius=body_radius,
-            fill=(12, 19, 19, 225),
-            outline=(111, 105, 93, 56),
-            width=max(1, int(round(scale))),
-        )
-        footer_height = max(24, int(round(32 * scale)))
-        draw.line(
-            (
-                body_left,
-                body_bottom - footer_height,
-                body_right,
-                body_bottom - footer_height,
-            ),
-            fill=(255, 255, 255, 21),
-            width=1,
-        )
-
-    return np.asarray(layer)
 
 
 @lru_cache(maxsize=32)
-def _cached_prompt_layer(
-    width: int,
-    height: int,
-    prompt: str,
-    theme: str,
-    left: int,
-    top: int,
-    panel_width: int,
-    title_height: int,
-    pad: int,
-) -> np.ndarray:
-    scale = max(0.62, min(width / 1280.0, height / 704.0))
-    layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer, "RGBA")
-    body_font = _load_font(max(14, int(round(20 * scale))), bold=False)
-    lines = _wrap_prompt(
-        draw,
-        prompt,
-        body_font,
-        panel_width - pad * 2,
-        max_lines=3,
+def _cached_demo_caption(width: int, height: int, prompt: str) -> np.ndarray:
+    scale = width / 1280.0
+    layer = Image.new("RGBA", (width, height))
+    draw = ImageDraw.Draw(layer)
+    font = _load_font(max(1, round(26 * scale)))
+    badge_font = _load_font(max(1, round(13 * scale)), bold=True)
+    left = round(width * 0.051)
+    text_left = left + round(65 * scale)
+    lines = _wrap_prompt(draw, prompt, font, round(width * 0.944) - text_left, 3)
+    line_height = max(1, round(34 * scale))
+    top = round(height * 0.92) - line_height * max(1, len(lines))
+    draw.rounded_rectangle(
+        (left, top + 3 * scale, left + 54 * scale, top + 28 * scale),
+        radius=max(1, round(13 * scale)), fill="white",
     )
-    line_height = max(18, int(round(26 * scale)))
-    y = top + title_height + max(8, int(round(12 * scale)))
-    body_color = (240, 237, 229, 255) if theme != "light" else (23, 23, 19, 255)
-    for line in lines:
+    draw.text(
+        (left + 27 * scale, top + 15 * scale), "TEXT",
+        font=badge_font, anchor="mm", fill=(17, 17, 17),
+    )
+    for index, line in enumerate(lines):
         draw.text(
-            (left + pad, y),
-            line,
-            font=body_font,
-            fill=body_color,
+            (text_left, top + index * line_height), line, font=font,
+            fill="white", stroke_width=max(1, round(scale)),
+            stroke_fill=(0, 0, 0, 90),
         )
-        y += line_height
     return np.asarray(layer)
+
+
+def _draw_demo_timeline(
+    image: np.ndarray, turns: Sequence[dict[str, Any]], timestamp: float,
+) -> None:
+    """Bottom segmented timeline; no top-left title or turn counter."""
+    timed = [
+        turn for turn in turns
+        if float(turn.get("end_seconds") or 0) > float(turn.get("start_seconds") or 0)
+    ]
+    if not timed:
+        return
+    height, width = image.shape[:2]
+    scale = width / 1280.0
+    layer = Image.new("RGBA", (width, height))
+    draw = ImageDraw.Draw(layer)
+    font = _load_font(max(1, round(11 * scale)))
+    left, right = width * .051, width * .944
+    gap = max(1, 4 * scale)
+    available = max(1, right - left - gap * (len(timed) - 1))
+    durations = [
+        float(turn["end_seconds"]) - float(turn.get("start_seconds") or 0)
+        for turn in timed
+    ]
+    total = sum(durations)
+    top = height * .966 - max(1, 5 * scale)
+    thickness = max(1, round(5 * scale))
+    for index, (turn, duration) in enumerate(zip(timed, durations)):
+        end = left + available * duration / total
+        start_time = float(turn.get("start_seconds") or 0)
+        progress = min(1.0, max(0.0, (timestamp - start_time) / duration))
+        kind = "CAMERA" if turn.get("camera") else "START" if index == 0 else "TEXT"
+        label = f"T{turn.get('number', index + 1)} · {kind}"
+        if _text_width(draw, label, font) <= end - left:
+            draw.text((left, top - 19 * scale), label, font=font, fill=(255, 255, 255, 180))
+        draw.rounded_rectangle(
+            (left, top, end, top + thickness), radius=thickness / 2,
+            fill=(255, 255, 255, 90),
+        )
+        current = left + (end - left) * progress
+        if progress > 0:
+            draw.rounded_rectangle(
+                (left, top, current, top + thickness), radius=thickness / 2,
+                fill="white",
+            )
+        if start_time <= timestamp < start_time + duration:
+            radius = max(1, 4 * scale)
+            y = top + thickness / 2
+            draw.ellipse((current - radius, y - radius, current + radius, y + radius), fill="white")
+        left = end + gap
+    _composite_rgba(image, layer)
 
 
 def _positive_float(value: Any, fallback: float) -> float:
@@ -984,14 +643,6 @@ def _quaternion_rotation_matrix(quaternion: np.ndarray) -> np.ndarray:
     )
 
 
-def _yaw_pitch(quaternion: np.ndarray) -> tuple[float, float]:
-    rotation = _quaternion_rotation_matrix(quaternion)
-    forward = rotation @ np.array([0.0, 0.0, -1.0])
-    yaw = math.atan2(-float(forward[0]), -float(forward[2]))
-    pitch = math.asin(float(np.clip(forward[1], -1.0, 1.0)))
-    return yaw, pitch
-
-
 def _actions_at_time(
     key_events: Sequence[CameraKeyEvent],
     timestamp_ms: float,
@@ -1023,29 +674,6 @@ def _actions_at_time(
     return actions
 
 
-def _scaled(value: float, width: int, minimum: int = 1) -> int:
-    return max(minimum, int(round(value * width / 640.0)))
-
-
-def _blend_rect(
-    image: np.ndarray,
-    top_left: tuple[int, int],
-    bottom_right: tuple[int, int],
-    color: tuple[int, int, int],
-    alpha: float,
-) -> None:
-    x1, y1 = top_left
-    x2, y2 = bottom_right
-    x1, y1 = max(0, x1), max(0, y1)
-    x2, y2 = min(image.shape[1], x2), min(image.shape[0], y2)
-    if x2 <= x1 or y2 <= y1:
-        return
-    region = image[y1:y2, x1:x2]
-    fill = np.empty_like(region)
-    fill[:] = color
-    cv2.addWeighted(fill, alpha, region, 1.0 - alpha, 0, dst=region)
-
-
 def _composite_rgba(image: np.ndarray, layer: Image.Image) -> None:
     _composite_rgba_array(image, np.asarray(layer.convert("RGBA")))
 
@@ -1060,165 +688,6 @@ def _composite_rgba_array(image: np.ndarray, rgba: np.ndarray) -> None:
     ).astype(np.uint8)
 
 
-def _draw_text(
-    image: np.ndarray,
-    text: str,
-    origin: tuple[int, int],
-    width: int,
-    *,
-    color: tuple[int, int, int] = (238, 244, 242),
-    scale: float = 0.34,
-    thickness: int = 1,
-) -> None:
-    cv2.putText(
-        image,
-        text,
-        origin,
-        cv2.FONT_HERSHEY_SIMPLEX,
-        max(0.25, scale * width / 640.0),
-        color,
-        max(1, thickness),
-        cv2.LINE_AA,
-    )
-
-
-def _draw_key_group(
-    image: np.ndarray,
-    labels: Sequence[str],
-    active: Sequence[bool],
-    origin_x: int,
-    bottom_y: int,
-) -> None:
-    width = image.shape[1]
-    scale = max(0.62, min(width / 1280.0, image.shape[0] / 704.0))
-    key = max(22, int(round(32 * scale)))
-    gap = max(3, int(round(4 * scale)))
-    positions = (
-        (origin_x + key + gap, bottom_y - key * 2 - gap),
-        (origin_x, bottom_y - key),
-        (origin_x + key + gap, bottom_y - key),
-        (origin_x + (key + gap) * 2, bottom_y - key),
-    )
-    for label, enabled, (x, y) in zip(labels, active, positions):
-        fill = (70, 145, 235) if enabled else (20, 29, 28)
-        border = (230, 244, 255) if enabled else (190, 202, 198)
-        _blend_rect(image, (x, y), (x + key, y + key), fill, 0.88 if enabled else 0.72)
-        cv2.rectangle(
-            image,
-            (x, y),
-            (x + key, y + key),
-            border,
-            max(1, _scaled(1, width)),
-            cv2.LINE_AA,
-        )
-        text_size, _ = cv2.getTextSize(
-            label,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            max(0.25, 0.30 * width / 640.0),
-            1,
-        )
-        _draw_text(
-            image,
-            label,
-            (
-                x + (key - text_size[0]) // 2,
-                y + (key + text_size[1]) // 2,
-            ),
-            width,
-            color=(255, 255, 255),
-            scale=0.30,
-        )
-
-
-def _draw_arrow_group(
-    image: np.ndarray,
-    active: Sequence[bool],
-    origin_x: int,
-    bottom_y: int,
-) -> None:
-    """Draw rotation controls as up/left/down/right arrow icons."""
-    width = image.shape[1]
-    scale = max(0.62, min(width / 1280.0, image.shape[0] / 704.0))
-    key = max(22, int(round(32 * scale)))
-    gap = max(3, int(round(4 * scale)))
-    positions = (
-        (origin_x + key + gap, bottom_y - key * 2 - gap),
-        (origin_x, bottom_y - key),
-        (origin_x + key + gap, bottom_y - key),
-        (origin_x + (key + gap) * 2, bottom_y - key),
-    )
-    directions = ("up", "left", "down", "right")
-    for direction, enabled, (x, y) in zip(directions, active, positions):
-        fill = (70, 145, 235) if enabled else (20, 29, 28)
-        border = (230, 244, 255) if enabled else (190, 202, 198)
-        icon = (255, 255, 255) if enabled else (213, 225, 221)
-        _blend_rect(
-            image,
-            (x, y),
-            (x + key, y + key),
-            fill,
-            0.88 if enabled else 0.72,
-        )
-        cv2.rectangle(
-            image,
-            (x, y),
-            (x + key, y + key),
-            border,
-            max(1, _scaled(1, width)),
-            cv2.LINE_AA,
-        )
-
-        cx, cy = x + key // 2, y + key // 2
-        length = max(3, key // 4)
-        wing = max(2, key // 6)
-        if direction == "up":
-            tail, tip = (cx, cy + length), (cx, cy - length)
-            heads = (
-                (cx - wing, cy - length + wing),
-                (cx + wing, cy - length + wing),
-            )
-        elif direction == "down":
-            tail, tip = (cx, cy - length), (cx, cy + length)
-            heads = (
-                (cx - wing, cy + length - wing),
-                (cx + wing, cy + length - wing),
-            )
-        elif direction == "left":
-            tail, tip = (cx + length, cy), (cx - length, cy)
-            heads = (
-                (cx - length + wing, cy - wing),
-                (cx - length + wing, cy + wing),
-            )
-        else:
-            tail, tip = (cx - length, cy), (cx + length, cy)
-            heads = (
-                (cx + length - wing, cy - wing),
-                (cx + length - wing, cy + wing),
-            )
-        line_width = max(1, _scaled(1.2, width))
-        cv2.line(image, tail, tip, icon, line_width, cv2.LINE_AA)
-        cv2.line(image, tip, heads[0], icon, line_width, cv2.LINE_AA)
-        cv2.line(image, tip, heads[1], icon, line_width, cv2.LINE_AA)
-
-
-def _trajectory_points(
-    poses: Sequence[CameraPose],
-    left: int,
-    top: int,
-    width: int,
-    height: int,
-) -> np.ndarray:
-    positions = np.stack([pose.position for pose in poses])
-    projector, _, _ = _trajectory_projector(
-        positions,
-        left,
-        top,
-        width,
-        height,
-    )
-    return projector(positions)
-
-
 def _trajectory_projector(
     positions: np.ndarray,
     left: int,
@@ -1231,14 +700,14 @@ def _trajectory_projector(
     maximum = positions.max(axis=0)
     center = (minimum + maximum) / 2.0
     size = max(float(np.linalg.norm(maximum - minimum)), 1.0)
-    eye = center + np.array([size, size * 0.8, size], dtype=np.float64)
+    eye = center + np.array([0.0, size * 0.9, size * 1.45], dtype=np.float64)
     forward = center - eye
     forward /= max(float(np.linalg.norm(forward)), 1e-8)
     right = np.cross(forward, np.array([0.0, 1.0, 0.0]))
     right /= max(float(np.linalg.norm(right)), 1e-8)
     camera_up = np.cross(right, forward)
     camera_up /= max(float(np.linalg.norm(camera_up)), 1e-8)
-    focal = 0.5 * height / math.tan(math.radians(42.0) / 2.0)
+    focal = 0.5 * height / math.tan(math.radians(38.0) / 2.0)
 
     def project(points: np.ndarray) -> np.ndarray:
         points = np.atleast_2d(points).astype(np.float64)
@@ -1252,238 +721,159 @@ def _trajectory_projector(
     return project, minimum, size
 
 
-def _draw_trajectory_grid(
-    image: np.ndarray,
-    projector,
-    minimum: np.ndarray,
-    center: np.ndarray,
-    size: float,
-) -> None:
-    grid_size = size * 2.2
-    half = grid_size / 2.0
-    grid_y = float(minimum[1] - size * 0.08)
-    for offset in np.linspace(-half, half, 9):
-        horizontal = projector(
-            np.array(
-                [
-                    [center[0] - half, grid_y, center[2] + offset],
-                    [center[0] + half, grid_y, center[2] + offset],
-                ]
-            )
-        )
-        vertical = projector(
-            np.array(
-                [
-                    [center[0] + offset, grid_y, center[2] - half],
-                    [center[0] + offset, grid_y, center[2] + half],
-                ]
-            )
-        )
-        cv2.line(
-            image,
-            tuple(horizontal[0]),
-            tuple(horizontal[1]),
-            (38, 44, 45),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.line(
-            image,
-            tuple(vertical[0]),
-            tuple(vertical[1]),
-            (38, 44, 45),
-            1,
-            cv2.LINE_AA,
-        )
-
-
-def _draw_camera_marker(
-    image: np.ndarray,
-    projector,
-    pose: CameraPose,
-    size: float,
-    line_width: int,
-) -> None:
-    local_points = (
-        np.array(
-            [
-                [0.0, 0.0, 0.0],
-                [-0.065, -0.045, -0.13],
-                [0.065, -0.045, -0.13],
-                [0.0, 0.0, 0.0],
-                [0.065, 0.045, -0.13],
-                [-0.065, 0.045, -0.13],
-                [0.0, 0.0, 0.0],
-                [-0.065, -0.045, -0.13],
-                [-0.065, 0.045, -0.13],
-                [0.065, 0.045, -0.13],
-                [0.065, -0.045, -0.13],
-            ],
-            dtype=np.float64,
-        )
-        * size
-    )
-    world_points = (
-        local_points @ _quaternion_rotation_matrix(pose.quaternion).T + pose.position
-    )
-    marker = projector(world_points)
-    cv2.polylines(
-        image,
-        [marker],
-        False,
-        (242, 247, 255),
-        line_width,
-        cv2.LINE_AA,
-    )
-    cv2.circle(
-        image,
-        tuple(marker[0]),
-        max(2, line_width + 1),
-        (105, 180, 255),
-        -1,
-        cv2.LINE_AA,
-    )
-
-
 def _draw_overlay_frame(
     image: np.ndarray,
     overlay: CameraOverlay,
-    pose_index: int,
     progress: float,
-    actions: dict[str, bool],
-    *,
-    turn_number: int = 1,
-    theme: str = "dark",
 ) -> None:
-    width = image.shape[1]
-    (
-        panel_left,
-        panel_top,
-        panel_width,
-        panel_height,
-        title_height,
-        pad,
-        _,
-    ) = _draw_shared_overlay_shell(
+    actions = _actions_at_time(overlay.key_events, progress * overlay.duration_ms)
+    _draw_demo_camera_map(image, overlay, progress)
+    _composite_rgba_array(
         image,
-        progress,
-        "CAMERA PATH",
-        turn_number=turn_number,
-        theme=theme,
+        _cached_demo_controls(
+            image.shape[1], image.shape[0],
+            tuple(bool(actions.get(key)) and progress < 1 for key in (
+                "forward", "left", "backward", "right",
+                "look_up", "look_left", "look_down", "look_right",
+            )),
+        ),
     )
 
-    # Camera mode replaces only the shared shell's content region.
-    plot_left = panel_left + pad
-    plot_top = panel_top + title_height + _scaled(3, width)
-    plot_width = panel_width - pad * 2
-    plot_bottom = panel_top + panel_height - _scaled(11, width, 9)
-    plot_height = max(1, plot_bottom - plot_top)
-    plot = image[
-        plot_top : plot_top + plot_height,
-        plot_left : plot_left + plot_width,
-    ]
+
+def _interpolated_camera_pose(overlay: CameraOverlay, progress: float) -> CameraPose:
+    """Interpolate position and shortest-arc orientation at playback time."""
+    poses = overlay.poses
+    target = poses[0].t + min(1.0, max(0.0, progress)) * overlay.duration_ms
+    right = _pose_index_at_progress(poses, overlay.duration_ms, progress)
+    a, b = poses[max(0, right - 1)], poses[right]
+    alpha = min(1.0, max(0.0, (target - a.t) / max(1.0, b.t - a.t)))
+    qa, qb = a.quaternion, b.quaternion
+    dot = float(np.dot(qa, qb))
+    if dot < 0:
+        qb, dot = -qb, -dot
+    if dot > .9995:
+        quaternion = qa + alpha * (qb - qa)
+    else:
+        angle = math.acos(min(1.0, max(-1.0, dot)))
+        quaternion = (
+            math.sin((1 - alpha) * angle) * qa + math.sin(alpha * angle) * qb
+        ) / math.sin(angle)
+    quaternion /= max(1e-8, float(np.linalg.norm(quaternion)))
+    return CameraPose(target, a.position + alpha * (b.position - a.position), quaternion)
+
+
+def _draw_demo_camera_map(
+    image: np.ndarray, overlay: CameraOverlay, progress: float,
+) -> None:
+    """Translucent white map matching the browser's SVG projection and marker."""
+    overlay = replace(
+        overlay,
+        poses=overlay.visual_poses or _visual_camera_poses(overlay.poses, 1.0),
+    )
+    height, width = image.shape[:2]
+    scale = width / 1280.0
+    map_width = max(1, round(width * .24))
+    plot_height = max(1, round(map_width / 2))
+    header_height = max(1, round(30 * scale))
+    map_height = plot_height + 2 * header_height
+    left, top = round(width * .938) - map_width, round(height * .054)
+    layer = Image.new("RGBA", (width, height))
+    draw = ImageDraw.Draw(layer)
+    draw.rounded_rectangle(
+        (left, top, left + map_width, top + map_height),
+        radius=max(1, round(10 * scale)), fill=(23, 23, 23, 64),
+        outline=(255, 255, 255, 128), width=max(1, round(scale)),
+    )
+    font = _load_font(max(1, round(11 * scale)))
+    bold = _load_font(max(1, round(11 * scale)), bold=True)
+    pad = max(1, round(13 * scale))
+    draw.text((left + pad, top + header_height / 2), "CAMERA PATH",
+              font=bold, anchor="lm", fill="white")
+    for y in (top + header_height, top + header_height + plot_height):
+        draw.line((left, y, left + map_width, y), fill=(255, 255, 255, 51))
+    name = _wrap_prompt(draw, overlay.name, font, max(1, map_width - 2 * pad - 40 * scale), 1)
+    footer_y = top + header_height + plot_height + header_height / 2
+    draw.text((left + pad, footer_y), name[0] if name else "",
+              font=font, anchor="lm", fill="white")
+    draw.text(
+        (left + map_width - pad, footer_y),
+        f"{round(min(1.0, max(0.0, progress)) * 100)}%",
+        font=bold, anchor="rm", fill="white",
+    )
+
+    # A separate plot layer clips the perspective grid to the map viewport.
+    plot = Image.new("RGBA", (map_width, plot_height))
+    plot_draw = ImageDraw.Draw(plot)
     positions = np.stack([pose.position for pose in overlay.poses])
-    projector, minimum, trajectory_size = _trajectory_projector(
-        positions,
-        0,
-        0,
-        plot_width,
-        plot_height,
-    )
-    center = (minimum + positions.max(axis=0)) / 2.0
-    _draw_trajectory_grid(
-        plot,
-        projector,
-        minimum,
-        center,
-        trajectory_size,
-    )
-    points = projector(positions)
-    if len(points) > 1:
-        cv2.polylines(plot, [points], False, (105, 113, 102), 1, cv2.LINE_AA)
-        cv2.polylines(
-            plot,
-            [points[: pose_index + 1]],
-            False,
-            (200, 242, 89),
-            max(1, _scaled(2, width)),
-            cv2.LINE_AA,
-        )
-    radius = max(2, _scaled(3, width))
-    cv2.circle(plot, tuple(points[0]), radius, (255, 255, 255), -1, cv2.LINE_AA)
-    cv2.circle(plot, tuple(points[-1]), radius, (200, 242, 89), -1, cv2.LINE_AA)
-    _draw_camera_marker(
-        plot,
-        projector,
-        overlay.poses[min(pose_index, len(overlay.poses) - 1)],
-        trajectory_size,
-        max(1, _scaled(1, width)),
-    )
-    # Action telemetry remains separate from the top-right content card.
-    scale = max(0.62, min(width / 1280.0, image.shape[0] / 704.0))
-    margin = max(12, int(round(14 * scale)))
-    footer_offset = max(46, int(round(76 * scale)))
-    keys_bottom = image.shape[0] - footer_offset
-    _draw_key_group(
-        image,
-        ("W", "A", "S", "D"),
-        (
-            actions["forward"],
-            actions["left"],
-            actions["backward"],
-            actions["right"],
-        ),
-        margin,
-        keys_bottom,
-    )
-    key = max(22, int(round(32 * scale)))
-    gap = max(3, int(round(4 * scale)))
-    _draw_arrow_group(
-        image,
-        (
-            actions["look_up"],
-            actions["look_left"],
-            actions["look_down"],
-            actions["look_right"],
-        ),
-        width - margin - (key * 3 + gap * 2),
-        keys_bottom,
-    )
-    footer_height = max(24, int(round(32 * scale)))
-    footer_top = plot_top + max(1, plot_height - footer_height)
-    cv2.line(
-        image,
-        (plot_left, footer_top),
-        (plot_left + plot_width, footer_top),
-        (48, 58, 54),
-        1,
-        cv2.LINE_AA,
-    )
-    layer = Image.new("RGBA", (image.shape[1], image.shape[0]), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer, "RGBA")
-    footer_font = _load_font(max(9, int(round(11 * scale))), bold=True)
-    footer_y = footer_top + max(5, int(round(7 * scale)))
-    path_name = overlay.name
-    max_name_width = max(1, plot_width - max(50, int(round(62 * scale))))
-    while path_name and _text_width(draw, path_name, footer_font) > max_name_width:
-        path_name = path_name[:-1]
-    if path_name != overlay.name:
-        path_name = path_name.rstrip() + "…"
-    draw.text(
-        (plot_left + max(7, int(round(10 * scale))), footer_y),
-        path_name,
-        font=footer_font,
-        fill=(190, 199, 194, 255),
-    )
-    percent = f"{round(min(1.0, max(0.0, progress)) * 100)}%"
-    percent_width = _text_width(draw, percent, footer_font)
-    draw.text(
-        (
-            plot_left + plot_width - max(7, int(round(10 * scale))) - percent_width,
-            footer_y,
-        ),
-        percent,
-        font=footer_font,
-        fill=(217, 239, 188, 255),
-    )
+    project, minimum, size = _trajectory_projector(positions, 0, 0, map_width, plot_height)
+    center = (minimum + positions.max(axis=0)) / 2
+    half = size * 1.1
+    y = minimum[1] - size * .08
+    for offset in np.linspace(-half, half, 9):
+        for points in (
+            [[center[0] - half, y, center[2] + offset], [center[0] + half, y, center[2] + offset]],
+            [[center[0] + offset, y, center[2] - half], [center[0] + offset, y, center[2] + half]],
+        ):
+            plot_draw.line([tuple(point) for point in project(points)], fill=(255, 255, 255, 38))
+    if len(positions) > 1:
+        plot_draw.line([tuple(point) for point in project(positions)], fill=(255, 255, 255, 85))
+    pose = _interpolated_camera_pose(overlay, progress)
+    index = _pose_index_at_progress(overlay.poses, overlay.duration_ms, progress)
+    travelled = np.concatenate((positions[:index], pose.position[None]), axis=0)
+    if len(travelled) > 1:
+        plot_draw.line([tuple(point) for point in project(travelled)],
+                       fill="white", width=max(1, round(1.8 * scale)))
+    local_marker = np.array([
+        [0, 0, 0], [-.065, -.045, -.13], [.065, -.045, -.13],
+        [0, 0, 0], [.065, .045, -.13], [-.065, .045, -.13],
+        [0, 0, 0], [-.065, -.045, -.13], [-.065, .045, -.13],
+        [.065, .045, -.13], [.065, -.045, -.13],
+    ]) * size
+    marker = local_marker @ _quaternion_rotation_matrix(pose.quaternion).T + pose.position
+    plot_draw.line([tuple(point) for point in project(marker)],
+                   fill="white", width=max(1, round(1.3 * scale)))
+    radius = max(1, 2.5 * scale)
+    for x, y in project([positions[0], positions[-1], pose.position]):
+        plot_draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill="white")
+    layer.alpha_composite(plot, (left, top + header_height))
     _composite_rgba(image, layer)
+
+
+@lru_cache(maxsize=64)
+def _cached_demo_controls(
+    width: int, height: int, active: tuple[bool, ...],
+) -> np.ndarray:
+    """Reference-style MOVE/LOOK key groups, both at the bottom right."""
+    scale = width / 1280.0
+    key, gap, group_gap = 51 * scale, 7 * scale, 45 * scale
+    group_width = key * 3 + gap * 2
+    left = width * .938 - group_width * 2 - group_gap
+    bottom = height * .898
+    top = bottom - 27 * scale - key * 2 - gap
+    layer = Image.new("RGBA", (width, height))
+    draw = ImageDraw.Draw(layer)
+    font = _load_font(max(1, round(23 * scale)), bold=True)
+    caption_font = _load_font(max(1, round(13 * scale)), bold=True)
+    for group, caption in enumerate(("MOVE", "LOOK")):
+        origin = left + group * (group_width + group_gap)
+        labels = ("W", "A", "S", "D") if group == 0 else ("↑", "←", "↓", "→")
+        for index, label in enumerate(labels):
+            column, row = ((1, 0), (0, 1), (1, 1), (2, 1))[index]
+            x, y = origin + column * (key + gap), top + row * (key + gap)
+            enabled = active[group * 4 + index]
+            draw.rounded_rectangle(
+                (x, y, x + key, y + key), radius=max(1, round(10 * scale)),
+                fill=(255, 255, 255, 255 if enabled else 38),
+                outline=(255, 255, 255, 255 if enabled else 128),
+                width=max(1, round(scale)),
+            )
+            draw.text(
+                (x + key / 2, y + key / 2), label,
+                font=font, anchor="mm",
+                fill=(17, 17, 17, 255) if enabled else (255, 255, 255, 230),
+            )
+        draw.text(
+            (origin + group_width / 2, bottom - 7 * scale), caption,
+            font=caption_font, anchor="mm", fill="white",
+        )
+    return np.asarray(layer)

@@ -14,6 +14,7 @@ import {
   type ChangeEvent,
 } from 'react'
 import * as THREE from 'three'
+import { scaledRotationStep, visualRotationGain } from '../cameraVisualization'
 import {
   trimTrailingStaticCameraFrames,
 } from '../cameraTrajectory'
@@ -211,6 +212,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
 ) {
   const mountRef = useRef<HTMLDivElement>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
+  const visualScaleRef = useRef(rotationScale)
   const resetViewRef = useRef<(() => void) | null>(null)
   const onRecordedRef = useRef(onRecorded)
   const onRecordingStateChangeRef = useRef(onRecordingStateChange)
@@ -232,6 +234,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
     translationScale === undefined ? '' : String(translationScale),
   )
   useEffect(() => {
+    visualScaleRef.current = rotationScale
     setRotationScaleInput(rotationScale === undefined ? '' : String(rotationScale))
   }, [rotationScale])
   useEffect(() => {
@@ -467,6 +470,28 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
     let lastY = 0
     const rotation = new THREE.Euler(0, 0, 0, 'YXZ')
     rotation.setFromQuaternion(camera.quaternion)
+    // Keep the recording camera raw. Only this separate render camera gets
+    // the user's rotation gain * 0.75; model conditioning is unchanged.
+    const visualCamera = camera.clone()
+    let visualGain = visualRotationGain(visualScaleRef.current)
+    let rawOrientations = [camera.quaternion.clone()]
+    const visualOrientation = camera.quaternion.clone()
+    const updateVisualOrientation = () => {
+      const current = camera.quaternion
+      const previous = rawOrientations.at(-1)!
+      const gain = visualRotationGain(visualScaleRef.current)
+      if (gain !== visualGain) {
+        visualGain = gain
+        visualOrientation.copy(rawOrientations[0])
+        for (let i = 1; i < rawOrientations.length; i++) {
+          visualOrientation.multiply(scaledRotationStep(rawOrientations[i - 1], rawOrientations[i], gain))
+        }
+      }
+      if (previous.angleTo(current) > 1e-10) {
+        visualOrientation.multiply(scaledRotationStep(previous, current, gain)).normalize()
+        rawOrientations.push(current.clone())
+      }
+    }
     resetViewRef.current = () => {
       keys.clear()
       rightDragging = false
@@ -474,6 +499,8 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
       camera.position.set(...INITIAL_CAMERA_POSITION)
       camera.lookAt(...INITIAL_CAMERA_TARGET)
       rotation.setFromQuaternion(camera.quaternion)
+      rawOrientations = [camera.quaternion.clone()]
+      visualOrientation.copy(camera.quaternion)
       pathGeometry.setAttribute(
         'position',
         new THREE.Float32BufferAttribute([], 3),
@@ -547,6 +574,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
       rotation.y -= (event.clientX - lastX) * POINTER_TURN_SENSITIVITY
       rotation.x -= (event.clientY - lastY) * POINTER_TURN_SENSITIVITY
       camera.quaternion.setFromEuler(rotation)
+      updateVisualOrientation()
       lastX = event.clientX
       lastY = event.clientY
     }
@@ -597,7 +625,10 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
       }
 
       subject.rotation.y += delta * 0.18
-      renderer.render(scene, camera)
+      updateVisualOrientation()
+      visualCamera.copy(camera)
+      visualCamera.quaternion.copy(visualOrientation)
+      renderer.render(scene, visualCamera)
       animationFrame = requestAnimationFrame(animate)
     }
     animationFrame = requestAnimationFrame(animate)
@@ -734,7 +765,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
         <label>
           <span>
             <strong>Rotation</strong>
-            <small>Yaw, pitch &amp; roll</small>
+            <small>Yaw, pitch &amp; roll · preview 0.75×</small>
           </span>
           <span className="camera-scale-input">
             <input

@@ -5,6 +5,7 @@ export interface SharedCameraOverlay {
   name: string
   duration_ms?: number
   sample_rate?: number
+  visualization_rotation_scale?: number
   frames: CameraFrame[]
   key_events: CameraKeyEvent[]
 }
@@ -46,6 +47,8 @@ function serializeCameraPath(path: CameraPath): SharedCameraOverlay | undefined 
     name: path.name || parsed?.name || 'Camera path',
     duration_ms: path.durationMs ?? parsed?.durationMs,
     sample_rate: path.sampleRate ?? parsed?.sampleRate,
+    ...(path.visualizationRotationScale !== undefined
+      ? { visualization_rotation_scale: path.visualizationRotationScale } : {}),
     frames,
     key_events: path.keyEvents ?? parsed?.keyEvents ?? [],
   }

@@ -1,0 +1,52 @@
+$schema: reactor/v2
+
+model:
+  name: hy-nomas
+  version: v0.2.2
+  description: Hy-Nomas distilled world generation with live prompts and camera trajectories.
+  resources:
+    gpu:
+      type: NVIDIA_B200
+      count: 8
+    cpu:
+      request: "8"
+      limit: "32"
+    memory:
+      request: 128Gi
+      limit: 512Gi
+
+runtime:
+  import: hy_nomas:HyNomas
+  config: hy_nomas.yaml
+  weights_path: ~/.cache/reactor_registry/hy-nomas
+  recording:
+    enabled: true
+    chunk_seconds: 5
+    clip_max_seconds: 120
+    video_track: main_video
+
+build:
+  runtime_version: "3.10.0"
+  cuda_version: "13.0.2"
+  python_version: "3.13"
+  python_requirements: requirements.txt
+  # PyTorch's index also carries older CUDA Python/packaging packages.
+  build_env:
+    UV_INDEX_STRATEGY: unsafe-best-match
+  system_packages:
+    - build-essential
+    - git
+    - ninja-build
+    - libgl1
+    - libglib2.0-0
+  run:
+    - git clone https://github.com/Tencent-Hunyuan/Hy-Nomas.git /opt/hy-nomas && git -C /opt/hy-nomas checkout 01b7dba36b05cf532dd8985e379aecc8b80d395f
+    - git clone --branch v1.1.0 --depth 1 https://github.com/SandAI-org/MagiAttention.git /opt/magi-attention && test "$(git -C /opt/magi-attention rev-parse HEAD)" = c5c90bfab1e4216c474b0660408ef0d87c1c085d && git -C /opt/magi-attention submodule update --init magi_attention/functional/flash-attention
+    - uv pip install --no-build-isolation --no-deps /opt/magi-attention/magi_attention/functional/flash-attention/csrc/utils/magi_to_hstu /opt/magi-attention/magi_attention/functional/flash-attention/csrc/utils/create_block_mask /opt/magi-attention/magi_attention/functional/flash-attention/flash_attn
+    - cd /opt/magi-attention && MAX_JOBS=12 TORCH_CUDA_ARCH_LIST=10.0 MAGI_ATTENTION_PREBUILD_FFA=0 MAGI_ATTENTION_SKIP_MAGI_ATTN_COMM_BUILD=1 uv pip install --no-deps --no-build-isolation .
+    # Native modules also import FA2 helpers; video attention dispatches to FA4.
+    - MAX_JOBS=16 NVCC_THREADS=4 TORCH_CUDA_ARCH_LIST=10.0 FLASH_ATTN_CUDA_ARCHS='80;100' uv pip install --no-build-isolation flash-attn==2.8.3.post2
+    - git init /opt/cutlass && git -C /opt/cutlass remote add origin https://github.com/NVIDIA/cutlass.git && git -C /opt/cutlass fetch --depth 1 origin 91843b71d90737e0a9b86f7d9df213cff5a3526f && git -C /opt/cutlass checkout --detach FETCH_HEAD
+  runtime_env:
+    TOKENIZERS_PARALLELISM: "false"
+    PYTORCH_ALLOC_CONF: expandable_segments:True

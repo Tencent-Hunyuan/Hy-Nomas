@@ -29,6 +29,7 @@ describe('buildSharedVideoOverlay', () => {
           trajectory: '{}',
           durationMs: 3000,
           sampleRate: 24,
+          visualizationRotationScale: 3.2,
           frames: [
             {
               frame: 0,
@@ -77,6 +78,7 @@ describe('buildSharedVideoOverlay', () => {
             name: 'Custom path 08:01',
             duration_ms: 3000,
             sample_rate: 24,
+            visualization_rotation_scale: 3.2,
             frames: turns[1].cameraPath?.frames,
             key_events: turns[1].cameraPath?.keyEvents,
           },

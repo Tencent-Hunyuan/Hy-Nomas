@@ -26,7 +26,7 @@
 <p align="center">
     🖥️&nbsp;<a href="https://hy-nomas.hy.tencent.com/demo"><b>交互式演示</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     🌐&nbsp;<a href="https://hy-nomas.hy.tencent.com/"><b>官方网站</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    📄&nbsp;<b>技术报告（即将发布）</b>
+    📄&nbsp;<a href="https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf"><b>技术报告</b></a>
 </p>
 
 https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd

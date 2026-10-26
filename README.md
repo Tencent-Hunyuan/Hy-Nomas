@@ -26,7 +26,7 @@
 <p align="center">
     🖥️&nbsp;<a href="https://hy-nomas.hy.tencent.com/demo"><b>Interactive Demo</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
     🌐&nbsp;<a href="https://hy-nomas.hy.tencent.com/"><b>Official Website</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    📄&nbsp;<b>Technical Report (Coming Soon)</b>
+    📄&nbsp;<a href="https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf"><b>Technical Report</b></a>
 </p>
 
 https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
@@ -298,6 +298,28 @@ with open("hy_nomas_sglang.mp4", "wb") as f:
 ```
 
 The same server accepts realtime WebSocket sessions at `/v1/realtime_video/generate`. Each segment is generated as soon as it arrives, and frames stream back as they are decoded. See the [SGLang Hy-Nomas guide](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas) for the realtime protocol, camera control, layerwise offload, and the KV cache budget.
+
+### Inference with Reactor Runtime
+
+The [Reactor integration guide](reactor/README.md) provides a streaming service and browser demo with live prompt updates, combined WASD/arrow camera control, and uploaded camera trajectories while retaining world history. The tested profile uses eight B200 GPUs, Docker with NVIDIA Container Toolkit, the [Reactor CLI](https://docs.reactor.inc/deploy/platform/installation), and Node.js 22.
+
+From this repository root:
+
+```bash
+cd reactor
+reactor build
+reactor run --gpus '"device=0,1,2,3,4,5,6,7"' --shm-size 8g --port 8080
+```
+
+Wait for `curl -fsS http://localhost:8080/health` to report `available`. In another terminal, from the repository root:
+
+```bash
+cd reactor/demo
+npm ci
+npm run dev -- --port 5173
+```
+
+Open **http://localhost:5173**, use Runtime endpoint **http://localhost:8080**, press **Connect**, enter a prompt, then press **Start world**. Click the video to explore with WASD and arrow keys. **Update prompt** changes future segments without restarting. See the [SSH and WebRTC guidance](reactor/README.md#remote-servers-and-ssh) when the GPU runs remotely.
 
 ### Interactive Demo
 

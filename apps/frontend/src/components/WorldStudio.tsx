@@ -31,6 +31,7 @@ import type {
   WorldConfig,
 } from '../types'
 import { CameraPlaybackOverlay } from './CameraPlaybackOverlay'
+import { DemoOverlayTimeline } from './DemoOverlayTimeline'
 import { CameraPathDrawer, type CameraPathDrawerHandle } from './CameraPathDrawer'
 import { DirectionHud } from './DirectionHud'
 import {
@@ -594,23 +595,6 @@ export function WorldStudio({
       playingTurnIdRef.current,
     )
   }, [promptTurns, videoCurrentTime])
-  const playbackTurnProgress = playbackTurn
-    && playbackTurn.startSeconds !== undefined
-    && playbackTurn.endSeconds !== undefined
-    ? Math.max(
-        0,
-        Math.min(
-          100,
-          (
-            (videoCurrentTime - playbackTurn.startSeconds)
-            / Math.max(
-              playbackTurn.endSeconds - playbackTurn.startSeconds,
-              1 / Math.max(playbackTurn.fps ?? 24, 1),
-            )
-          ) * 100,
-        ),
-      )
-    : playbackTurn?.playbackProgress ?? 0
 
   const updatePromptTurn = (
     id: number,
@@ -1059,7 +1043,10 @@ export function WorldStudio({
         submittedAt: new Date().toLocaleTimeString('en-GB', { hour12: false }),
         stage: 'simulating',
         cameraLabel: activeCameraPath?.name,
-        cameraPath: activeCameraPath,
+        cameraPath: activeCameraPath ? {
+          ...activeCameraPath,
+          visualizationRotationScale: rotationScale ?? 1,
+        } : undefined,
       },
     ])
     setMessages((current) => [
@@ -2212,14 +2199,12 @@ export function WorldStudio({
                 <CameraPlaybackOverlay
                   path={playbackTurn.cameraPath}
                   videoRef={videoRef}
-                  turnNumber={playbackTurn.number}
                   segmentStartSeconds={playbackTurn.startSeconds ?? 0}
                   segmentDurationSeconds={Math.max(
                     0,
                     (playbackTurn.endSeconds ?? 0)
                       - (playbackTurn.startSeconds ?? 0),
                   )}
-                  theme={theme}
                   visible={userPromptVisible}
                   onVisibilityToggle={() => {
                     setUserPromptVisible((visible) => !visible)
@@ -2228,15 +2213,15 @@ export function WorldStudio({
               ) : (
                 <DirectionHud
                   direction={playbackTurn.prompt}
-                  turnNumber={playbackTurn.number}
-                  progressPercent={playbackTurnProgress}
-                  active={playbackTurn.stage === 'playing'}
                   visible={userPromptVisible}
                   onVisibilityToggle={() => {
                     setUserPromptVisible((visible) => !visible)
                   }}
                 />
               )
+            )}
+            {videoUrl && userPromptVisible && (
+              <DemoOverlayTimeline turns={promptTurns} currentTime={videoCurrentTime} />
             )}
             {isGenerating && (
               <div className="video-generation-overlay" aria-live="polite">

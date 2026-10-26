@@ -326,6 +326,8 @@ export interface CameraKeyEvent {
 }
 
 export interface CameraPath {
+  /** Generation-time user setting, used only to derive the 0.75x visual gain. */
+  visualizationRotationScale?: number
   id: string
   name: string
   source: 'preset' | 'recorded' | 'imported'

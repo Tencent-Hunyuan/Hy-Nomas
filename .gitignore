@@ -208,6 +208,8 @@ env.txt
 *.hosts
 outputs_video/
 outputs/
+# Locally downloaded model checkpoints.
+/models/
 __pycache__
 *.pyc
 *.png

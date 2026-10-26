@@ -1,0 +1,21 @@
+# Optional speed profile: reduced steps and context can reduce quality.
+source: /opt/hy-nomas
+num_gpus: 8
+height: 720
+width: 1280
+# Distilled sampler; four steps favors interactive throughput.
+denoising_steps: 4
+# Native GPU-resident recent-token budget, measured in latent-frame equivalents.
+# Text shares this budget. Set null to retain full history.
+history_frames: 36
+history_sampling: recent
+precision: bf16
+cpu_offload: false
+# Exact frozen INT8 expansions can be cached in the quantized preset.
+cache_int8_weights: false
+decoder_batch_size: 3
+cutlass: /opt/cutlass
+# Prepare initial/continuation shapes before readiness, then discard that world.
+warmup_frames: 48
+# Let Runtime adapt playback to measured generation throughput.
+playback_fps: null
