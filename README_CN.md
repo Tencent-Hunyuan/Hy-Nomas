@@ -35,6 +35,7 @@
 
 - 🤝 **2026 年 10 月 26 日 — 社区集成：** Hy-Nomas 已支持 [SGLang](https://github.com/sgl-project/sglang/pull/46124)、[ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas) 和 [Reactor Runtime](reactor/README.md)，详情请见[社区贡献](#-社区贡献)。
 - 📄 **2026 年 10 月 26 日 — 技术报告：** 更新 [Hy-Nomas 技术报告](https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf)。
+- 🌍 **2026 年 10 月 25 日 — WanGP 支持：** [@deepbeepmeep](https://x.com/deepbeepmeep) 在 [WanGP v18.81](https://github.com/deepbeepmeep/WanGP) 中加入 Hy-Nomas 世界生成，支持键盘探索和文本事件控制。详见[公告](https://x.com/deepbeepmeep/status/2114503683295662230)与[集成提交](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99)。
 - 🛠️ **2026 年 10 月 23 日 — Diffusers 推理：** 新增 [Diffusers 推理示例](#使用-diffusers-推理)。
 - 🎮 **2026 年 10 月 21 日 — 交互式演示：** 在[在线演示](https://hy-nomas.hy.tencent.com/demo)中体验多轮文本和相机控制，也可参考[部署指南](apps/README.md)自行运行。
 - 🚀 **2026 年 10 月 21 日 — 首次代码发布：** 训练与推理代码包含 [LoRA 微调](#lora-微调)和[单 GPU 推理](#低显存-gpu-推理)。下载[模型权重](https://huggingface.co/tencent/Hy-Nomas)即可开始探索。
@@ -47,6 +48,7 @@ https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
 
 如果你在项目中开发或使用 Hy-Nomas，欢迎告诉我们。
 
+- **WanGP** — [WanGP](https://github.com/deepbeepmeep/WanGP)，由 [@deepbeepmeep](https://x.com/deepbeepmeep) 提供：v18.81 支持 Hy-Nomas 文本生成世界、键盘导航与相机控制、文本事件控制及可调历史记忆，可保存并继续探索，或将探索过程录制为视频。详见[公告](https://x.com/deepbeepmeep/status/2114503683295662230)与[集成提交](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99)。
 - **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang)，由 [@sgl_project](https://x.com/sgl_project) 提供：Hy-Nomas 支持已合入 `main` 分支，可运行离线视频任务和实时流式会话，详见[集成 PR](https://github.com/sgl-project/sglang/pull/46124)。
 - **ComfyUI** — [ComfyUI-Hy-Nomas](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas)，由 [@LatentSpacer](https://x.com/LatentSpacer) 提供：支持视频片段串联生成和交互式 WASD 相机控制。
 - **Reactor Runtime** — [Hy-Nomas 集成指南](reactor/README.md)，由 [@Rising0321](https://github.com/Rising0321) 贡献：提供流式服务和浏览器演示，支持实时更新提示词、WASD/方向键相机控制，以及上传相机轨迹，同时保留世界历史。详见[集成 PR](https://github.com/Tencent-Hunyuan/Hy-Nomas/pull/3)。
