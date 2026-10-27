@@ -48,6 +48,7 @@ https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
 
 如果你在项目中开发或使用 Hy-Nomas，欢迎告诉我们。
 
+- **Google TPU 演示** — [Mashbox 演示](https://mashbox.gg/world)，由 [@boshjerns](https://x.com/boshjerns) 提供：在 Google TPU 上运行支持键盘控制的 Hy-Nomas 世界生成。[公告](https://x.com/boshjerns/status/2114962446947651907)报告，在 v6e-4 切片（4 颗芯片）上实现实时 720p 生成，每秒视频需要 0.933 秒计算，连续运行 60 秒无延迟帧。
 - **WanGP** — [WanGP](https://github.com/deepbeepmeep/WanGP)，由 [@deepbeepmeep](https://x.com/deepbeepmeep) 提供：v18.81 支持 Hy-Nomas 文本生成世界、键盘导航与相机控制、文本事件控制及可调历史记忆，可保存并继续探索，或将探索过程录制为视频。详见[公告](https://x.com/deepbeepmeep/status/2114503683295662230)与[集成提交](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99)。
 - **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang)，由 [@sgl_project](https://x.com/sgl_project) 提供：Hy-Nomas 支持已合入 `main` 分支，可运行离线视频任务和实时流式会话，详见[集成 PR](https://github.com/sgl-project/sglang/pull/46124)。
 - **ComfyUI** — [ComfyUI-Hy-Nomas](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas)，由 [@LatentSpacer](https://x.com/LatentSpacer) 提供：支持视频片段串联生成和交互式 WASD 相机控制。
