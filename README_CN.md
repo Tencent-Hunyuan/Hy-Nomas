@@ -31,6 +31,10 @@
     📄&nbsp;<a href="https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf"><b>技术报告</b></a>
 </p>
 
+<p align="center">
+    👏 加入我们的 <a href="./assets/wechat.png" target="_blank">微信社区</a>
+</p>
+
 ## 🔥 最新动态
 
 - 🤝 **2026 年 10 月 26 日 — 社区集成：** Hy-Nomas 已支持 [SGLang](https://github.com/sgl-project/sglang/pull/46124)、[ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas) 和 [Reactor Runtime](reactor/README.md)，详情请见[社区贡献](#-社区贡献)。
