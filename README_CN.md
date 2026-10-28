@@ -88,6 +88,8 @@ https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
 - [贡献指南](CONTRIBUTING.md)
 - [安全问题报告](SECURITY.md)
 - [许可证](#许可证)
+- [致谢](#致谢)
+- [引用](#引用)
 - [联系我们](#联系我们)
 
 ---
@@ -294,7 +296,7 @@ npm run dev -- --port 5173
 
 #### Web Demo
 
-访问[在线交互式演示](https://hy-nomas.hy.tencent.com/)，体验 Hy-Nomas。
+访问[在线交互式演示](https://hy-nomas.hy.tencent.com/demo)，体验 Hy-Nomas。
 
 请参阅[演示部署指南](apps/README.md)，了解如何启动 Web 网关和 GPU 工作进程、配置模型资源，以及在单机或多机上运行。演示默认使用 `configs/experiment/inference.yaml`。
 

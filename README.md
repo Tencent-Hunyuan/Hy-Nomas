@@ -88,6 +88,8 @@ Building with Hy-Nomas? We welcome community projects, integrations, tutorials, 
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [License](#license)
+- [Acknowledgement](#acknowledgement)
+- [Citation](#citation)
 - [Contact Us](#contact-us)
 
 ---
@@ -294,7 +296,7 @@ Open **http://localhost:5173**, use Runtime endpoint **http://localhost:8080**, 
 
 #### Web Demo
 
-Try the [online interactive demo](https://hy-nomas.hy.tencent.com/).
+Try the [online interactive demo](https://hy-nomas.hy.tencent.com/demo).
 
 See the [demo deployment guide](apps/README.md) for launching the web gateway and GPU workers, configuring model assets, and running on one or multiple hosts. The demo uses `configs/experiment/inference.yaml` by default.
 
