@@ -31,6 +31,7 @@ import type {
   WorldConfig,
 } from '../types'
 import { CameraPlaybackOverlay } from './CameraPlaybackOverlay'
+import { withFinishedCameraKeyEvents } from '../cameraTrajectory'
 import { DemoOverlayTimeline } from './DemoOverlayTimeline'
 import { CameraPathDrawer, type CameraPathDrawerHandle } from './CameraPathDrawer'
 import { DirectionHud } from './DirectionHud'
@@ -1027,7 +1028,10 @@ export function WorldStudio({
 
   const sendPrompt = async (text = draft, cameraOverride?: CameraPath) => {
     const prompt = text.trim()
-    const activeCameraPath = inputMode === 'camera' ? cameraOverride ?? cameraPath : undefined
+    const selectedCameraPath = inputMode === 'camera' ? cameraOverride ?? cameraPath : undefined
+    const activeCameraPath = selectedCameraPath
+      ? withFinishedCameraKeyEvents(selectedCameraPath)
+      : undefined
     if ((inputMode === 'prompt' ? !prompt : !activeCameraPath) || isGenerating) return
     const messageContent = inputMode === 'prompt' ? prompt : 'Generate from the selected camera path.'
 
