@@ -90,6 +90,14 @@ class ParallelDims:
             self.sp_group = mesh.get_group(mesh_dim="sp")
         else:
             self.sp_group = None
+        if self.tp_enabled:
+            self.tp_mesh = mesh["tp"]
+            self.tp_group = mesh.get_group(mesh_dim="tp")
+        else:
+            self.tp_group = None
+        model_dims = tuple(name for name in ("sp", "tp") if name in names)
+        self.mp_mesh = mesh[model_dims]._flatten(mesh_dim_name="mp") if model_dims else None
+        self.mp_group = self.mp_mesh.get_group() if self.mp_mesh is not None else None
         if self.dp_enabled:
             self.dp_mesh = mesh["dp"]
 
@@ -128,6 +136,9 @@ class COMM_INFO:
     def __init__(self):
         self.sp_group = None
         self.tp_group = None
+        self.mp_group = None
+        self.mp_size = 1
+        self.rank_within_mpgroup = 0
         self.sp_size = 1
         self.tp_size = 1
         self.global_rank = 0
@@ -142,11 +153,16 @@ class COMM_INFO:
 
 nccl_info = COMM_INFO()
 _SEQUENCE_PARALLEL_STATE = False
+_TENSOR_PARALLEL_STATE = False
 
 
 def initialize_sequence_parallel_state_v2(
     parallel_dims, device_mesh, use_dynamic_ring_attention=False
 ):
+    # Reinitialization (tests or a new runtime) must not retain stale groups.
+    nccl_info.__init__()
+    set_sequence_parallel_state(False)
+    set_tensor_parallel_state(False)
     if parallel_dims.sp_enabled or parallel_dims.tp_enabled:
         initialize_sequence_parallel_group_v2(
             parallel_dims, device_mesh, use_dynamic_ring_attention
@@ -177,6 +193,17 @@ def get_sequence_parallel_state():
     return _SEQUENCE_PARALLEL_STATE
 
 
+def get_tensor_parallel_state():
+    return _TENSOR_PARALLEL_STATE
+
+
+def get_model_parallel_info():
+    """Process group, size and local rank for one SP x TP inference replica."""
+    if nccl_info.tp_size > 1:
+        return (nccl_info.mp_group, nccl_info.mp_size, nccl_info.rank_within_mpgroup)
+    return nccl_info.sp_group, nccl_info.sp_size, nccl_info.rank_within_spgroup
+
+
 def initialize_sequence_parallel_group_v2(
     parallel_dims, device_mesh, use_dynamic_ring_attention=False
 ):
@@ -186,8 +213,11 @@ def initialize_sequence_parallel_group_v2(
     nccl_info.global_rank = rank
     nccl_info.parallel_dims = parallel_dims
     nccl_info.device_mesh = device_mesh
-    nccl_info.use_dynamic_ring_attention = use_dynamic_ring_attention
-    if use_dynamic_ring_attention:
+    nccl_info.mp_group = parallel_dims.mp_group
+    nccl_info.mp_size = parallel_dims.sp * parallel_dims.tp
+    nccl_info.rank_within_mpgroup = dist.get_rank(nccl_info.mp_group)
+    nccl_info.use_dynamic_ring_attention = use_dynamic_ring_attention and parallel_dims.sp_enabled
+    if use_dynamic_ring_attention and parallel_dims.sp_enabled:
         nccl_info.sp_stream = torch.cuda.Stream()
         nccl_info.sp_rank_list = device_mesh["sp"].mesh.tolist()
     if nccl_info.sp_size > 1:

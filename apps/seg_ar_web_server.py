@@ -353,7 +353,8 @@ class GenerationService:
             ),
             "num_inference_steps": int(self.config.inference.infer_steps_video),
             "flow_shift": float(self.config.inference.infer_flow_shift_video),
-            "sp_size": self.world_size,
+            "sp_size": int(getattr(self.config.parallelism, "sp_size", 1)),
+            "tp_size": int(getattr(self.config.parallelism, "tp_size", 1)),
             "model_name": str(getattr(self.config, "name", "") or ""),
             "dit_weight": str(self.config.dit_weight),
             "decoder": (
@@ -2664,7 +2665,10 @@ def initialize_runtime(
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     rank = int(os.environ.get("RANK", 0))
     world_size = int(os.environ.get("WORLD_SIZE", 1))
-    sp_size = int(getattr(config.parallelism, "sp_size", 1))
+    sp_size = getattr(config.parallelism, "sp_size", 1)
+    tp_size = getattr(config.parallelism, "tp_size", 1)
+    from hymm.distributed.tensor_parallel import validate_parallel_sizes
+    model_parallel_size = validate_parallel_sizes(sp_size, tp_size, world_size)
 
     if os.environ.get("NOMAS_BIND_LOCAL_NUMA", "0").strip().lower() in {
         "1",
@@ -2700,10 +2704,10 @@ def initialize_runtime(
         if cpu_affinity:
             os.sched_setaffinity(0, cpu_affinity)
 
-    if world_size != sp_size:
+    if world_size != model_parallel_size:
         raise ValueError(
-            "This server hosts exactly one sequence-parallel model replica, so "
-            f"WORLD_SIZE ({world_size}) must equal parallelism.sp_size ({sp_size})."
+            "This server hosts exactly one model-parallel replica, so "
+            f"WORLD_SIZE ({world_size}) must equal sp_size * tp_size ({model_parallel_size})."
         )
 
     world_mesh = None
@@ -2713,7 +2717,7 @@ def initialize_runtime(
             dp_replicate=1,
             dp_shard=-1,
             sp=sp_size,
-            tp=1,
+            tp=tp_size,
             pp=1,
             world_size=world_size,
         )

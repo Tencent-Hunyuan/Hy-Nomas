@@ -177,11 +177,14 @@ hf download tencent/Hy-Nomas --local-dir "${Hy_Nomas_Model_Path}"
 export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
 
 bash scripts/inference/inference_from_config.sh configs/experiment/inference.yaml \
+  --sp-size 1 --tp-size 8 \
   dit_weight="${Hy_Nomas_Model_Path}/DiT/distilled/diffusion_pytorch_model_ema_0_995.safetensors" \
   model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/PixelUMM_FT/diffusion_pytorch_model.safetensors" \
   inference.prompt=/path/to/prompts.json \
   inference.save_path=./outputs/distill
 ```
+
+推理预设使用 **SP=1、TP=8**，将 DiT 的注意力和 MLP 投影按张量切分到八个 rank。并行参数、验证方法及当前限制见 [Tensor Parallel 推理说明](tensor_parallel.md)。
 
 #### 低显存 GPU 推理
 

@@ -52,14 +52,14 @@ if [[ -n "${GPU_GROUPS}" ]]; then
     exit 2
   fi
 else
-  if (( WORKER_REPLICAS * SP_SIZE > GPU_COUNT )); then
-    echo "Need $((WORKER_REPLICAS * SP_SIZE)) distinct GPUs for ${WORKER_REPLICAS}xSP${SP_SIZE}, only ${GPU_COUNT} visible." >&2
+  if (( WORKER_REPLICAS * MODEL_PARALLEL_SIZE > GPU_COUNT )); then
+    echo "Need $((WORKER_REPLICAS * MODEL_PARALLEL_SIZE)) distinct GPUs for ${WORKER_REPLICAS}x(SP${SP_SIZE}/TP${TP_SIZE}), only ${GPU_COUNT} visible." >&2
     echo "Set WORKER_GPU_GROUPS explicitly to opt into shared-GPU replicas, e.g. 0,1,...,7;0,1,...,7." >&2
     exit 2
   fi
   for (( slot=0; slot<WORKER_REPLICAS; slot++ )); do
-    first_gpu=$((slot * SP_SIZE))
-    last_gpu=$((first_gpu + SP_SIZE - 1))
+    first_gpu=$((slot * MODEL_PARALLEL_SIZE))
+    last_gpu=$((first_gpu + MODEL_PARALLEL_SIZE - 1))
     groups+=("$(seq -s, "${first_gpu}" "${last_gpu}")")
   done
 fi
@@ -117,6 +117,7 @@ start_replica() {
     JOB_DB="${JOB_DB:-/tmp/nomas_seg_ar_jobs.json}" \
     WORKER_SLOT="${slot}" \
     SP_SIZE="${SP_SIZE}" \
+    TP_SIZE="${TP_SIZE}" \
     CUDA_VISIBLE_DEVICES="${gpu_list}" \
     NOMAS_WORKER_ID="$(hostname):seg-ar-slot-${slot}" \
     bash scripts/inference/run_seg_ar_gpu_worker.sh "${DEMO_INFERENCE_ARGS[@]}" \

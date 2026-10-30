@@ -100,7 +100,7 @@ export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
 
 bash scripts/inference/start_seg_ar_demo.sh \
   --dit-weight "${Hy_Nomas_Model_Path}/DiT/distilled/diffusion_pytorch_model_ema_0_995.safetensors" \
-  --sp-size 8 \
+  --sp-size 1 --tp-size 8 \
   --save-path ./outputs/seg_ar_demo \
   model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/PixelUMM_FT/diffusion_pytorch_model.safetensors"
 ```
@@ -170,7 +170,7 @@ For example, start with a smaller preview resolution and six denoising steps, us
 ```bash
 bash scripts/inference/start_seg_ar_demo.sh \
   --dit-weight "$DIT_WEIGHT" \
-  --sp-size 8 \
+  --sp-size 1 --tp-size 8 \
   --save-path ./outputs/seg_ar_demo \
   model.vae.checkpoint="$PIXELUMM_CHECKPOINT" \
   'inference.video_size=[480,832]' \
@@ -203,7 +203,7 @@ Use the same `RUNTIME_DIR` for startup, logs, and shutdown.
 
 Complete the required PE setup in [step 2.1](#21-deploy-and-connect-online-prompt-enhancement-required) on the launch machine first. All hosts need the same repository path, model access, compatible environments, and SSH access without interactive login. Ensure remote `python` uses the correct environment; workers launch through `python -m torch.distributed.run`. Share runtime state, the job queue, and outputs across hosts.
 
-Set `--sp-size` to host count × `NPROC_PER_NODE`. Example: two hosts with eight GPUs each. Replace the hosts and shared paths, including the model paths from step 1. Run once on the launch machine:
+Set `sp_size × tp_size` to host count × `NPROC_PER_NODE`. Example: two hosts with eight GPUs each. Replace the hosts and shared paths, including the model paths from step 1. Run once on the launch machine:
 
 ```bash
 export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
@@ -217,7 +217,7 @@ unset WORKER_LOCK  # use the worker's host-local lock default
 
 bash scripts/inference/start_seg_ar_demo.sh \
   --dit-weight "${Hy_Nomas_Model_Path}/DiT/distilled/diffusion_pytorch_model_ema_0_995.safetensors" \
-  --sp-size 16 \
+  --sp-size 2 --tp-size 8 \
   --save-path /shared/nomas/outputs \
   model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/PixelUMM_FT/diffusion_pytorch_model.safetensors"
 ```

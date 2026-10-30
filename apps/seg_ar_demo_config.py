@@ -62,6 +62,7 @@ def launcher_overrides(argv: Sequence[str], environ: dict[str, str]) -> list[str
         "TRAIN_OUTPUT": "output_dir",
         "DRY_RUN_SOURCE": "inference.prompt",
         "SP_SIZE": "parallelism.sp_size",
+        "TP_SIZE": "parallelism.tp_size",
     }
     string_fields = {
         "DIT_WEIGHT", "SAVE_PATH", "TRAIN_OUTPUT", "DRY_RUN_SOURCE",
@@ -77,6 +78,7 @@ def launcher_overrides(argv: Sequence[str], environ: dict[str, str]) -> list[str
     parser.add_argument("--single-gpu-low-mem-mode", action="store_true")
     parser.add_argument("--dit-weight")
     parser.add_argument("--sp-size", type=int)
+    parser.add_argument("--tp-size", type=int)
     parser.add_argument("--save-path", "--output-dir", dest="save_path")
     parser.add_argument("--text-encoder-model")
     parser.add_argument("--dry-run-source")
@@ -85,6 +87,7 @@ def launcher_overrides(argv: Sequence[str], environ: dict[str, str]) -> list[str
     flag_fields = {
         "dit_weight": "dit_weight",
         "sp_size": "parallelism.sp_size",
+        "tp_size": "parallelism.tp_size",
         "save_path": "inference.save_path",
         "text_encoder_model": "model.text_encoder.model_name",
         "dry_run_source": "inference.prompt",
@@ -124,6 +127,7 @@ def main() -> None:
         "DIT_WEIGHT": config.dit_weight or "",
         "SAVE_PATH": config.inference.save_path,
         "SP_SIZE": config.parallelism.sp_size,
+        "TP_SIZE": config.parallelism.tp_size,
         "DRY_RUN_SOURCE": config.inference.prompt or "",
     }
     for name, value in values.items():

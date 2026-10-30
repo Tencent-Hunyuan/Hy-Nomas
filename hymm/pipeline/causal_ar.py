@@ -19,6 +19,7 @@ from hymm.utils.camera_cfg import (
 )
 from hymm.distributed.parallel_states import (
     get_sequence_parallel_state,
+    get_model_parallel_info,
     nccl_info,
 )
 from hymm.utils.parallel import sync_random_states
@@ -523,11 +524,10 @@ class CPTCausalInferencePipeline(BasePipeline):
     def _initialize_kv_cache(self, batch_size, max_cache_tokens, dtype, device):
         qvg_storage = getattr(self, "qvg_kv_storage", False)
         head_dim = self.hidden_size // self.heads_num
-        cache_heads = (
-            self.heads_num // nccl_info.sp_size
-            if get_sequence_parallel_state()
-            else self.heads_num
-        )
+        head_shards = nccl_info.sp_size * nccl_info.tp_size
+        if self.heads_num % head_shards:
+            raise ValueError("KV cache heads must be divisible by sp_size * tp_size")
+        cache_heads = self.heads_num // head_shards
 
         cpu_offload = bool(
             getattr(
@@ -1095,9 +1095,8 @@ class CPTCausalInferencePipeline(BasePipeline):
         import torch.distributed as dist
 
         failed = local_error is not None
-        sp_size = int(getattr(nccl_info, "sp_size", 1) or 1)
+        sp_group, sp_size, _ = get_model_parallel_info()
         if dist.is_available() and dist.is_initialized() and sp_size > 1:
-            sp_group = getattr(nccl_info, "sp_group", None)
             if sp_group is None:
                 raise RuntimeError(
                     "Segment VAE decode requires an initialized SP process "
@@ -1514,9 +1513,8 @@ class CPTCausalInferencePipeline(BasePipeline):
             )
 
         segment_vae_session = None
-        segment_vae_output_rank = (
-            int(getattr(nccl_info, "rank_within_spgroup", 0) or 0) == 0
-        )
+        segment_vae_group, segment_vae_sp_size, segment_vae_rank = get_model_parallel_info()
+        segment_vae_output_rank = segment_vae_rank == 0
         decoded_video_cpu: Optional[torch.Tensor] = None
         decoded_pixel_frames = 0
         # Coordinates are local to this call. Preserve the PixelUMM timeline for a
@@ -1526,7 +1524,6 @@ class CPTCausalInferencePipeline(BasePipeline):
         emitted_latent_frames = 0
         pixel_frames_per_latent = None
         segment_vae_status = None
-        segment_vae_sp_size = int(getattr(nccl_info, "sp_size", 1) or 1)
         segment_vae_cache_offload = segment_vae_sp_size < 16
         segment_vae_uses_pixelumm = (
             getattr(getattr(self.args, "vae", None), "name", None) == "pixelumm"
@@ -1589,8 +1586,8 @@ class CPTCausalInferencePipeline(BasePipeline):
                 # temporal tiles are pipelined across the group while rank 0 keeps
                 # the canonical feature cache between segment boundaries.
                 segment_vae_session = self._create_segment_vae_decode_session(
-                    group=getattr(nccl_info, "sp_group", None),
-                    rank=int(getattr(nccl_info, "rank_within_spgroup", 0) or 0),
+                    group=segment_vae_group,
+                    rank=segment_vae_rank,
                     world_size=segment_vae_sp_size,
                 )
                 logger.info(
@@ -1955,7 +1952,7 @@ class CPTCausalInferencePipeline(BasePipeline):
                 "still follows the CFG-guided trajectory."
             )
 
-        if get_sequence_parallel_state() and nccl_info.parallel_dims is not None:
+        if (nccl_info.sp_size > 1 or nccl_info.tp_size > 1) and nccl_info.parallel_dims is not None:
             sync_random_states(nccl_info.parallel_dims)
         fixed_noise_timeline = getattr(
             self.args.inference,

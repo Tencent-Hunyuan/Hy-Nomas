@@ -2511,6 +2511,7 @@ def main() -> None:
         "guidance_scale": float(config.inference.cfg_scale_video),
         "flow_shift": float(config.inference.infer_flow_shift_video),
         "sp_size": int(config.parallelism.sp_size),
+        "tp_size": int(getattr(config.parallelism, "tp_size", 1)),
         "num_frames": (
             None if rollout == "oneshot" else int(config.inference.num_frames)
         ),
