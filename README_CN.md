@@ -8,8 +8,10 @@
 </p>
 
 <h1 align="center">
-    Hy-Nomas: Towards Free-Form Interactive World Generation
+    Hy-Nomas: Towards Free-Form Interactive <br> World Generation
 </h1>
+
+**Hy-Nomas** 是一个通过多轮文本与相机控制的自由形式交互式世界生成模型。采用低显存推理配置可在单张 RTX 4090 上运行，支持下游任务 LoRA 微调，并提供交互式 Web Demo。
 
 <div align="center" style="line-height: 1;">
 
@@ -25,26 +27,62 @@
 
 <p align="center">
     🖥️&nbsp;<a href="https://hy-nomas.hy.tencent.com/demo"><b>交互式演示</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    🌐&nbsp;<a href="https://hy-nomas.hy.tencent.com/"><b>官方网站</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    📄&nbsp;<a href="https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf"><b>技术报告</b></a>
+    🌐&nbsp;<a href="https://hy-nomas.hy.tencent.com/"><b>项目网站</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    📄&nbsp;<a href="https://arxiv.org/abs/2610.36729"><b>技术报告</b></a>
 </p>
 
+<p align="center">
+    👏 加入我们的 <a href="./assets/wechat.png" target="_blank">微信社区</a>
+</p>
+
+## 🔥 最新动态
+- 🎬 **2026 年 10 月 29 日 — Hy-Nomas vs Genie 4：** 使用 Hy-Nomas 复现 Genie 4 示例，观看[视频对比](https://x.com/TencentHunyuan/status/2115851165904814283)。
+- 📄 **2026 年 10 月 27 日 — 技术报告已在 arXiv 发布：** [arXiv](https://arxiv.org/abs/2610.36729)。
+- 🤝 **2026 年 10 月 26 日 — 社区集成：** Hy-Nomas 已支持 [SGLang](https://github.com/sgl-project/sglang/pull/46124)、[ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas) 和 [Reactor Runtime](reactor/README.md)，详情请见[社区贡献](#-社区贡献)。
+- 📄 **2026 年 10 月 26 日 — 技术报告：** 更新 [Hy-Nomas 技术报告](https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf)。
+- 🌍 **2026 年 10 月 25 日 — WanGP 支持：** [@deepbeepmeep](https://x.com/deepbeepmeep) 在 [WanGP v18.81](https://github.com/deepbeepmeep/WanGP) 中加入 Hy-Nomas 世界生成，支持键盘探索和文本事件控制。详见[公告](https://x.com/deepbeepmeep/status/2114503683295662230)与[集成提交](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99)。
+- 🛠️ **2026 年 10 月 23 日 — Diffusers 推理：** 新增 [Diffusers 推理示例](#使用-diffusers-推理)。
+- 🎮 **2026 年 10 月 21 日 — 交互式演示：** 在[在线演示](https://hy-nomas.hy.tencent.com/demo)中体验多轮文本和相机控制，也可参考[部署指南](apps/README.md)自行运行。
+- 🚀 **2026 年 10 月 21 日 — 首次代码发布：** 训练与推理代码包含 [LoRA 微调](#lora-微调)和[单 GPU 推理](#低显存-gpu-推理)。下载[模型权重](https://huggingface.co/tencent/Hy-Nomas)即可开始探索。
+
+## 🎥 演示
+
 https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
+
+## 🧩 社区贡献
+
+如果你在项目中开发或使用 Hy-Nomas，欢迎告诉我们。
+
+- **Google TPU 演示** — [Mashbox 演示](https://mashbox.gg/world)，由 [@boshjerns](https://x.com/boshjerns) 提供：在 Google TPU 上运行支持键盘控制的 Hy-Nomas 世界生成。[公告](https://x.com/boshjerns/status/2114962446947651907)报告，在 v6e-4 切片（4 颗芯片）上实现实时 720p 生成，每秒视频需要 0.933 秒计算，连续运行 60 秒无延迟帧。
+- **WanGP** — [WanGP](https://github.com/deepbeepmeep/WanGP)，由 [@deepbeepmeep](https://x.com/deepbeepmeep) 提供：v18.81 支持 Hy-Nomas 文本生成世界、键盘导航与相机控制、文本事件控制及可调历史记忆，可保存并继续探索，或将探索过程录制为视频。详见[公告](https://x.com/deepbeepmeep/status/2114503683295662230)与[集成提交](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99)。
+- **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang)，由 [@sgl_project](https://x.com/sgl_project) 提供：Hy-Nomas 支持已合入 `main` 分支，可运行离线视频任务和实时流式会话，详见[集成 PR](https://github.com/sgl-project/sglang/pull/46124)和[安装指南](https://lmsysorg.mintlify.app/cookbook/diffusion/HY-Nomas/HY-Nomas#hw=h200&placement=resident&nodes=1&gpus_per_node=1&topology_mode=auto&tp_size=1&ulysses_degree=1&ring_degree=1)。
+- **ComfyUI** — [ComfyUI-Hy-Nomas](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas)，由 [@LatentSpacer](https://x.com/LatentSpacer) 提供：支持视频片段串联生成和交互式 WASD 相机控制。
+- **Reactor Runtime** — [Hy-Nomas 集成指南](reactor/README.md)，由 [@Rising0321](https://github.com/Rising0321) 贡献：提供流式服务和浏览器演示，支持实时更新提示词、WASD/方向键相机控制，以及上传相机轨迹，同时保留世界历史。详见[集成 PR](https://github.com/Tencent-Hunyuan/Hy-Nomas/pull/3)。
+
+感谢各位贡献者基于 Hy-Nomas 构建社区集成！
+
+正在使用 Hy-Nomas 构建项目？欢迎分享社区项目、工具集成、教程和 LoRA 适配器。你可以[提交 Issue](https://github.com/Tencent-Hunyuan/Hy-Nomas/issues)，或通过 Pull Request 将项目添加到本节。 参与本仓库开发请参阅[贡献指南](CONTRIBUTING.md)。
 
 ---
 
 ## 目录
 
+- [🔥 最新动态](#-最新动态)
+- [🎥 演示](#-演示)
+- [🧩 社区贡献](#-社区贡献)
 - [模型介绍](#模型介绍)
 - [核心特性](#核心特性)
 - [使用指南](#使用指南)
   - [环境配置](#环境配置)
   - [模型资源](#模型资源)
   - [推理](#推理)
+    - [使用源码推理](#使用源码推理)
     - [低显存 GPU 推理](#低显存-gpu-推理)
     - [使用 Diffusers 推理](#使用-diffusers-推理)
     - [使用 SGLang 推理](#使用-sglang-推理)
   - [交互式演示](#交互式演示)
+    - [Reactor Runtime](#reactor-runtime)
+    - [Web Demo](#web-demo)
 - [LoRA 微调](#lora-微调)
   - [SFT 数据准备](#sft-数据准备)
   - [离线序列打包](#离线序列打包)
@@ -52,6 +90,8 @@ https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
 - [贡献指南](CONTRIBUTING.md)
 - [安全问题报告](SECURITY.md)
 - [许可证](#许可证)
+- [致谢](#致谢)
+- [引用](#引用)
 - [联系我们](#联系我们)
 
 ---
@@ -128,6 +168,8 @@ hf download tencent/Hy-Nomas --local-dir "${Hy_Nomas_Model_Path}"
 | PE | **[Nomas-PE](https://huggingface.co/tencent/Hy-Nomas/tree/main/PE)** | 交互式演示使用的在线提示词增强模型，将用户指令转换为结构化的生成提示词。 |
 
 ### 推理
+
+#### 使用源码推理
 
 在仓库根目录使用 `configs/experiment/inference.yaml` 启动，覆盖模型路径、提示词文件和输出目录：
 
@@ -301,7 +343,31 @@ with open("hy_nomas_sglang.mp4", "wb") as f:
 
 ### 交互式演示
 
-访问[在线交互式演示](https://hy-nomas.hy.tencent.com/)，体验 Hy-Nomas。
+#### Reactor Runtime
+
+[Reactor 集成指南](reactor/README.md)提供流式服务和浏览器演示，支持实时更新提示词、WASD/方向键相机控制，以及上传相机轨迹，同时保留世界历史。已测试的配置使用八张 B200 GPU、Docker 和 NVIDIA Container Toolkit、[Reactor CLI](https://docs.reactor.inc/deploy/platform/installation)及 Node.js 22。
+
+在仓库根目录运行：
+
+```bash
+cd reactor
+reactor build
+reactor run --gpus '"device=0,1,2,3,4,5,6,7"' --shm-size 8g --port 8080
+```
+
+等待 `curl -fsS http://localhost:8080/health` 返回 `available`。在另一终端中，从仓库根目录运行：
+
+```bash
+cd reactor/demo
+npm ci
+npm run dev -- --port 5173
+```
+
+打开 **http://localhost:5173**，将 Runtime endpoint 设为 **http://localhost:8080**，点击 **Connect**，输入提示词后点击 **Start world**。点击视频后可使用 WASD 和方向键探索。**Update prompt** 可更新后续片段而无需重启。远程 GPU 部署请参阅 [SSH 与 WebRTC 指南](reactor/README.md#remote-servers-and-ssh)。
+
+#### Web Demo
+
+访问[在线交互式演示](https://hy-nomas.hy.tencent.com/demo)，体验 Hy-Nomas。
 
 请参阅[演示部署指南](apps/README.md)，了解如何启动 Web 网关和 GPU 工作进程、配置模型资源，以及在单机或多机上运行。演示默认使用 `configs/experiment/inference.yaml`。
 
@@ -371,6 +437,20 @@ python -m scripts.train.merge_lora \
 ## 致谢
 
 感谢 [Gemma 4](https://deepmind.google/models/gemma/gemma-4/)、[Qwen3.8](https://qwen.ai/blog?id=qwen3.8)、[Kimi-K3](https://github.com/MoonshotAI/Kimi-K3)、[DCAE-V](https://github.com/dc-ai-projects/DC-Gen) 和 [MagiAttention](https://github.com/SandAI-org/MagiAttention) 团队为社区作出的宝贵贡献，以及为本项目提供支持的模型、研究成果和工具。
+
+
+## 引用
+
+如果 Hy-Nomas 对您的研究有所帮助，请引用我们的技术报告：
+
+```bibtex
+@article{chen2026hynomas,
+  title={Hy-Nomas: Towards Free-form Interactive World Generation},
+  author={Chen, Qiaoling and Cheng, Jiaxiang and Deng, Xueqing and Hang, Tiankai and Hou, Ji and Li, Jiaqi and Liu, Yifan and Lu, Tao and Tang, Junshu and Tang, Yu and others},
+  journal={arXiv preprint arXiv:2610.36729},
+  year={2026}
+}
+```
 
 ## 联系我们
 

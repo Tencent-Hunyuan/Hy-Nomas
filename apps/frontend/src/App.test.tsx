@@ -2039,6 +2039,12 @@ describe('Hy-Nomas', () => {
           name: '24 FPS path', sampleRate: 24, frames,
           trajectory_translation_scale: 9, trajectory_rotation_scale: 8,
           translationScale: 7, rotationScale: 6,
+          keyEvents: [
+            { t: 0, code: 'KeyW', pressed: true },
+            { t: 500, code: 'ArrowLeft', pressed: true },
+            { t: 2763, code: 'KeyW', pressed: false },
+            { t: 2800, code: 'KeyD', pressed: true },
+          ],
         })],
         'camera.json',
         { type: 'application/json' },
@@ -2092,6 +2098,12 @@ describe('Hy-Nomas', () => {
       trajectory_translation_scale: 9,
       trajectory_rotation_scale: 8,
       frames,
+      keyEvents: [
+        { t: 0, code: 'KeyW', pressed: true },
+        { t: 500, code: 'ArrowLeft', pressed: true },
+        { t: 2750, code: 'KeyW', pressed: false },
+        { t: 2750, code: 'ArrowLeft', pressed: false },
+      ],
     })
     expect(JSON.parse(body.camera_trajectory)).not.toHaveProperty('translationScale')
     expect(JSON.parse(body.camera_trajectory)).not.toHaveProperty('rotationScale')

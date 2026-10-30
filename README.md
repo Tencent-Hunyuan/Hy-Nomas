@@ -8,8 +8,10 @@
 </p>
 
 <h1 align="center">
-    Hy-Nomas: Towards Free-Form Interactive World Generation
+    Hy-Nomas: Towards Free-Form Interactive <br> World Generation
 </h1>
+
+**Hy-Nomas** is a free-form interactive world generation model controlled by multi-turn text and camera inputs. It runs on a single RTX 4090 with low-memory inference, supports LoRA fine-tuning for downstream tasks, and includes an interactive web demo.
 
 <div align="center" style="line-height: 1;">
 
@@ -25,26 +27,62 @@
 
 <p align="center">
     🖥️&nbsp;<a href="https://hy-nomas.hy.tencent.com/demo"><b>Interactive Demo</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    🌐&nbsp;<a href="https://hy-nomas.hy.tencent.com/"><b>Official Website</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    📄&nbsp;<a href="https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf"><b>Technical Report</b></a>
+    🌐&nbsp;<a href="https://hy-nomas.hy.tencent.com/"><b>Project Website</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
+    📄&nbsp;<a href="https://arxiv.org/abs/2610.36729"><b>Technical Report</b></a>
 </p>
 
+<p align="center">
+    👏 Join our <a href="./assets/wechat.png" target="_blank">WeChat community</a>
+</p>
+
+## 🔥 News
+- 🎬 **Oct 29, 2026 — Hy-Nomas vs Genie 4:** Watch the [video comparison](https://x.com/TencentHunyuan/status/2115851165904814283), featuring Genie 4 examples recreated with Hy-Nomas.
+- 📄 **Oct 27, 2026 — Technical report is available on arXiv:** [arXiv](https://arxiv.org/abs/2610.36729).
+- 🤝 **Oct 26, 2026 — Community integrations:** Run Hy-Nomas with [SGLang](https://github.com/sgl-project/sglang/pull/46124), [ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas), or [Reactor Runtime](reactor/README.md). See [Community Contributions](#-community-contributions) for details.
+- 📄 **Oct 26, 2026 — Technical report:** Updated the [Hy-Nomas technical report](https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf).
+- 🌍 **Oct 25, 2026 — WanGP support:** [WanGP v18.81](https://github.com/deepbeepmeep/WanGP), by [@deepbeepmeep](https://x.com/deepbeepmeep), adds Hy-Nomas world generation with keyboard exploration and text-driven events. See the [announcement](https://x.com/deepbeepmeep/status/2114503683295662230) and [integration commit](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99).
+- 🛠️ **Oct 23, 2026 — Diffusers inference:** Added a [Diffusers inference example](#inference-with-diffusers).
+- 🎮 **Oct 21, 2026 — Interactive demo:** Explore multi-turn text and camera control in the [online demo](https://hy-nomas.hy.tencent.com/demo), or follow the [deployment guide](apps/README.md) to run it yourself.
+- 🚀 **Oct 21, 2026 — Initial code release:** Training and inference code include [LoRA fine-tuning](#lora-fine-tuning) and [single-GPU inference](#inference-with-low-mem-gpu). Get the [model weights](https://huggingface.co/tencent/Hy-Nomas) to start exploring.
+
+## 🎥 Demo
+
 https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
+
+## 🧩 Community Contributions
+
+If you develop/use Hy-Nomas in your projects, welcome to let us know.
+
+- **Google TPU demos** — [Mashbox demos](https://mashbox.gg/world), by [@boshjerns](https://x.com/boshjerns): Keyboard-controlled Hy-Nomas world generation on Google TPUs. The [announcement](https://x.com/boshjerns/status/2114962446947651907) reports real-time 720p generation on a v6e-4 slice (4 chips), with 0.933 seconds of compute per second of video and no late frames during a 60-second run.
+- **WanGP** — [WanGP](https://github.com/deepbeepmeep/WanGP), by [@deepbeepmeep](https://x.com/deepbeepmeep): Hy-Nomas support in v18.81 provides text-to-world generation, keyboard navigation and camera control, text-driven events, and adjustable history memory. Explorations can be saved and resumed or recorded as videos. See the [announcement](https://x.com/deepbeepmeep/status/2114503683295662230) and [integration commit](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99).
+- **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang), by [@sgl_project](https://x.com/sgl_project): Hy-Nomas support is merged into `main`, covering offline video jobs and real-time streaming sessions. See the [integration PR](https://github.com/sgl-project/sglang/pull/46124) and [installation guide](https://lmsysorg.mintlify.app/cookbook/diffusion/HY-Nomas/HY-Nomas#hw=h200&placement=resident&nodes=1&gpus_per_node=1&topology_mode=auto&tp_size=1&ulysses_degree=1&ring_degree=1).
+- **ComfyUI** — [ComfyUI-Hy-Nomas](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas), by [@LatentSpacer](https://x.com/LatentSpacer): A community integration with chained video segments and interactive WASD camera control.
+- **Reactor Runtime** — [Hy-Nomas integration guide](reactor/README.md), contributed by [@Rising0321](https://github.com/Rising0321): A streaming service and browser demo with live prompt updates, WASD/arrow camera control, and uploaded camera trajectories while retaining world history. See the [integration PR](https://github.com/Tencent-Hunyuan/Hy-Nomas/pull/3).
+
+Thank you to the contributors for building on Hy-Nomas!
+
+Building with Hy-Nomas? We welcome community projects, integrations, tutorials, and LoRA adapters. Share your work by [opening an issue](https://github.com/Tencent-Hunyuan/Hy-Nomas/issues) or submitting a pull request to add it to this section. Contributions to this repository are covered in the [contribution guide](CONTRIBUTING.md).
 
 ---
 
 ## Table of Contents
 
+- [🔥 News](#-news)
+- [🎥 Demo](#-demo)
+- [🧩 Community Contributions](#-community-contributions)
 - [Model Introduction](#model-introduction)
 - [Key Features](#key-features)
 - [Usage](#usage)
   - [Environment Setup](#environment-setup)
   - [Model Assets](#model-assets)
   - [Inference](#inference)
+    - [Inference with Source Code](#inference-with-source-code)
     - [Inference with Low-Mem GPU](#inference-with-low-mem-gpu)
     - [Inference with Diffusers](#inference-with-diffusers)
     - [Inference with SGLang](#inference-with-sglang)
   - [Interactive Demo](#interactive-demo)
+    - [Reactor Runtime](#reactor-runtime)
+    - [Web Demo](#web-demo)
 - [LoRA Fine-Tuning](#lora-fine-tuning)
   - [SFT Data Preparation](#sft-data-preparation)
   - [Offline Sequence Packing](#offline-sequence-packing)
@@ -52,6 +90,8 @@ https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 - [License](#license)
+- [Acknowledgement](#acknowledgement)
+- [Citation](#citation)
 - [Contact Us](#contact-us)
 
 ---
@@ -65,7 +105,7 @@ https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
 - **Segment-based generation:** Autoregressive segment-wise world generation controlled by either segment level prompt or camera control signal, maintaining a lifelong KV cache for consistency.
 - **Free-form Prompt Control:** Control the world generation with any kind of free form user prompt to generate imaginary object, style, scene, and actions.
 - **Camera control:** Condition generation on camera trajectories alongside text prompts.
-- **Distilled inference:** Inference uses 8 denoising steps and a finetuned PixelUMM decoder for 32-channel DCAE-V latents.
+- **Distilled inference:** Inference uses 4-8 denoising steps and a finetuned PixelUMM decoder for 32-channel DCAE-V latents.
 - **Interactive demo:** A web interface supports generation across multiple turns and decoding at segment boundaries.
 - **Fine-tuning and data preparation:** Lora fine-tuning with customized video dataset, and prepare training data from local videos with our annotation workflow.
 
@@ -128,6 +168,8 @@ Set `Hy_Nomas_Model_Path` to your download directory once. The commands below re
 | PE | **[Nomas-PE](https://huggingface.co/tencent/Hy-Nomas/tree/main/PE)** | Online prompt-enhancement model used by the interactive demo to convert user instructions into structured generation prompts. |
 
 ### Inference
+
+#### Inference with Source Code
 
 Run from the repository root with `configs/experiment/inference.yaml`, overriding the model paths, prompt file, and output directory:
 
@@ -299,7 +341,7 @@ with open("hy_nomas_sglang.mp4", "wb") as f:
 
 The same server accepts realtime WebSocket sessions at `/v1/realtime_video/generate`. Each segment is generated as soon as it arrives, and frames stream back as they are decoded. See the [SGLang Hy-Nomas guide](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas) for the realtime protocol, camera control, layerwise offload, and the KV cache budget.
 
-### Inference with Reactor Runtime
+#### Inference with Reactor Runtime
 
 The [Reactor integration guide](reactor/README.md) provides a streaming service and browser demo with live prompt updates, combined WASD/arrow camera control, and uploaded camera trajectories while retaining world history. The tested profile uses eight B200 GPUs, Docker with NVIDIA Container Toolkit, the [Reactor CLI](https://docs.reactor.inc/deploy/platform/installation), and Node.js 22.
 
@@ -321,9 +363,9 @@ npm run dev -- --port 5173
 
 Open **http://localhost:5173**, use Runtime endpoint **http://localhost:8080**, press **Connect**, enter a prompt, then press **Start world**. Click the video to explore with WASD and arrow keys. **Update prompt** changes future segments without restarting. See the [SSH and WebRTC guidance](reactor/README.md#remote-servers-and-ssh) when the GPU runs remotely.
 
-### Interactive Demo
+#### Web Demo
 
-Try the [online interactive demo](https://hy-nomas.hy.tencent.com/).
+Try the [online interactive demo](https://hy-nomas.hy.tencent.com/demo).
 
 See the [demo deployment guide](apps/README.md) for launching the web gateway and GPU workers, configuring model assets, and running on one or multiple hosts. The demo uses `configs/experiment/inference.yaml` by default.
 
@@ -393,6 +435,19 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 ## Acknowledgement
 
 We thank the teams behind [Gemma 4](https://deepmind.google/models/gemma/gemma-4/), [Qwen3.8](https://qwen.ai/blog?id=qwen3.8), [Kimi-K3](https://github.com/MoonshotAI/Kimi-K3), [DCAE-V](https://github.com/dc-ai-projects/DC-Gen), and [MagiAttention](https://github.com/SandAI-org/MagiAttention) for their valuable contributions to the community and the models, research, and tools that support this project.
+
+## Citation
+
+If you find Hy-Nomas useful in your research, please cite our technical report:
+
+```bibtex
+@article{chen2026hynomas,
+  title={Hy-Nomas: Towards Free-form Interactive World Generation},
+  author={Chen, Qiaoling and Cheng, Jiaxiang and Deng, Xueqing and Hang, Tiankai and Hou, Ji and Li, Jiaqi and Liu, Yifan and Lu, Tao and Tang, Junshu and Tang, Yu and others},
+  journal={arXiv preprint arXiv:2610.36729},
+  year={2026}
+}
+```
 
 ## Contact Us
 

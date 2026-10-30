@@ -16,6 +16,7 @@ import {
 import * as THREE from 'three'
 import { scaledRotationStep, visualRotationGain } from '../cameraVisualization'
 import {
+  finishCameraKeyEvents,
   trimTrailingStaticCameraFrames,
 } from '../cameraTrajectory'
 import type {
@@ -320,6 +321,8 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
       frames.length * SAMPLE_INTERVAL_MS,
       SAMPLE_INTERVAL_MS,
     )
+    const keyEvents = finishCameraKeyEvents(keyEventsRef.current, durationMs)
+    keyEventsRef.current = keyEvents
     const totalDistance = calculateDistance(frames)
     framesRef.current = frames
     actualDurationMsRef.current = durationMs
@@ -331,7 +334,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
     const payload = createTrajectoryPayload(
       name,
       frames,
-      keyEventsRef.current,
+      keyEvents,
       totalDistance,
       durationMs,
     )
@@ -344,7 +347,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
       sampleRate: SAMPLE_RATE,
       totalDistance,
       frames,
-      keyEvents: keyEventsRef.current.map((event) => ({ ...event })),
+      keyEvents,
     }
     onRecordedRef.current(path)
     return path
@@ -540,7 +543,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
       }
     }
     const onKeyUp = (event: KeyboardEvent) => {
-      if (keys.has(event.code) && isRecordedControlKey(event.code)) {
+      if (recordingRef.current && keys.has(event.code) && isRecordedControlKey(event.code)) {
         keyEventsRef.current.push({
           t: Math.max(0, performance.now() - startTimeRef.current),
           code: event.code,
@@ -553,7 +556,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(fun
     const onWindowBlur = () => {
       const t = Math.max(0, performance.now() - startTimeRef.current)
       keys.forEach((code) => {
-        if (isRecordedControlKey(code)) {
+        if (recordingRef.current && isRecordedControlKey(code)) {
           keyEventsRef.current.push({ t, code, pressed: false })
         }
       })
@@ -845,7 +848,6 @@ export const CameraPathDrawer = forwardRef<CameraPathDrawerHandle, CameraPathDra
       const raw = JSON.parse(await file.text()) as Record<string, unknown>
       const sampleRate = normalizeSampleRate(raw.sampleRate)
       const frames = normalizeImportedFrames(raw.frames, sampleRate)
-      const keyEvents = normalizeImportedKeyEvents(raw.keyEvents)
       if (!frames.length) throw new Error('No valid camera frames found.')
       const name = typeof raw.name === 'string' ? raw.name : file.name.replace(/\.json$/i, '')
       const totalDistance = Number.isFinite(Number(raw.totalDistance))
@@ -856,6 +858,7 @@ export const CameraPathDrawer = forwardRef<CameraPathDrawerHandle, CameraPathDra
         Number.isFinite(rawDurationMs) && rawDurationMs > 0
           ? rawDurationMs
           : inferredTrajectoryDurationMs(frames, sampleRate)
+      const keyEvents = finishCameraKeyEvents(normalizeImportedKeyEvents(raw.keyEvents), durationMs)
       // Gain controls now belong to the generation request, not the trajectory.
       delete raw.translationScale
       delete raw.rotationScale
