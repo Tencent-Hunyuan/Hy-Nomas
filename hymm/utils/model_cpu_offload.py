@@ -183,15 +183,15 @@ def validate_model_cpu_offload(args, device):
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     if torch.distributed.is_available() and torch.distributed.is_initialized():
         world_size = torch.distributed.get_world_size()
-    sp_size = args.parallelism.sp_size
+    sp_size = args.parallelism.sp_size * getattr(args.parallelism, "tp_size", 1)
     if world_size != sp_size:
         raise ValueError(
-            f"CPU offload requires world_size == sp_size; got {world_size} and {sp_size}"
+            f"CPU offload requires world_size == sp_size * tp_size; got {world_size} and {sp_size}"
         )
     if world_size > 1 and not (
         torch.distributed.is_available() and torch.distributed.is_initialized()
     ):
-        raise ValueError("SP=8 CPU offload requires an initialized distributed process group")
+        raise ValueError("Model-parallel CPU offload requires an initialized distributed process group")
 
 
 def cpu_offload_snapshot(pipeline):

@@ -72,6 +72,9 @@ from .moe.hunyuan_moe import MoeConfig, HunYuanMoE
 
 from hymm.distributed.parallel_states import get_sequence_parallel_state, nccl_info
 from hymm.distributed.communications import all_gather, all_to_all_4D
+from hymm.distributed.tensor_parallel import (
+    gather_sequence, local_modulation_gate, shard_transformer_streams,
+)
 
 try:
     from hymm.utils.segment_attention_profiler import (
@@ -1234,6 +1237,13 @@ class MMDoubleStreamBlock(nn.Module):
             attn[:, img_q.shape[1] :].contiguous(),
         )
 
+        # Norms gather shifts/scales' full token layout, while residual gates
+        # follow the sequence-sharded outputs of the row projections.
+        img_mod1_gate = local_modulation_gate(self, img_mod1_gate)
+        img_mod2_gate = local_modulation_gate(self, img_mod2_gate)
+        txt_mod1_gate = local_modulation_gate(self, txt_mod1_gate)
+        txt_mod2_gate = local_modulation_gate(self, txt_mod2_gate)
+
         if vec_is_per_token:
             # Per-token modulation: gate/shift/scale are 3D [B, L, C].
             # Do NOT use modulate()/apply_gate() — they unsqueeze(1), which would
@@ -1255,7 +1265,8 @@ class MMDoubleStreamBlock(nn.Module):
 
         def _run_txt_mlp(_input):
             _fixed_m = int(_os.environ.get("HY_TEXT_MLP_FC2_FIXED_M", "0") or 0)
-            if _fixed_m <= 0:
+            if _fixed_m <= 0 or getattr(self, "tensor_parallel_size", 1) > 1:
+                # TP reduce-scatter partitions the complete text sequence once.
                 return self.txt_mlp(_input)
             _fc1 = self.txt_mlp.fc1(_input)
             _act = self.txt_mlp.act(_fc1)
@@ -1589,7 +1600,7 @@ class MMSingleStreamBlock(nn.Module):
             output = self.mlp(x_mod, attn)
             self.loss_moe = self.mlp.get_moe_loss()
 
-        return x + apply_gate(output, gate=mod_gate)
+        return x + apply_gate(output, gate=local_modulation_gate(self, mod_gate))
 
 
 class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
@@ -3105,6 +3116,10 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                     )
                 vec_txt = torch.chunk(vec_txt, sp_size, dim=1)[sp_rank].contiguous()
 
+        # TP residuals stay sequence-sharded across all DiT blocks. Their
+        # LayerNorms all-gather before QKV/MLP; masks and RoPE remain full here.
+        img, txt = shard_transformer_streams(self, img, txt)
+
         # --------------------- Pass through DiT double blocks ------------------------
         # Discriminator feature hooks: collect post-block hidden states at the
         # requested layer indices (additive; only when out_contexts=True).
@@ -3196,7 +3211,11 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
             # Discriminator hook: capture the (post-block, post-camera) hidden
             # state for this layer. img is [B, L, hidden_size].
             if _hook_set is not None and index in _hook_set:
-                contexts[str(index)] = img
+                contexts[str(index)] = (
+                    gather_sequence(img, self.tensor_parallel_group,
+                                    self.final_layer.norm_final.sequence_length)
+                    if getattr(self, "tensor_parallel_size", 1) > 1 else img
+                )
 
         # Discriminator path: return the collected per-layer features before the
         # final layer / unpatchify (mirrors Wan22 out_contexts short-circuit).
@@ -3442,6 +3461,10 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                 f"Unsupported text_projection: {self.text_projection}"
             )
 
+        # Keep original text length for cache/token bookkeeping; TP residual
+        # shards may be shorter than one token or empty on some ranks.
+        cache_text_length = txt.shape[1]
+        img, txt = shard_transformer_streams(self, img, txt)
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
 
         # Use flash3 attention for KV cache mode.
@@ -3515,22 +3538,25 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                         rope_time_offset=camera_rope_time_offset,
                     )
 
-        # Gather sequence back before final layer
-        if get_sequence_parallel_state():
+        tp_enabled = getattr(self, "tensor_parallel_size", 1) > 1
+        # Preserve the TP1 path: gather SP tokens before the output layer.
+        if get_sequence_parallel_state() and not tp_enabled:
             if nccl_info.use_dynamic_ring_attention:
                 img = postprocess_dynamic_ring_attention(img)
             else:
                 img = all_gather(img, dim=1, group=nccl_info.sp_group)
 
-        # Final layer
+        # With TP, final LayerNorm normalizes local tokens and gathers them
+        # before the output projection; restore the SP dimension afterwards.
         img = self.final_layer(img, vec, tokens_per_frame=tokens_per_frame)
-
+        if get_sequence_parallel_state() and tp_enabled:
+            img = all_gather(img, dim=1, group=nccl_info.sp_group)
         img = self.unpatchify(img, tt, th, tw)
 
         # Calculate tokens added to cache
         if update_cache:
             img_tokens = tt * tokens_per_frame
-            txt_tokens = txt.shape[1] if cache_txt else 0
+            txt_tokens = cache_text_length if cache_txt else 0
             # Account for SP: after all_to_all, img tokens are full but heads are sharded
             if get_sequence_parallel_state():
                 new_cache_tokens = img_tokens + txt_tokens
@@ -3550,7 +3576,7 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
             and int(current_action_start) >= 0
             and not (kv_cache_list and "swa_capacity" in kv_cache_list[0])
         ):
-            text_len = int(txt.shape[1])
+            text_len = int(cache_text_length)
             tail_start = (
                 int(cache_valid_len)
                 + int(tt * tokens_per_frame)

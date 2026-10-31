@@ -65,7 +65,7 @@ def maybe_load_pixelumm_decoder(args, *, device, logger):
     if bool(_get(config, "deepgemm_fp8", False)) and bool(_get(config, "cutlass_fp8", False)):
         raise ValueError("Select only one FP8 backend: model.vae.deepgemm_fp8 or model.vae.cutlass_fp8")
 
-    from hymm.distributed.parallel_states import nccl_info
+    from hymm.distributed.parallel_states import get_model_parallel_info
 
     from .autoencoder import DMD2_DENOISING_STEPS, PixelUMMDCAELatentDecoder
 
@@ -94,10 +94,9 @@ def maybe_load_pixelumm_decoder(args, *, device, logger):
 
     mode = str(_get(config, "parallel_mode", "none")).strip().lower()
     if mode != "none":
-        group = getattr(nccl_info, "sp_group", None)
-        world_size = int(getattr(nccl_info, "sp_size", 1) or 1)
+        group, world_size, _ = get_model_parallel_info()
         if not (dist.is_available() and dist.is_initialized() and group is not None and world_size > 1):
-            raise RuntimeError(f"PixelUMM decode mode {mode!r} requires an active multi-rank SP group")
+            raise RuntimeError(f"PixelUMM decode mode {mode!r} requires an active multi-rank SP/TP model group")
         decoder.configure_distributed_decode(
             mode, process_group=group, output_rank=int(_get(config, "output_rank", 0))
         )

@@ -26,7 +26,7 @@ def _load_cpu_pipeline():
     from typing import Callable, List, Optional
     from loguru import logger
     from omegaconf import ListConfig
-    from hymm.distributed.parallel_states import nccl_info
+    from hymm.distributed.parallel_states import nccl_info, get_model_parallel_info
     from hymm.utils.inference_metrics import stage
 
     source = (ROOT / "hymm/pipeline/causal_ar.py").read_text()
@@ -34,7 +34,8 @@ def _load_cpu_pipeline():
     tree.body = [node for node in tree.body if not isinstance(node, (ast.Import, ast.ImportFrom))]
     namespace = dict(torch=torch, math=math, os=os, time=time, logger=logger,
                      Callable=Callable, List=List, Optional=Optional, ListConfig=ListConfig,
-                     BasePipeline=nn.Module, nccl_info=nccl_info, stage=stage)
+                     BasePipeline=nn.Module, nccl_info=nccl_info, stage=stage,
+                     get_model_parallel_info=get_model_parallel_info)
     exec(compile(tree, "causal_ar.py", "exec"), namespace)
     return SimpleNamespace(**namespace)
 

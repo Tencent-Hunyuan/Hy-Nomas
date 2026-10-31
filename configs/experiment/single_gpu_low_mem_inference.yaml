@@ -20,7 +20,6 @@ model:
 
 # turn off parallelism for single GPU low-memory inference
 parallelism:
-  sp_size: 1
   shard_text_encoder: false
   text_encoder_cpu_offload: true
   # Keep DiT on CPU outside the complete denoising/cache-write phase.

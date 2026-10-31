@@ -222,7 +222,9 @@ class FinalLayerPerBlock(nn.Module):
 
         if c_is_3d:
             B, T, C = c.shape
-            L_local = x.shape[1]
+            L_local = getattr(self.norm_final, "sequence_length", None)
+            if L_local is None:
+                L_local = x.shape[1]
 
             c_is_per_token = T == L_local
 

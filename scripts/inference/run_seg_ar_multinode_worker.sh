@@ -34,8 +34,8 @@ if (( NNODES < 1 )); then
   exit 2
 fi
 
-if (( NNODES * NPROC_PER_NODE != SP_SIZE )); then
-  echo "SP_SIZE must equal nodes * GPUs per node; got ${SP_SIZE} != ${NNODES} * ${NPROC_PER_NODE}" >&2
+if (( NNODES * NPROC_PER_NODE != MODEL_PARALLEL_SIZE )); then
+  echo "SP_SIZE * TP_SIZE must equal nodes * GPUs per node; got ${MODEL_PARALLEL_SIZE} != ${NNODES} * ${NPROC_PER_NODE}" >&2
   exit 2
 fi
 
@@ -86,6 +86,7 @@ remote_command() {
   command+="$(shell_quote "NOMAS_WORKER_REPLICAS=1") "
   command+="$(shell_quote "WORKER_REPLICAS=1") "
   command+="$(shell_quote "SP_SIZE=${SP_SIZE}") "
+  command+="$(shell_quote "TP_SIZE=${TP_SIZE}") "
   command+="$(shell_quote "NNODES=${NNODES}") "
   command+="$(shell_quote "NODE_RANK=${rank}") "
   command+="$(shell_quote "NPROC_PER_NODE=${NPROC_PER_NODE}") "
@@ -161,7 +162,7 @@ cleanup() {
 trap cleanup TERM INT EXIT
 
 start_group() {
-  echo "Starting one SP${SP_SIZE} worker across ${NNODES} node(s):"
+  echo "Starting one SP${SP_SIZE}/TP${TP_SIZE} worker across ${NNODES} node(s):"
   for rank in "${!WORKER_HOSTS[@]}"; do
     echo "  rank ${rank}: ${WORKER_HOSTS[$rank]} (${NPROC_PER_NODE} GPUs)"
   done
@@ -210,7 +211,7 @@ while true; do
     restart_count=$((restart_count + 1))
     delay=$((restart_count * 5))
     (( delay > 60 )) && delay=60
-    reset_worker_after_failure "SP${SP_SIZE} worker failed during startup; restarting in ${delay}s"
+    reset_worker_after_failure "SP${SP_SIZE}/TP${TP_SIZE} worker failed during startup; restarting in ${delay}s"
     sleep "${delay}"
     trap cleanup TERM INT EXIT
     continue
@@ -221,7 +222,7 @@ while true; do
     for rank in "${!WORKER_HOSTS[@]}"; do
       host="${WORKER_HOSTS[$rank]}"
       if ! rank_is_alive "${host}" "${rank}"; then
-        failure_reason="SP${SP_SIZE} worker rank ${rank} on ${host} exited"
+        failure_reason="SP${SP_SIZE}/TP${TP_SIZE} worker rank ${rank} on ${host} exited"
         break
       fi
     done
@@ -237,7 +238,7 @@ if sys.argv[3] in result["worker_ids"]:
 PY
       )"
       if [[ "${timed_out}" == "yes" ]]; then
-        failure_reason="SP${SP_SIZE} worker exceeded the ${GENERATION_TIMEOUT_SECONDS}s generation timeout"
+        failure_reason="SP${SP_SIZE}/TP${TP_SIZE} worker exceeded the ${GENERATION_TIMEOUT_SECONDS}s generation timeout"
       fi
     fi
     [[ -n "${failure_reason}" ]] || sleep 2

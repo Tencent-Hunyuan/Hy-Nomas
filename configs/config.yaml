@@ -300,6 +300,7 @@ training:
 
 parallelism:
   sp_size: 1
+  tp_size: 1  # Tensor parallel degree; dense DiT inference projections.
   # Keep text hidden states sequence-sharded across DiT blocks and use the
   # same sequence<->head all-to-all layout as image tokens. Enabled by default
   # for all training configs; set false explicitly to use the legacy

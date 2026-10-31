@@ -177,11 +177,14 @@ Run from the repository root with `configs/experiment/inference.yaml`, overridin
 export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
 
 bash scripts/inference/inference_from_config.sh configs/experiment/inference.yaml \
+  --sp-size 1 --tp-size 8 \
   dit_weight="${Hy_Nomas_Model_Path}/DiT/distilled/diffusion_pytorch_model_ema_0_995.safetensors" \
   model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/PixelUMM_FT/diffusion_pytorch_model.safetensors" \
   inference.prompt=/path/to/prompts.json \
   inference.save_path=./outputs/distill
 ```
+
+The inference preset uses **SP=1, TP=8**. Tensor parallelism shards dense DiT attention and MLP projections across eight ranks. See [tensor-parallel inference](tensor_parallel.md) for topology overrides, tests and current limitations.
 
 #### Inference with Low-Mem GPU
 

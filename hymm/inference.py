@@ -1473,6 +1473,8 @@ def _validate_inference_config(cfg) -> None:
             "Make sure configs/config.yaml defines an 'inference:' block."
         )
 
+    from hymm.distributed.tensor_parallel import validate_tensor_parallel_config
+    validate_tensor_parallel_config(cfg)
     required_params = _get_required_inference_params()
     missing = [
         param
@@ -1565,6 +1567,13 @@ def main():
         if hasattr(args, "parallelism")
         else getattr(args, "sp_size", 1)
     )
+    tp_size = (
+        getattr(args.parallelism, "tp_size", 1)
+        if hasattr(args, "parallelism") else getattr(args, "tp_size", 1)
+    )
+    from hymm.distributed.tensor_parallel import validate_parallel_sizes
+    from hymm.distributed.parallel_states import get_model_parallel_info
+    model_parallel_size = validate_parallel_sizes(sp_size, tp_size, world_size)
     world_mesh = None
 
     if world_size > 1:
@@ -1572,7 +1581,7 @@ def main():
             dp_replicate=1,
             dp_shard=-1,
             sp=sp_size,
-            tp=1,
+            tp=tp_size,
             pp=1,
             world_size=world_size,
         )
@@ -1594,15 +1603,17 @@ def main():
     torch.set_grad_enabled(False)
 
     if world_size > 1:
-        sp_group_id = rank // sp_size
-        num_sp_groups = world_size // sp_size
-        rank_within_sp = nccl_info.rank_within_spgroup
+        sp_group_id = rank // model_parallel_size
+        num_sp_groups = world_size // model_parallel_size
+        rank_within_sp = rank % model_parallel_size
     else:
         sp_group_id = 0
         num_sp_groups = 1
         rank_within_sp = 0
 
-    # Reduce log verbosity for non-primary ranks within each SP group.
+    # Group scheduling and output ownership use the entire SP x TP replica.
+    # Retain the historical SP variable names used by shard metadata.
+    # Reduce log verbosity for non-primary ranks within each model group.
     # Only rank 0 of each SP group prints INFO logs; others only print WARNING+.
     # Use logger.configure() to set extra globally so all modules (e.g. bidirectional.py)
     # that import logger from loguru can also access {extra[rank]} in the format string.
@@ -1623,7 +1634,7 @@ def main():
 
     if world_size > 1:
         logger.info(
-            f"Distributed: rank={rank}/{world_size}, sp_size={nccl_info.sp_size}"
+            f"Distributed: rank={rank}/{world_size}, sp_size={nccl_info.sp_size}, tp_size={tp_size}"
         )
 
     # Cross-node data sharding for pdsh-based independent node launches.
@@ -2253,9 +2264,10 @@ def main():
                             })
         if compile_before is not None:
             rank_metrics["compilation"] = compilation_delta(compile_before)
-        if world_size > 1:
-            all_rank_metrics = [None] * nccl_info.sp_size
-            dist.all_gather_object(all_rank_metrics, rank_metrics, group=nccl_info.sp_group)
+        if model_parallel_size > 1:
+            model_group, _, _ = get_model_parallel_info()
+            all_rank_metrics = [None] * model_parallel_size
+            dist.all_gather_object(all_rank_metrics, rank_metrics, group=model_group)
         else:
             all_rank_metrics = [rank_metrics]
         Path(output_path).with_suffix(f".metrics.rank{rank}.json").write_text(
@@ -2283,7 +2295,7 @@ def main():
         if enabled_cpu_offloads(args):
             from hymm.utils.model_cpu_offload import cpu_offload_snapshot
             residency = cpu_offload_snapshot(pipeline)
-            residency.update(rank=rank, sp_size=sp_size)
+            residency.update(rank=rank, sp_size=sp_size, tp_size=tp_size)
             Path(output_path).with_suffix(f".offload.rank{rank}.json").write_text(
                 json.dumps(residency, indent=2) + "\n"
             )
