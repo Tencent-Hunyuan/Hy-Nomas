@@ -12,6 +12,7 @@ export type PromptTurnStage =
 export interface PromptTurn {
   id: number
   number: number
+  referenceImage?: boolean
   prompt: string
   submittedAt: string
   stage: PromptTurnStage
@@ -135,7 +136,7 @@ export function PromptTurnTimeline({ turns }: PromptTurnTimelineProps) {
           >
             <header className="prompt-turn-head">
               <div>
-                <strong>PROMPT {turn.number}</strong>
+                <strong>{turn.referenceImage ? 'T0-Reference Image' : `T${turn.number} · ${turn.cameraPath ? 'CAMERA' : 'TEXT'}`}</strong>
                 <time>{turn.submittedAt}</time>
               </div>
               <span>{statusLabels[turn.stage]}</span>

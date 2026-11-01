@@ -22,7 +22,7 @@ export function DemoOverlayTimeline({
         )
         return (
           <div className="demo-timeline-segment" key={turn.id} style={{ flexGrow: duration }}>
-            <span>T{turn.number} · {turn.cameraPath ? 'CAMERA' : index === 0 ? 'START' : 'TEXT'}</span>
+            <span>{turn.referenceImage ? 'T0-Reference Image' : `T${turn.number} · ${turn.cameraPath ? 'CAMERA' : index === 0 ? 'START' : 'TEXT'}`}</span>
             <div className="demo-timeline-track">
               <i style={{ width: `${progress * 100}%` }}>
                 {active && <b />}

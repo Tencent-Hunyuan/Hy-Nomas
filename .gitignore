@@ -135,6 +135,14 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+*.env
+!.env.example
+!*.env.example
+*.pem
+*.key
+.agents/
+.codex/
 .venv
 .data
 data/

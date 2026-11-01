@@ -124,6 +124,7 @@ def test_pixelumm_loader_forwards_nested_options(monkeypatch):
         num_steps=1,
         seed=42,
         tail_hold_latents=1,
+        decode_output_cpu=False,
         temporal_window_latents=12,
         temporal_overlap_latents=6,
         decoder_tile_pixels=128,

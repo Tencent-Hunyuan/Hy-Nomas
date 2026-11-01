@@ -552,6 +552,7 @@ function App({ multiHost = MULTI_HOST }: AppProps = {}) {
     logoutAfterWorldReleaseRef.current = false
     setSessionNotice(undefined)
     setDryRun(false)
+    setConfig(initialWorldConfig())
     setScreen('setup')
   }, [])
 
@@ -562,6 +563,7 @@ function App({ multiHost = MULTI_HOST }: AppProps = {}) {
       ?? 'Your world session expired after 15 minutes of inactivity. Create a new world to continue.',
     )
     setDryRun(false)
+    setConfig(initialWorldConfig())
     setScreen('setup')
   }, [])
 

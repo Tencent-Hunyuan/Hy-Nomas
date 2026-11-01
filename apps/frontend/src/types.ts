@@ -20,6 +20,12 @@ export interface WorldConfig {
   perspective: Perspective
   subjectDescription: string
   environmentDescription: string
+  referenceMode?: 'text' | 'image'
+  imageContinuationPrompt?: string
+  referenceImage?: {
+    id: string; url: string; width: number; height: number
+    caption_status?: 'captioning' | 'ready' | 'failed'
+  }
 }
 
 export type PromptEnhancerModel = string
@@ -74,6 +80,8 @@ export interface GalleryItemRemovedDetail {
 }
 
 export interface BackendConfig {
+  reference_image_enabled?: boolean
+  image_captioning_enabled?: boolean
   rollout_type: 'seg_ar' | 'oneshot'
   prompt_source: 'prompt' | 'subject_file'
   num_frames: number | null

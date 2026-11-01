@@ -6,6 +6,16 @@ import type { PromptTurn } from './PromptTurnTimeline'
 
 afterEach(cleanup)
 
+it('labels the half-second reference T0 and the following text prompt T1', () => {
+  render(<DemoOverlayTimeline currentTime={0.6} turns={[
+    { id: 1, number: 0, referenceImage: true, prompt: 'Reference Image', submittedAt: '', stage: 'complete', startSeconds: 0, endSeconds: 0.5 },
+    { id: 2, number: 1, prompt: 'The ball rolls.', submittedAt: '', stage: 'playing', startSeconds: 0.5, endSeconds: 2.5 },
+  ]} />)
+  expect(screen.getByText('T0-Reference Image')).toBeInTheDocument()
+  expect(screen.getByText('T1 · TEXT')).toBeInTheDocument()
+  expect(screen.queryByText('T1 · START')).not.toBeInTheDocument()
+})
+
 it('sizes segments by duration and tracks seeking without a top-left counter', () => {
   const turns: PromptTurn[] = [
     { id: 1, number: 1, prompt: 'Start', submittedAt: '', stage: 'complete', startSeconds: 0, endSeconds: 2 },

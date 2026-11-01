@@ -31,6 +31,7 @@ import type {
   WorldConfig,
 } from '../types'
 import { CameraPlaybackOverlay } from './CameraPlaybackOverlay'
+import { abortableDelay } from '../abortableDelay'
 import { withFinishedCameraKeyEvents } from '../cameraTrajectory'
 import { DemoOverlayTimeline } from './DemoOverlayTimeline'
 import { CameraPathDrawer, type CameraPathDrawerHandle } from './CameraPathDrawer'
@@ -119,6 +120,7 @@ interface GenerationProgressState {
 }
 
 interface GenerateResponse {
+  initialization_only?: boolean
   id: string
   status: 'succeeded'
   video_url: string
@@ -301,11 +303,12 @@ export function WorldStudio({
   onGalleryItemAdded,
   promptEnhancerModel = 'Nomas-PE',
   onPromptEnhancerModelChange = () => {},
-  promptEnhancerReasoningEffort = 'high',
+  promptEnhancerReasoningEffort = 'none',
   promptEnhancerReasoningEffortOptions = [
+    { id: 'none', label: 'None', default: true },
     { id: 'low', label: 'Low' },
     { id: 'medium', label: 'Medium' },
-    { id: 'high', label: 'High', default: true },
+    { id: 'high', label: 'High' },
   ],
   onPromptEnhancerReasoningEffortChange = () => undefined,
   promptEnhancerSeed,
@@ -369,6 +372,7 @@ export function WorldStudio({
   const nextMessageId = useRef(10)
   const dryRunStartedRef = useRef(false)
   const initialActionStartedRef = useRef(false)
+  const pendingImageContinuationRef = useRef<string | undefined>(undefined)
   const lastDryRunSegmentRef = useRef(0)
   const pendingResumeTimeRef = useRef<number | undefined>(undefined)
   const lastFrameSnapshotRef = useRef<{
@@ -389,6 +393,17 @@ export function WorldStudio({
       ?? `nomas-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   )
   const firstSessionRequestRef = useRef(true)
+  const worldRequestsRef = useRef(new AbortController())
+  useEffect(() => {
+    if (worldRequestsRef.current.signal.aborted) {
+      worldRequestsRef.current = new AbortController()
+    }
+    const controller = worldRequestsRef.current
+    return () => {
+      controller.abort()
+      pendingImageContinuationRef.current = undefined
+    }
+  }, [])
   const replacingRolledBackFirstSegmentRef = useRef(false)
   const isOneShot = backendConfig?.rollout_type === 'oneshot'
   const [dryRunJob, setDryRunJob] = useState<DryRunJob>()
@@ -484,8 +499,9 @@ export function WorldStudio({
   useEffect(() => {
     const sessionId = sessionIdRef.current
     let released = false
-    let pageHiding = false
     const release = () => {
+      worldRequestsRef.current.abort()
+      pendingImageContinuationRef.current = undefined
       if (released) return
       released = true
       void fetch(
@@ -501,18 +517,17 @@ export function WorldStudio({
         .catch(() => undefined)
         .finally(() => onSessionReleased?.())
     }
-    const preserveSessionForPageHide = () => {
-      pageHiding = true
+    const resetAfterPageShow = (event: PageTransitionEvent) => {
+      // BFCache can restore the old JS heap instead of mounting a fresh App.
+      // Its released world must return to the same empty setup as a reload.
+      if (event.persisted && released) onReconfigure()
     }
-    const resumeAfterPageShow = () => {
-      pageHiding = false
-    }
-    window.addEventListener('pagehide', preserveSessionForPageHide)
-    window.addEventListener('pageshow', resumeAfterPageShow)
+    window.addEventListener('pagehide', release)
+    window.addEventListener('pageshow', resetAfterPageShow)
     return () => {
-      window.removeEventListener('pagehide', preserveSessionForPageHide)
-      window.removeEventListener('pageshow', resumeAfterPageShow)
-      if (!pageHiding) release()
+      window.removeEventListener('pagehide', release)
+      window.removeEventListener('pageshow', resetAfterPageShow)
+      release()
     }
   }, [])
 
@@ -574,7 +589,7 @@ export function WorldStudio({
     Math.ceil(segmentEstimateSeconds - segmentElapsedSeconds),
   )
   const progressLabel =
-    generationProgress.phase === 'preparing'
+    config.referenceImage && firstSessionRequestRef.current ? 'Loading image reference into KV cache…' : generationProgress.phase === 'preparing'
       ? 'PREPARING SEGMENT'
       : generationProgress.phase === 'queued'
         ? generationProgress.queuePosition
@@ -692,8 +707,11 @@ export function WorldStudio({
     })
 
   const fetchBytes = async (relativeUrl: string) => {
+    const signal = worldRequestsRef.current.signal
+    signal.throwIfAborted()
     const response = await fetch(`${import.meta.env.BASE_URL}${relativeUrl}`, {
       cache: 'no-store',
+      signal,
     })
     if (!response.ok) {
       throw new Error(`Failed to fetch video fragment: HTTP ${response.status}`)
@@ -715,6 +733,8 @@ export function WorldStudio({
   }
 
   const appendStreamSegment = async (result: GenerateResponse): Promise<boolean> => {
+    const signal = worldRequestsRef.current.signal
+    signal.throwIfAborted()
     const {
       stream_init_url: initUrl,
       stream_segment_url: segmentUrl,
@@ -734,6 +754,7 @@ export function WorldStudio({
     }
 
     streamAppendRef.current = streamAppendRef.current.then(async () => {
+      signal.throwIfAborted()
       const needsNewStream =
         !mediaSourceRef.current
         || !sourceBufferRef.current
@@ -818,6 +839,7 @@ export function WorldStudio({
         sourceBuffer.timestampOffset = removeStart
       }
       await appendBuffer(sourceBuffer, await fetchBytes(segmentUrl))
+      signal.throwIfAborted()
       streamSequenceRef.current = sequence
       const mediaSource = mediaSourceRef.current
       if (mediaSource?.readyState === 'open') {
@@ -849,6 +871,7 @@ export function WorldStudio({
       await streamAppendRef.current
       return true
     } catch (error) {
+      if (signal.aborted) throw error
       console.warn('[Hy-Nomas] MSE append failed; falling back to cumulative MP4', error)
       mseFailedRef.current = true
       sourceBufferRef.current = undefined
@@ -1027,22 +1050,27 @@ export function WorldStudio({
   }
 
   const sendPrompt = async (text = draft, cameraOverride?: CameraPath) => {
+    const signal = worldRequestsRef.current.signal
+    if (signal.aborted) return
     const prompt = text.trim()
     const selectedCameraPath = inputMode === 'camera' ? cameraOverride ?? cameraPath : undefined
     const activeCameraPath = selectedCameraPath
       ? withFinishedCameraKeyEvents(selectedCameraPath)
       : undefined
     if ((inputMode === 'prompt' ? !prompt : !activeCameraPath) || isGenerating) return
-    const messageContent = inputMode === 'prompt' ? prompt : 'Generate from the selected camera path.'
+    const isReferenceTurn = Boolean(config.referenceImage && firstSessionRequestRef.current)
+    const messageContent = isReferenceTurn ? 'Reference Image'
+      : inputMode === 'prompt' ? prompt : 'Generate from the selected camera path.'
 
     const id = nextMessageId.current
     nextMessageId.current += 3
-    const turnNumber = promptTurns.length + 1
+    const turnNumber = config.referenceImage ? promptTurns.length : promptTurns.length + 1
     setPromptTurns((current) => [
       ...current,
       {
         id,
-        number: current.length + 1,
+        number: config.referenceImage ? current.length : current.length + 1,
+        referenceImage: isReferenceTurn,
         prompt: messageContent,
         submittedAt: new Date().toLocaleTimeString('en-GB', { hour12: false }),
         stage: 'simulating',
@@ -1059,13 +1087,14 @@ export function WorldStudio({
         id,
         role: 'user',
         content: messageContent,
-        meta: `PROMPT ${turnNumber}`,
+        meta: isReferenceTurn ? 'T0-Reference Image' : `T${turnNumber} · TEXT`,
         cameraLabel: activeCameraPath?.name,
       },
       {
         id: id + 1,
         role: 'agent',
-        content: 'Generating a new segment-autoregressive world preview…',
+        content: config.referenceImage && firstSessionRequestRef.current
+          ? 'Loading image reference into KV cache…' : 'Generating a new segment-autoregressive world preview…',
         meta: 'GENERATING',
       },
     ])
@@ -1079,7 +1108,12 @@ export function WorldStudio({
       const cameraDurationMs = activeCameraPath
         ? cameraPathDurationMs(activeCameraPath)
         : undefined
+      const referenceImage = firstSessionRequestRef.current ? config.referenceImage : undefined
+      if (referenceImage && activeCameraPath) {
+        throw new Error('Create the fixed image reference segment before adding camera motion.')
+      }
       const structuredSegAr = isOneShot
+        || config.referenceImage
         || activeCameraPath
         ? undefined
         : parseSegArJson(
@@ -1114,6 +1148,7 @@ export function WorldStudio({
         session_id: sessionIdRef.current,
         reset_session: firstSessionRequestRef.current,
         num_inference_steps: inferenceSteps,
+        ...(referenceImage ? { reference_image_id: referenceImage.id } : {}),
       }
       const requestBody = isOneShot
         ? {
@@ -1137,7 +1172,7 @@ export function WorldStudio({
                 ? {}
                 : { prompt_enhancer_seed: promptEnhancerSeed }),
               ...(firstSessionRequestRef.current
-                ? {
+                ? referenceImage ? { perspective: config.perspective } : {
                     perspective: config.perspective,
                     subject_description: describedSubject,
                     environment_description: initialEnvironmentDescription,
@@ -1160,12 +1195,14 @@ export function WorldStudio({
 
       const response = await fetch(requestUrl, {
         method: 'POST',
+        signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       })
 
       const contentType = response.headers.get('content-type') ?? ''
       const rawBody = await response.text()
+      signal.throwIfAborted()
 
       console.groupCollapsed(
         `[Hy-Nomas] /v1/generate response: ${response.status} ${response.statusText}`,
@@ -1208,13 +1245,15 @@ export function WorldStudio({
         let consecutivePollFailures = 0
         let pollFailureStartedAt: number | undefined
         while (!completedResult) {
+          signal.throwIfAborted()
           let job: GenerateJob
           try {
             const statusResponse = await fetch(
               `${import.meta.env.BASE_URL}v1/generate/${submitted.id}`,
-              { cache: 'no-store' },
+              { cache: 'no-store', signal },
             )
             const statusText = await statusResponse.text()
+            signal.throwIfAborted()
             let statusPayload: GenerateJob | { detail?: string }
             try {
               statusPayload = JSON.parse(statusText) as
@@ -1242,6 +1281,7 @@ export function WorldStudio({
             consecutivePollFailures = 0
             pollFailureStartedAt = undefined
           } catch (error) {
+            signal.throwIfAborted()
             const transient =
               error instanceof TypeError
               || error instanceof TransientGenerationPollError
@@ -1272,17 +1312,9 @@ export function WorldStudio({
                   : message,
               ),
             )
-            await new Promise((resolve) =>
-              window.setTimeout(
-                resolve,
-                Math.min(
-                  5000,
-                  STATUS_POLL_RETRY_BASE_MS * 2 ** (
-                    consecutivePollFailures - 1
-                  ),
-                ),
-              ),
-            )
+            await abortableDelay(Math.min(
+              5000, STATUS_POLL_RETRY_BASE_MS * 2 ** (consecutivePollFailures - 1),
+            ), signal)
             continue
           }
           const promptContent = job.pe_prompt ?? job.pe_content_preview
@@ -1354,7 +1386,7 @@ export function WorldStudio({
                         ? job.pe_reasoning.replace(/\s+/g, ' ').trim()
                         : undefined,
                     content:
-                      jobStatus === 'enhancing'
+                      referenceImage ? 'Loading image reference into KV cache…' : jobStatus === 'enhancing'
                         ? backendConfig?.prompt_enhancement_enabled === false
                           ? 'Preparing the action with the local prompt fallback…'
                           : 'Enhancing the action into a structured segment…'
@@ -1379,14 +1411,21 @@ export function WorldStudio({
             completedResult = job.result
             break
           }
-          await new Promise((resolve) =>
-            window.setTimeout(resolve, jobStatus === 'enhancing' ? 250 : 1500),
-          )
+          await abortableDelay(jobStatus === 'enhancing' ? 250 : 1500, signal)
         }
         result = completedResult
       }
+      signal.throwIfAborted()
       firstSessionRequestRef.current = false
       replacingRolledBackFirstSegmentRef.current = false
+      if (result.initialization_only) {
+        setPromptTurns((current) => current.filter((turn) => turn.id !== id))
+        completedTurnIdsRef.current.push(id)
+        setInteractiveSegmentCount((count) => count + 1)
+        setMessages((current) => current.map((message) => message.id === id + 1
+          ? { ...message, content: 'World initialized', meta: 'COMPLETE' } : message))
+        return
+      }
       if (
         Number.isFinite(result.generation_seconds)
         && result.generation_seconds > 0
@@ -1423,6 +1462,7 @@ export function WorldStudio({
       const streamed = USE_MEDIA_SOURCE_STREAMING
         ? await appendStreamSegment(result)
         : false
+      signal.throwIfAborted()
       if (!streamed) {
         holdPreviousVideoFrame()
         resetMediaStream()
@@ -1446,6 +1486,7 @@ export function WorldStudio({
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      if (signal.aborted) return
       if (message.startsWith('SESSION_EXPIRED:')) {
         onSessionExpiredRef.current(WORLD_SESSION_ENDED_MESSAGE)
         return
@@ -1460,11 +1501,13 @@ export function WorldStudio({
         ),
       )
     } finally {
-      setIsGenerating(false)
+      if (!signal.aborted) setIsGenerating(false)
     }
   }
 
   const rollbackLastSegment = async () => {
+    const signal = worldRequestsRef.current.signal
+    if (signal.aborted) return
     if (isGenerating || interactiveSegmentCount <= 0) return
     setGenerationError(undefined)
     setIsGenerating(true)
@@ -1472,11 +1515,12 @@ export function WorldStudio({
       const sessionId = sessionIdRef.current
       const submitResponse = await fetch(
         `${import.meta.env.BASE_URL}v1/sessions/${encodeURIComponent(sessionId)}/rollback`,
-        { method: 'POST' },
+        { method: 'POST', signal },
       )
       const submitted = (await submitResponse.json()) as
         | RollbackJob
         | { detail?: string }
+      signal.throwIfAborted()
       if (!submitResponse.ok) {
         throw new Error(
           'detail' in submitted && submitted.detail
@@ -1487,13 +1531,15 @@ export function WorldStudio({
 
       let completed: RollbackJob['result']
       while (!completed) {
+        signal.throwIfAborted()
         const statusResponse = await fetch(
           `${import.meta.env.BASE_URL}v1/sessions/${encodeURIComponent(sessionId)}/rollback/${(submitted as RollbackJob).id}`,
-          { cache: 'no-store' },
+          { cache: 'no-store', signal },
         )
         const statusPayload = (await statusResponse.json()) as
           | RollbackJob
           | { detail?: string }
+        signal.throwIfAborted()
         if (!statusResponse.ok) {
           throw new Error(
             'detail' in statusPayload && statusPayload.detail
@@ -1509,7 +1555,7 @@ export function WorldStudio({
           completed = job.result
           break
         }
-        await new Promise((resolve) => window.setTimeout(resolve, 500))
+        await abortableDelay(500, signal)
       }
 
       resetMediaStream()
@@ -1560,10 +1606,11 @@ export function WorldStudio({
         playingTurnIdRef.current = undefined
       }
     } catch (error) {
+      if (signal.aborted) return
       const message = error instanceof Error ? error.message : String(error)
       setGenerationError(message)
     } finally {
-      setIsGenerating(false)
+      if (!signal.aborted) setIsGenerating(false)
     }
   }
 
@@ -1571,18 +1618,30 @@ export function WorldStudio({
     if (
       dryRun
       || initialActionStartedRef.current
-      || !config.environmentDescription.trim()
+      || (!config.referenceImage && !config.environmentDescription.trim())
       || !backendConfig?.worker_online
     ) {
       return
     }
     initialActionStartedRef.current = true
-    void sendPrompt(config.environmentDescription.trim())
+    pendingImageContinuationRef.current = config.referenceImage
+      ? config.imageContinuationPrompt?.trim() : undefined
+    void sendPrompt(config.referenceImage ? 'Loading image reference into KV cache…' : config.environmentDescription.trim())
   }, [
     backendConfig?.worker_online,
     config.environmentDescription,
+    config.referenceImage,
+    config.imageContinuationPrompt,
     dryRun,
   ])
+
+  useEffect(() => {
+    if (isGenerating || firstSessionRequestRef.current || interactiveSegmentCount === 0
+      || !pendingImageContinuationRef.current) return
+    const prompt = pendingImageContinuationRef.current
+    pendingImageContinuationRef.current = undefined
+    void sendPrompt(prompt)
+  }, [isGenerating, interactiveSegmentCount])
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

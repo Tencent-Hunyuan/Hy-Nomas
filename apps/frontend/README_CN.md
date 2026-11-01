@@ -96,17 +96,16 @@ caption；无需单独启动 HTTP 推理服务。
 选中的 PE 模型 API 将 Setup 中的 perspective、`Subject Description` 和
 `Environment Description` 转换为训练同格式的
 `perspective_view + Style + subject_list + segments + contained_actions`
-JSON，再提交给 GPU worker。K3 会把用户选择的 `first-person` 细化为
-`first-person` 或 `second-person`，把 `third-person` 细化为
-`third-person follow` 或 `third-person observer`，并从两个描述中推断
-Style。每个非首轮 K3 请求都会从紧邻的上一 segment 按约 2 FPS 采样最多
+JSON，再提交给 GPU worker。PE 保留用户选择的视角，并从描述中推断
+Style。每个非首轮 PE 请求都会从所有已完成的 segment 中分别采样最多
 40 张帧作为视觉连续性条件。每张帧保持原始宽高比，将短边下采样到 480
 像素；短边已经不超过 480 像素时不会放大。完整的多模态 user message
 会写入同一 session 的 conversation history，因此后续请求会回放此前各轮
 积累的 segment 视频帧和 turn prompt，而不只是文本 JSON。请求内容按照
 大规模 caption pipeline 的 multi-image 协议排列：先发送当前用户指令，
 随后为每张图片发送对应的绝对 `video_timestamp` 与
-`segment_relative_time` 文本，再发送图片。K3 当前轮使用 high thinking；
+`segment_relative_time` 文本，再发送图片。默认使用 Nomas-PE 和 None thinking，
+用户可在选项中选择已配置的 Kimi-K3 和其他思考等级；
 历史 assistant turn 只保留最终 JSON，不回放 thinking block。
 Camera-control 轮会把为 PE 清理后的 trajectory JSON 作为
 `camera_control` 值发给 K3，包括全部 pose frames、timestamps、position、
@@ -1343,3 +1342,7 @@ npm run build
 ```
 
 测试使用单 worker，可以避免部分共享文件系统或容器环境中 Vitest fork worker 启动超时。
+
+## 参考图初始化更新
+
+参考图模式内部五秒参考段完整进入 KV cache，视频只保留最后 0.5 秒并标记 **T0-Reference Image**。用户提示词生成段从 **T1 · TEXT** 开始。详见 [中文说明](../IMAGE_REFERENCE_CN.md)。
