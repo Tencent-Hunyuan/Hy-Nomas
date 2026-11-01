@@ -1,6 +1,7 @@
 import {
   ArrowRight,
   Bot,
+  Images,
   MoreHorizontal,
   Orbit,
 } from 'lucide-react'
@@ -123,19 +124,30 @@ export function SetupScreen({
   onThemeToggle,
 }: SetupScreenProps) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
+  const [imageError, setImageError] = useState<string>()
+  const uploadInputRef = useRef<HTMLInputElement>(null)
+  const imageRequestRef = useRef(0)
+  const manualConfigRef = useRef<WorldConfig | undefined>(undefined)
+  const configRef = useRef(config)
+  configRef.current = config
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const isOneShot = backendConfig?.rollout_type === 'oneshot'
-  const selectedPerspective =
-    perspectives.find((option) => option.value === config.perspective)
-    ?? perspectives[0]
+  const imageControlsLocked = !isOneShot && (config.referenceMode === 'image' || Boolean(config.referenceImage))
+  const captionReady = !imageControlsLocked || config.referenceImage?.caption_status === 'ready'
+  const setupInputReady = imageControlsLocked
+    ? Boolean(config.imageContinuationPrompt?.trim())
+    : Boolean(config.subjectDescription.trim() && (isOneShot || config.environmentDescription.trim()))
   const update = <Key extends keyof WorldConfig>(
     key: Key,
     value: WorldConfig[Key],
   ) => {
+    if (imageControlsLocked && (key === 'subjectDescription' || key === 'environmentDescription')) return
     onChange({ ...config, [key]: value })
   }
 
   const selectGallerySample = (sample: GallerySample) => {
+    if (imageControlsLocked) return
     onChange({
       ...config,
       subjectDescription: sample.subject,
@@ -150,12 +162,81 @@ export function SetupScreen({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (
-      config.subjectDescription.trim()
-      && (isOneShot || config.environmentDescription.trim())
+      !imageUploading
+      && captionReady
+      && setupInputReady
     ) {
       onStart()
     }
   }
+
+  const uploadImage = async (file: File | undefined, standardReference = false) => {
+    if (!file) return
+    // Browser MIME labels can be empty or use image/jpg for valid JPEGs.
+    // The server validates the actual image bytes before accepting the upload.
+    const supportedImage = ['image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/webp'].includes(file.type)
+      || /\.(jpe?g|jfif|png|webp)$/i.test(file.name)
+    if (!supportedImage
+      || file.size > 10 * 1024 * 1024) {
+      setImageError('Choose a JPEG, PNG, or WebP image up to 10 MB.')
+      return
+    }
+    const request = ++imageRequestRef.current
+    if (standardReference && !imageControlsLocked) manualConfigRef.current = { ...configRef.current }
+    if (standardReference) onChange({ ...configRef.current, referenceMode: 'image', referenceImage: undefined,
+      subjectDescription: '', environmentDescription: '' })
+    setImageUploading(true)
+    setImageError(undefined)
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}v1/reference-images?perspective=${encodeURIComponent(configRef.current.perspective)}`, {
+        method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file,
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.detail || 'Image upload failed')
+      if (request !== imageRequestRef.current) return
+      const pending: WorldConfig = { ...configRef.current, referenceMode: 'image', referenceImage: result, subjectDescription: '', environmentDescription: '' }
+      onChange(pending)
+      const deadline = Date.now() + 6 * 60 * 1000
+      while (request === imageRequestRef.current) {
+        const captionResponse = await fetch(`${import.meta.env.BASE_URL}v1/reference-images/${result.id}`)
+        const caption = await captionResponse.json()
+        if (request !== imageRequestRef.current) return
+        if (!captionResponse.ok || caption.caption_status === 'failed') {
+          throw new Error(caption.caption_error || caption.detail || 'Image captioning failed')
+        }
+        if (caption.caption_status === 'ready') {
+          onChange({
+            ...configRef.current,
+            referenceMode: 'image',
+            referenceImage: { ...result, caption_status: 'ready' },
+            subjectDescription: caption.subject_description,
+            environmentDescription: caption.environment_description,
+          })
+          break
+        }
+        if (Date.now() >= deadline) throw new Error('Image captioning timed out. Remove the image and try again.')
+        await new Promise((resolve) => window.setTimeout(resolve, 1500))
+      }
+    } catch (error) {
+      if (request === imageRequestRef.current) {
+        setImageError(error instanceof Error ? error.message : 'Image upload failed')
+      }
+    } finally {
+      if (request === imageRequestRef.current) setImageUploading(false)
+    }
+  }
+
+  const removeImage = () => {
+    ++imageRequestRef.current
+    setImageUploading(false)
+    setImageError(undefined)
+    const current = configRef.current
+    onChange({ ...(manualConfigRef.current || current), referenceMode: 'text',
+      perspective: current.perspective, referenceImage: undefined,
+      imageContinuationPrompt: current.imageContinuationPrompt })
+  }
+
+  useEffect(() => () => { ++imageRequestRef.current }, [])
 
   useEffect(() => {
     if (!moreMenuOpen) return
@@ -338,10 +419,27 @@ export function SetupScreen({
             <div
               className={[
                 'world-description-grid',
-                isOneShot ? 'single' : '',
+                isOneShot || imageControlsLocked ? 'single' : '',
               ].filter(Boolean).join(' ')}
             >
-              {!isOneShot && (
+              {imageControlsLocked && (
+                <div className="world-chat-field primary">
+                  <label htmlFor="world-image-continuation">User prompt</label>
+                  <textarea
+                    id="world-image-continuation"
+                    rows={3}
+                    value={config.imageContinuationPrompt ?? ''}
+                    onChange={(event) => update('imageContinuationPrompt', event.target.value)}
+                    placeholder="Describe what should happen after the image reference, e.g. The subject turns and walks toward the window."
+                    aria-describedby="world-image-continuation-hint"
+                    required
+                  />
+                  <small id="world-image-continuation-hint">
+                    The video starts with a 0.5-second reference image (T0), followed by your prompt (T1).
+                  </small>
+                </div>
+              )}
+              {!isOneShot && !imageControlsLocked && (
                 <div className="world-chat-field environment">
                   <label htmlFor="world-environment">
                     Environment Description
@@ -351,6 +449,7 @@ export function SetupScreen({
                     aria-label="Environment Description"
                     rows={2}
                     value={config.environmentDescription}
+                    disabled={imageControlsLocked}
                     onChange={(event) =>
                       update('environmentDescription', event.target.value)
                     }
@@ -368,6 +467,7 @@ export function SetupScreen({
                           type="button"
                           key={template.label}
                           title={template.value}
+                          disabled={imageControlsLocked}
                           onClick={() =>
                             update('environmentDescription', template.value)
                           }
@@ -380,7 +480,7 @@ export function SetupScreen({
                 </div>
               )}
 
-              <div className="world-chat-field primary">
+              {!imageControlsLocked && <div className="world-chat-field primary">
                 <label htmlFor="world-subject">
                   {isOneShot ? 'Prompt file' : 'Subject Description'}
                 </label>
@@ -389,6 +489,7 @@ export function SetupScreen({
                   aria-label={isOneShot ? 'Prompt file' : 'Subject Description'}
                   rows={2}
                   value={config.subjectDescription}
+                  disabled={imageControlsLocked}
                   onChange={(event) =>
                     update('subjectDescription', event.target.value)
                   }
@@ -411,6 +512,7 @@ export function SetupScreen({
                           type="button"
                           key={template.label}
                           title={template.value}
+                          disabled={imageControlsLocked}
                           onClick={() =>
                             update('subjectDescription', template.value)
                           }
@@ -421,11 +523,32 @@ export function SetupScreen({
                     </div>
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
 
+            {imageControlsLocked && (
+              <div className="reference-image-control">
+                <small>Nomas-PE captions your image using your selected perspective. Enter world creates the image reference, then generates your second segment.</small>
+                <small>The full image is fitted to 1280 × 720 with padding; nothing is cropped.</small>
+                {backendConfig?.reference_image_enabled === false && (
+                  <small>Image references are unavailable on this worker.</small>
+                )}
+                {backendConfig?.image_captioning_enabled === false && <small>Image captioning is unavailable.</small>}
+                {imageUploading && <p role="status">Nomas-PE is captioning your image…</p>}
+
+                {config.referenceImage && (
+                  <div className="reference-image-preview">
+                    <img src={config.referenceImage.url} alt="World reference" />
+
+                  </div>
+                )}
+                <button type="button" onClick={removeImage}>{imageUploading ? 'Cancel upload' : 'Remove image'}</button>
+              </div>
+            )}
+            {imageError && <p role="alert">{imageError}</p>}
+
             <div className="world-chat-meta-row">
-              <div className="world-chat-controls">
+              <div className="world-chat-controls perspective-upload-row">
                 <label
                   className="world-chat-perspective-select"
                   htmlFor="world-perspective"
@@ -434,9 +557,7 @@ export function SetupScreen({
                   <select
                     id="world-perspective"
                     aria-label="Perspective"
-                    aria-describedby="world-perspective-description"
                     value={config.perspective}
-                    title={selectedPerspective.description}
                     onChange={(event) =>
                       update(
                         'perspective',
@@ -444,20 +565,31 @@ export function SetupScreen({
                       )
                     }
                   >
-                    {perspectives.map(({ value, label, description }) => (
+                    {perspectives.map(({ value, label }) => (
                       <option
                         key={value}
                         value={value}
-                        title={description}
                       >
                         {label}
                       </option>
                     ))}
                   </select>
-                  <small id="world-perspective-description">
-                    {selectedPerspective.description}
-                  </small>
                 </label>
+                {!isOneShot && <div className="image-upload-section">
+                  <span>Image reference</span>
+                  <button className="reference-mode-toggle" type="button"
+                    disabled={imageUploading || backendConfig?.reference_image_enabled === false || backendConfig?.image_captioning_enabled === false}
+                    onClick={() => uploadInputRef.current?.click()}>
+                    <Images size={18} aria-hidden="true" />
+                    <span>Upload image</span>
+                  </button>
+                  <input ref={uploadInputRef} hidden type="file" aria-label="Upload image file"
+                    accept="image/jpeg,image/jpg,image/pjpeg,image/png,image/webp,.jpg,.jpeg,.jfif,.png,.webp"
+                    onChange={(event) => {
+                      void uploadImage(event.target.files?.[0], true)
+                      event.target.value = ''
+                    }} />
+                </div>}
               </div>
 
             </div>
@@ -470,8 +602,9 @@ export function SetupScreen({
                   type="submit"
                   disabled={
                     backendConfig?.worker_online === false
-                    || !config.subjectDescription.trim()
-                    || (!isOneShot && !config.environmentDescription.trim())
+                    || imageUploading
+                    || !captionReady
+                    || !setupInputReady
                   }
                 >
                   Enter world

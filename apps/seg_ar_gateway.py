@@ -56,6 +56,11 @@ from apps.seg_ar_attempt_archive import UserAttemptArchive
 from apps.seg_ar_job_store import JobStore
 from apps.seg_ar_resource_monitor import ResourceMonitor
 from apps.seg_ar_demo_config import load_demo_config
+from apps.reference_image import (
+    MAX_IMAGE_BYTES, load_caption_record, resolve_reference_image,
+    save_caption_record, save_reference_image,
+)
+from apps.k3_image_captioner import K3ImageCaptioner, NomasImageCaptioner, caption_to_enhanced, selected_perspective
 
 logger = logging.getLogger("seg_ar_gateway")
 
@@ -1047,8 +1052,10 @@ def create_gateway_app(
     prompt_enhancer: OnlinePromptEnhancer | None = None,
     inference_config: Dict[str, Any] | None = None,
     resource_monitor: ResourceMonitor | None = None,
+    image_captioner: K3ImageCaptioner | None = None,
 ) -> FastAPI:
     output_dir.mkdir(parents=True, exist_ok=True)
+    image_captioner = image_captioner or NomasImageCaptioner()
     if gallery_dir is not None:
         gallery_dir.mkdir(parents=True, exist_ok=True)
     share_index_path = output_dir.parent / f".{output_dir.name}_video_shares.json"
@@ -1581,6 +1588,7 @@ def create_gateway_app(
             **worker_config,
             "num_inference_steps_options": sorted(set((*NUM_INFERENCE_STEPS_OPTIONS, default_steps))),
             "default_num_inference_steps": default_steps,
+            "image_captioning_enabled": image_captioner.configured,
         }
         value.update(
             {
@@ -1841,6 +1849,43 @@ def create_gateway_app(
             headers={"Cache-Control": "private, max-age=300"},
         )
 
+    def caption_uploaded_image(image_id: str, perspective: str) -> None:
+        try:
+            fps = int((store.worker().get("config") or {}).get("fps") or 24)
+            record = image_captioner.caption(resolve_reference_image(image_id, output_dir), fps=fps, perspective=perspective)
+            save_caption_record(image_id, output_dir, record)
+        except Exception as exc:
+            message = str(exc) if isinstance(exc, PromptEnhancementError) else "Image captioning failed; retry the upload"
+            save_caption_record(image_id, output_dir, {"caption_status": "failed", "caption_error": message})
+
+    @app.post("/v1/reference-images", status_code=201)
+    async def upload_reference_image(request: Request, background_tasks: BackgroundTasks, perspective: str = "third-person follow") -> Dict[str, Any]:
+        try:
+            perspective = selected_perspective(perspective)
+        except PromptEnhancementError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not image_captioner.configured:
+            raise HTTPException(status_code=503, detail="Image captioning is not configured on this server")
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > MAX_IMAGE_BYTES:
+                raise HTTPException(status_code=413, detail="Reference image must be at most 10 MB")
+        try:
+            image = save_reference_image(bytes(data), output_dir)
+            save_caption_record(image["id"], output_dir, {"caption_status": "captioning"})
+            background_tasks.add_task(caption_uploaded_image, image["id"], perspective)
+            return {**image, "caption_status": "captioning"}
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/v1/reference-images/{image_id}")
+    def reference_image_status(image_id: str) -> Dict[str, Any]:
+        try:
+            return {"id": image_id, **load_caption_record(image_id, output_dir)}
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
     @app.post("/v1/dry-run", status_code=202)
     def dry_run() -> Dict[str, Any]:
         return store.submit("dryrun")
@@ -1862,6 +1907,35 @@ def create_gateway_app(
             "content": "",
         }
         try:
+            if payload.get("reference_image_id") is not None:
+                session_id = str((pe_input or {}).get("session_id") or payload.get("session_id") or "").strip()
+                if not session_id:
+                    raise PromptEnhancementError("session_id is required")
+                record = load_caption_record(payload["reference_image_id"], output_dir)
+                if record.get("caption_status") != "ready":
+                    raise PromptEnhancementError("Wait for image captioning to finish before entering the world")
+                fps = int((store.worker().get("config") or {}).get("fps") or 24)
+                enhanced = caption_to_enhanced(
+                    record, session_id=session_id, fps=fps,
+                    perspective=(pe_input or {}).get("perspective", record["perspective"]),
+                )
+                raw_user_prompt = record["environment_description"]
+                enhanced.session["last_overlay"] = {
+                    "camera_trajectory": None, "user_prompt": raw_user_prompt,
+                    "has_camera": False, "segment_frames": enhanced.num_frames,
+                }
+                payload.update(
+                    prompt=enhanced.prompt, num_frames=enhanced.num_frames,
+                    segment_boundaries=enhanced.segment_boundaries,
+                    user_prompts=[raw_user_prompt], segment_has_camera=[False],
+                    _pe_session=enhanced.session, _pe_request_id=enhanced.request_id,
+                )
+                store.prepare(
+                    job_id, payload, pe_prompt=json.dumps(json.loads(enhanced.prompt), ensure_ascii=False, indent=2),
+                    pe_content_started=True,
+                    prompt_enhancement_mode=f"{record.get('caption_model') or 'Nomas-PE'}-image-caption",
+                )
+                return
             if pe_input is not None:
                 if not isinstance(pe_input, dict):
                     raise PromptEnhancementError("pe_input must be an object")
@@ -1910,7 +1984,8 @@ def create_gateway_app(
                 if not session_id:
                     raise PromptEnhancementError("pe_input.session_id is required")
                 raw_user_prompt = str(
-                    pe_input.get("action")
+                    pe_input.get("user_prompt")
+                    or pe_input.get("action")
                     or pe_input.get("environment_description")
                     or ""
                 ).strip()
@@ -1975,7 +2050,10 @@ def create_gateway_app(
                             pe_content_started=False,
                         )
 
-                previous_session = store.get_session(session_id)
+                previous_session = (
+                    None if payload.get("reset_session") is True
+                    else store.get_session(session_id)
+                )
                 if previous_session is None and payload.get("reset_session") is False:
                     raise PromptEnhancementError(
                         "WORLD_SESSION_EXPIRED: This World session is no "
@@ -2111,6 +2189,11 @@ def create_gateway_app(
                             * max(1, len(enhanced.segment_boundaries) - 1)
                         ),
                         "stable_prefix_carry_frames": carry_frames,
+                        "hide_reference_carry": bool((previous_result or {}).get('initialization_only')),
+                        "reference_carry_visible_frames": (
+                            int(previous_result.get("frames", 0))
+                            if (previous_result or {}).get("reference_image_segment") else None
+                        ),
                         "stable_prefix_carry_total_frames": int(
                             previous_overlay.get("segment_frames") or carry_frames
                         ),
@@ -2202,6 +2285,23 @@ def create_gateway_app(
         request: Request,
     ) -> Dict[str, Any]:
         submitted = dict(payload)
+        if submitted.get("reference_image_id") is not None:
+            try:
+                resolve_reference_image(submitted["reference_image_id"], output_dir)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            if not isinstance(submitted.get("pe_input"), dict) or submitted.get("reset_session") is not True:
+                raise HTTPException(status_code=400, detail="Image references require a new world")
+            if submitted.get("camera_trajectory"):
+                raise HTTPException(status_code=400, detail="Add camera motion after the image reference segment")
+            if not (store.worker().get("config") or {}).get("reference_image_enabled"):
+                raise HTTPException(status_code=400, detail="The worker needs a DCAE-V encoder checkpoint for image references")
+            caption = load_caption_record(submitted["reference_image_id"], output_dir)
+            if caption.get("caption_status") != "ready":
+                raise HTTPException(status_code=409, detail=caption.get("caption_error") or "Image captioning is still in progress")
+        if isinstance(submitted.get("pe_input"), dict):
+            submitted["pe_input"] = dict(submitted["pe_input"])
+            submitted["pe_input"].pop("reference_image_path", None)
         try:
             effective_num_inference_steps = normalize_num_inference_steps(
                 submitted.get("num_inference_steps"),

@@ -1,5 +1,7 @@
 # Hy-Nomas web demo
 
+[参考图初始化中文说明](IMAGE_REFERENCE_CN.md)
+
 Generate and extend videos with text or camera paths. Run commands from the repository root.
 
 ## 1. Prepare the environment and models
@@ -153,6 +155,104 @@ NOMAS_PRINT_TOPOLOGY_ONLY=true bash scripts/inference/start_seg_ar_demo.sh \
 3. Click **Download** to save the video, or **New world** to start over.
 
 Continue in the same world. After restarting the GPU worker, create a new world. Validate at least one text-generated segment and one camera continuation, then download and play the cumulative MP4. This exercises FA3 KV-cache attention, MagiAttention, the PixelUMM decoder, and video encoding that an import or health check alone does not cover.
+
+### Start with a reference image
+
+**New world** clears the previous image, its caption, and world prompts, while
+preserving perspective, model, thinking level, inference steps, and seed settings.
+New world and browser refresh use the same empty world configuration.
+Both cancel frontend generation/rollback polling and request release of the
+old session; late responses cannot update the newly opened world. A page restored
+from the browser back/forward cache also returns to empty setup. Browser-exit
+release uses a keepalive request; server-side expiry remains the fallback when
+the browser or network cannot deliver it.
+
+Configure `model.vae.encoder_checkpoint` with the DCAE-V encoder weights when
+launching the gateway and workers:
+
+```bash
+model.vae.encoder_checkpoint="${Hy_Nomas_Model_Path}/VAE/DCAE-V/dc-ae-v-1.0-f32t4c32-bf16.pt"
+```
+
+Image captioning uses the local Nomas-PE endpoint configured with `PE_API_URL`
+and `PE_MODEL` (default `Nomas-PE`). Set `PE_API_KEY` only if that service
+requires authentication. K3 credentials are not needed for image uploads.
+Image captioning uses the bundled I2V system prompt in
+`apps/prompts_i2v/online_user_video_rewriter_system_prompt.md`.
+The attached image is paired with `perspective_view` and a `user_prompt`
+requesting the five-second initial state. Only its last 0.5 seconds is shown as
+**T0-Reference Image**; the complete reference remains in the model cache. The **User prompt** instruction is
+still submitted after the reference segment completes.
+
+Optionally configure the K3 prompt-enhancement API in the gateway environment with
+`K3_API_URL`, `K3_MODEL=kimi-k3`, and either `APP_ID`/`APP_KEY` or `K3_API_KEY`
+(`AIHUB_API_KEY` is also accepted). `K3_API_PROVIDER` defaults to `ali` for app
+credentials and `moonshot` for API-key authentication. The gateway can load
+these settings from `$RUNTIME_DIR/k3_gateway.env` or `K3_CREDENTIAL_FILE`.
+Keep credentials out of source control. The API URL must be supplied by your
+deployment. This optional adapter uses your deployment's app/API-key authentication contract.
+
+These K3 settings also add **Kimi-K3** to the **Prompt enhancer** selector in
+the setup and world screens. Nomas-PE is the default, with thinking set to None.
+You can select Kimi-K3 and change the thinking level for text and camera
+prompt enhancement, including continuation with video history. Nomas-PE
+remains available through `PE_API_URL`; the selection determines which service
+receives each request. Image uploads use Nomas-PE captioning, and
+**Enter world** reuses their saved caption without another PE call.
+Both PE choices use the original video-rewriter system and turn prompts in
+`apps/prompts/`. The image-captioning system prompt applies only to uploads.
+
+Click **Upload image** beside **Perspective** and select an image to enter
+image-reference mode automatically. The subject/environment fields are replaced
+by the second-segment prompt while the image is uploaded and captioned. The
+selected perspective stays editable. **Upload image** also replaces an existing
+image. **Cancel upload** or **Remove image** returns to text-only mode and restores
+your manual drafts. Cancelling the file picker does not change modes.
+
+In image-reference mode, select your perspective and upload one JPEG, PNG, or WebP
+(up to 10 MB). Image mode replaces the subject/environment fields with one
+**User prompt** input. Nomas-PE derives the initial subject and environment
+from the image in the background. Enter what should happen next, then choose
+**Enter world** after captioning finishes. The demo first creates the five-second
+image segment from the saved caption, then sends your instruction and that
+segment's video history to the selected PE to generate segment 2. The second
+request starts only after the reference segment succeeds. The perspective
+selector stays editable, and its current value is authoritative when entering.
+Image captions identify exactly one primary subject (`<|Subject1|>`); other
+visible people and objects are described only as scene context.
+Nomas-PE treats the upload as a representative video frame and writes a present-tense
+video caption without describing it as static, frozen, or motionless.
+Switching to text-only mode restores the manual subject/environment fields. The image
+initializes a five-second segment (120 frames at 24 FPS). The encoder
+preserves the complete image: uploads are resized proportionally into a
+1280×720 frame with centered black padding where the aspect ratio differs.
+The same fit-and-pad operation adapts the saved image to the encoder's frame
+size, without cropping content or stretching it. At the default resolution,
+DCAE-V uses 1280×704 internally because its spatial compression requires
+multiples of 32. The prepared frame is duplicated into
+120 pixel frames. The full five-second video is passed through DCAE-V once,
+producing 30 clean latent frames (sigma `0`). The cache-write pass mixes them
+with Gaussian noise once: `z_cache = (1 - sigma) * z + sigma * noise`, where
+`inference.cache_noise_sigma` defaults to `0.206897`. One DiT forward at
+timestep `206.897` saves the image-and-text KV cache. No Euler denoising step
+runs for the image reference. PixelUMM decodes the original clean latents and
+initializes the streaming timeline. The last 12 decoded frames (0.5 seconds)
+are published as **T0-Reference Image**. The UI shows **Loading image reference into KV cache…**
+while the complete five-second segment is encoded and cached. The user-prompt
+segment follows as **T1 · TEXT**, starting at playback time 0.5 seconds.
+Decoder correction frames can replace T0's visible tail without reintroducing
+the hidden prefix. PE sees the reference evidence with its original model
+timestamps, followed by continuation history. Later generated segments retain their
+normal denoising schedule before the same cache-noising operation.
+
+The encoder loads only for reference-image requests, on rank 0, and releases
+its GPU memory afterward. Rank 0 temporarily moves the idle DiT and decoder
+weights to CPU during encoding and restores their original devices afterward.
+The first segment uses the saved Nomas-PE caption directly;
+subsequent turns use the normal PE service and the saved session history.
+The gateway stores normalized uploads and their caption JSON under
+`outputs/seg_ar_demo/reference_images`. References can only initialize new
+interactive worlds; they cannot replace the image in an existing session.
 
 ## Settings, logs, and shutdown
 

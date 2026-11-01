@@ -153,4 +153,5 @@ check_untyped_defs = true
 no_implicit_optional = true
 
 [tool.setuptools.package-data]
+"apps" = ["prompts/*.md", "prompts_i2v/*.md"]
 "hymm.models.vae.pixelumm_decoder" = ["csrc/*.cu"]

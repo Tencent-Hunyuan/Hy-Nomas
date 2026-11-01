@@ -140,6 +140,8 @@ model:
   vae:
     name: dcae-v-f32t4c32
     checkpoint: null
+    # Optional DCAE-V checkpoint for image references when PixelUMM decodes.
+    encoder_checkpoint: null
     vae_precision: bf16
     vae_tiling: false
     vae_encode_tile_size: -1
