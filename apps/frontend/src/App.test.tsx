@@ -447,13 +447,10 @@ describe('Hy-Nomas', () => {
     expect(perspective).toHaveValue('first-person')
     expect(within(perspective).getAllByRole('option')).toHaveLength(4)
     await user.selectOptions(perspective, 'third-person follow')
-    expect(perspective).toHaveAttribute(
-      'title',
+    expect(perspective).not.toHaveAttribute('title')
+    expect(screen.queryByText(
       'Camera follows behind or alongside the main subject.',
-    )
-    expect(screen.getByText(
-      'Camera follows behind or alongside the main subject.',
-    )).toBeInTheDocument()
+    )).not.toBeInTheDocument()
     await user.type(
       screen.getByLabelText('Subject Description'),
       'A paper dragon with red-and-gold folded wings',
@@ -502,11 +499,11 @@ describe('Hy-Nomas', () => {
 
     await user.type(composer, 'Make it begin to rain{Enter}')
     expect(screen.getByText('Make it begin to rain')).toBeInTheDocument()
-    expect(screen.getByText('PROMPT 1')).toBeInTheDocument()
+    expect(screen.getByText('T1 · TEXT')).toBeInTheDocument()
 
     await user.type(composer, 'The fox pauses under a red umbrella{Enter}')
     expect(screen.getByText('The fox pauses under a red umbrella')).toBeInTheDocument()
-    expect(screen.getByText('PROMPT 2')).toBeInTheDocument()
+    expect(screen.getByText('T2 · TEXT')).toBeInTheDocument()
   })
 
   it('sends natural-language actions through prompt enhancement', async () => {
@@ -1223,7 +1220,7 @@ describe('Hy-Nomas', () => {
     )
   })
 
-  it('preserves the inference session when pagehide is followed by unmount', async () => {
+  it('releases the inference session once when refresh triggers pagehide then unmount', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(
         new Response(
@@ -1269,7 +1266,7 @@ describe('Hy-Nomas', () => {
     const rendered = render(<App />)
     await enterWorld(
       'A survey robot inside a lunar tunnel',
-      'The browser refreshes while the world remains resident',
+      'The browser refreshes and releases the old world',
     )
 
     await vi.waitFor(() => {
@@ -1283,11 +1280,13 @@ describe('Hy-Nomas', () => {
     fireEvent(window, new PageTransitionEvent('pagehide'))
     rendered.unmount()
 
-    expect(
-      vi.mocked(fetch).mock.calls.some(([url]) =>
-        /\/v1\/sessions\/[^/]+\/release$/.test(String(url)),
-      ),
-    ).toBe(false)
+    const releases = vi.mocked(fetch).mock.calls.filter(([url]) =>
+      /\/v1\/sessions\/[^/]+\/release$/.test(String(url)))
+    expect(releases).toHaveLength(1)
+    expect(releases[0][1]).toMatchObject({
+      method: 'POST', keepalive: true,
+      headers: { 'X-Nomas-Explicit-Session-Release': '1' },
+    })
   })
 
   it('starts segment 1 immediately from the environment description', async () => {
@@ -2111,7 +2110,94 @@ describe('Hy-Nomas', () => {
     expect(screen.queryByText(/Ready to generate/)).not.toBeInTheDocument()
   })
 
-  it('returns to setup without losing the configuration', async () => {
+  it.each(['new-world', 'refresh', 'bfcache'])(
+    'discards old image state and late responses after %s', async (exitMode) => {
+    const posted: Array<Record<string, any>> = []
+    const pollSignals: AbortSignal[] = []
+    const releases: string[] = []
+    let finishOld!: (response: Response) => void
+    const oldPoll = new Promise<Response>((resolve) => { finishOld = resolve })
+    const backend = {
+      rollout_type: 'seg_ar', fps: 24, worker_online: true, prompt_enhancement_enabled: true,
+      reference_image_enabled: true, image_captioning_enabled: true,
+      prompt_enhancer_options: [{ id: 'Nomas-PE', label: 'Nomas-PE', default: true }],
+    }
+    vi.mocked(fetch).mockImplementation(async (url, options) => {
+      const path = String(url)
+      if (path.endsWith('v1/config')) return jsonResponse(backend)
+      if (path.includes('v1/reference-images?')) return jsonResponse({
+        id: 'old-image', url: 'old-image.jpg', width: 1280, height: 720, caption_status: 'captioning',
+      }, 201)
+      if (path.endsWith('v1/reference-images/old-image')) return jsonResponse({
+        caption_status: 'ready', subject_description: 'Old image subject', environment_description: 'Old image scene',
+      })
+      if (path.endsWith('v1/generate') && options?.method === 'POST') {
+        posted.push(JSON.parse(options.body as string))
+        return jsonResponse({ id: posted.length === 1 ? 'old-job' : 'new-job', status: 'queued' }, 202)
+      }
+      if (path.endsWith('v1/generate/old-job')) {
+        pollSignals.push(options?.signal as AbortSignal)
+        return oldPoll  // Deliberately ignore abort to exercise the late-response guard.
+      }
+      if (path.endsWith('v1/generate/new-job')) return jsonResponse({
+        id: 'new-job', status: 'succeeded', result: {
+          id: 'new-video', video_url: 'outputs/new.mp4', frames: 48, fps: 24,
+          generation_seconds: 1, prompt_enhanced: true,
+        },
+      })
+      if (path.endsWith('/release')) releases.push(path)
+      return jsonResponse({ status: 'active' })
+    })
+    window.localStorage.setItem('nomas-num-inference-steps', '6')
+    window.localStorage.setItem('nomas-prompt-enhancer-reasoning-effort', 'low')
+    const user = userEvent.setup()
+    const rendered = render(<App />)
+    await screen.findByRole('button', { name: 'Upload image' })
+    await user.selectOptions(screen.getByLabelText('Perspective'), 'third-person observer')
+    await user.upload(screen.getByLabelText('Upload image file'),
+      new File(['image'], 'old.png', { type: 'image/png' }))
+    await screen.findByAltText('World reference')
+    await user.type(screen.getByLabelText('User prompt'), 'Old world instruction')
+    await user.click(screen.getByRole('button', { name: 'Enter world' }))
+    await vi.waitFor(() => expect(pollSignals).toHaveLength(1))
+    if (exitMode === 'new-world') {
+      await user.click(screen.getByRole('button', { name: 'New world' }))
+    } else {
+      fireEvent(window, new PageTransitionEvent('pagehide', { persisted: exitMode === 'bfcache' }))
+      expect(pollSignals[0].aborted).toBe(true)
+      if (exitMode === 'refresh') {
+        rendered.unmount()
+        render(<App />)
+      } else {
+        fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
+      }
+    }
+    expect(pollSignals[0].aborted).toBe(true)
+    expect(screen.queryByAltText('World reference')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('User prompt')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Subject Description')).toHaveValue('')
+    expect(screen.getByLabelText('Environment Description')).toHaveValue('')
+    expect(screen.getByLabelText('Perspective')).toHaveValue('third-person observer')
+    await enterWorld('New subject', 'New environment')
+    await vi.waitFor(() => expect(posted).toHaveLength(2))
+    expect(posted[1].session_id).not.toBe(posted[0].session_id)
+    expect(posted[1].reset_session).toBe(true)
+    expect(posted[1]).not.toHaveProperty('reference_image_id')
+    expect(posted[1].pe_input).toMatchObject({
+      subject_description: 'New subject', environment_description: 'New environment',
+      prompt_enhancer_model: 'Nomas-PE', prompt_enhancer_reasoning_effort: 'low',
+    })
+    expect(posted[1].num_inference_steps).toBe(6)
+    expect(JSON.stringify(posted[1])).not.toContain('Old world')
+    expect(releases.some((path) => path.includes(posted[0].session_id))).toBe(true)
+    finishOld(jsonResponse({ detail: 'SESSION_EXPIRED: old world' }, 400))
+    await vi.waitFor(() => expect(screen.getByLabelText('Direct the world')).toBeEnabled())
+    expect(screen.queryByRole('button', { name: 'Enter world' })).not.toBeInTheDocument()
+    expect(posted).toHaveLength(2)
+    expect(pollSignals).toHaveLength(1)
+  })
+
+  it('starts a new world with empty prompts', async () => {
     render(<App />)
     const user = await enterWorld('A robot gardener')
 
@@ -2123,7 +2209,8 @@ describe('Hy-Nomas', () => {
 
     await user.click(screen.getByRole('button', { name: 'New world' }))
 
-    expect(screen.getByLabelText('Subject Description')).toHaveValue('A robot gardener')
+    expect(screen.getByLabelText('Subject Description')).toHaveValue('')
+    expect(screen.getByLabelText('Environment Description')).toHaveValue('')
     expect(
       vi.mocked(fetch).mock.calls.some(([url]) =>
         String(url).endsWith('auth/logout'),

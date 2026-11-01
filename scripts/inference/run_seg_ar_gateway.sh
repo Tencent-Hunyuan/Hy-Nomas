@@ -23,6 +23,14 @@ fi
 
 export PE_API_URL="${PE_API_URL:-http://127.0.0.1:30000/v1/chat/completions}"
 export PE_MODEL="${PE_MODEL:-Nomas-PE}"
+# Optional K3 credentials for text/camera prompt enhancement. Image captions
+# use Nomas-PE through PE_API_URL; credentials never reach the frontend.
+K3_CREDENTIAL_FILE="${K3_CREDENTIAL_FILE:-${RUNTIME_DIR}/k3_gateway.env}"
+if [[ -f "${K3_CREDENTIAL_FILE}" ]]; then
+  set -a
+  source "${K3_CREDENTIAL_FILE}"
+  set +a
+fi
 if [[ "${NOMAS_SKIP_FRONTEND_BUILD:-false}" =~ ^(1|true|yes|on)$ ]]; then
   if [[ ! -f apps/frontend/dist/index.html ]]; then
     echo "Prebuilt frontend is missing: apps/frontend/dist/index.html" >&2

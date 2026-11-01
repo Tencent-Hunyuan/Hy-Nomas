@@ -1432,6 +1432,7 @@ class CPTCausalInferencePipeline(BasePipeline):
         preserve_kv_cache: bool = False,
         trajectory_translation_scale: Optional[float] = None,
         trajectory_rotation_scale: Optional[float] = None,
+        reference_latents: Optional[torch.Tensor] = None,
     ):
         """Run autoregressive inference on a list of prompts."""
         return self._process_single_prompt(
@@ -1454,6 +1455,7 @@ class CPTCausalInferencePipeline(BasePipeline):
             cfg_skip_steps=cfg_skip_steps,
             segment_callback=segment_callback,
             preserve_kv_cache=preserve_kv_cache,
+            reference_latents=reference_latents,
         )
 
     @torch.no_grad()
@@ -1480,6 +1482,7 @@ class CPTCausalInferencePipeline(BasePipeline):
         preserve_kv_cache: bool = False,
         trajectory_translation_scale: Optional[float] = None,
         trajectory_rotation_scale: Optional[float] = None,
+        reference_latents: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Generate video autoregressively, chunk-by-chunk within each segment."""
         self.transformer.sparse_optim_counts.clear()
@@ -1488,6 +1491,11 @@ class CPTCausalInferencePipeline(BasePipeline):
         else:
             num_segments = len(prompts)
         batch_size = 1
+        if reference_latents is not None:
+            if not preserve_kv_cache or num_segments != 1 or self._interactive_segment_count:
+                raise ValueError("An image reference must initialize one new persistent segment")
+            if self.cache_noise_sigma <= 0:
+                raise ValueError("Image reference caching requires cache_noise_sigma > 0")
 
         rollout_type = getattr(self.args.inference, "rollout_type", "seg_ar")
         is_chunk_ar = rollout_type == "chunk_ar"
@@ -1613,6 +1621,11 @@ class CPTCausalInferencePipeline(BasePipeline):
         latent_frames = (num_frames - 1) // 4 + 1
         latent_h = target_height // self.s_ratio
         latent_w = target_width // self.s_ratio
+        if reference_latents is not None:
+            expected = (1, self.transformer.config.out_channels, latent_frames, latent_h, latent_w)
+            if tuple(reference_latents.shape) != expected:
+                raise ValueError(f"Reference latents must have shape {expected}")
+            reference_latents = reference_latents.to(device=self.device, dtype=self.target_dtype)
 
         tt_total = latent_frames // self.patch_size[0]
         th = latent_h // self.patch_size[1]
@@ -2252,6 +2265,8 @@ class CPTCausalInferencePipeline(BasePipeline):
                 )
 
                 latents = chunk_noise[:, :out_channels, ...].clone()
+                if reference_latents is not None:
+                    latents = reference_latents[:, :, chunk_latent_start:chunk_latent_end].clone()
 
                 solver_type = getattr(self.args.inference, "solver_type", "euler")
                 if solver_type != "euler":
@@ -2268,6 +2283,11 @@ class CPTCausalInferencePipeline(BasePipeline):
                     num_inference_steps=num_inference_steps, device=self.device
                 )
                 timesteps = scheduler.timesteps
+                if reference_latents is not None:
+                    # The uploaded segment is fixed. The normal cache-write pass
+                    # below adds cache_noise_sigma and writes all layers' KV once.
+                    timesteps = timesteps[:0]
+                    logger.info("  Image reference: fixed latent segment; writing noisy KV history")
 
                 # Conditional-only companion latent for the cache write. It needs its
                 # own solver instance. Euler carries a step index, so stepping one

@@ -36,6 +36,8 @@
 </p>
 
 ## 🔥 News
+
+- 🖼️ **Oct 31, 2026 — Image reference in the demo:** Upload an image to initialize your world, then continue with text prompts and camera control. Try the [interactive demo](https://hy-nomas.hy.tencent.com/demo) or see the [deployment guide](apps/README.md#start-with-a-reference-image).
 - 🎬 **Oct 29, 2026 — Hy-Nomas vs Genie 4:** Watch the [video comparison](https://x.com/TencentHunyuan/status/2115851165904814283), featuring Genie 4 examples recreated with Hy-Nomas.
 - 📄 **Oct 27, 2026 — Technical report is available on arXiv:** [arXiv](https://arxiv.org/abs/2610.36729).
 - 🤝 **Oct 26, 2026 — Community integrations:** Run Hy-Nomas with [SGLang](https://github.com/sgl-project/sglang/pull/46124), [ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas), or [Reactor Runtime](reactor/README.md). See [Community Contributions](#-community-contributions) for details.
@@ -47,7 +49,9 @@
 
 ## 🎥 Demo
 
-https://github.com/user-attachments/assets/e7a2528c-4ccc-461c-8f09-207650f1f0bd
+https://github.com/user-attachments/assets/e2e05b2b-9024-4b0e-9926-6eed05356b76
+
+[Watch the full-resolution video](https://hy-nomas.hy.tencent.com/gallery/hy_nomas_promo.mp4)
 
 ## 🧩 Community Contributions
 
@@ -442,7 +446,7 @@ We thank the teams behind [Gemma 4](https://deepmind.google/models/gemma/gemma-4
 If you find Hy-Nomas useful in your research, please cite our technical report:
 
 ```bibtex
-@article{chen2026hynomas,
+@article{chen2026hy,
   title={Hy-Nomas: Towards Free-form Interactive World Generation},
   author={Chen, Qiaoling and Cheng, Jiaxiang and Deng, Xueqing and Hang, Tiankai and Hou, Ji and Li, Jiaqi and Liu, Yifan and Lu, Tao and Tang, Junshu and Tang, Yu and others},
   journal={arXiv preprint arXiv:2610.36729},

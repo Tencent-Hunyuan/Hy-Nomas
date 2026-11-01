@@ -937,6 +937,8 @@ def build_minimal_camera_prompt(
             prompt,
         ],
         "segment_frame_lengths": [*prior_lengths, duration_frames],
+        "reference_hidden_frames": int(prior.get("reference_hidden_frames", 0)),
+        "reference_history_url": prior.get("reference_history_url"),
         "video_url": prior.get("video_url"),
         "last_result": prior.get("last_result"),
         "result_history": list(prior.get("result_history") or []),
@@ -1093,6 +1095,8 @@ def build_local_fallback_prompt(
             prompt,
         ],
         "segment_frame_lengths": [*prior_lengths, duration_frames],
+        "reference_hidden_frames": int((previous_session or {}).get("reference_hidden_frames", 0)),
+        "reference_history_url": (previous_session or {}).get("reference_history_url"),
         "video_url": (previous_session or {}).get("video_url"),
         "last_result": (previous_session or {}).get("last_result"),
         "result_history": list((previous_session or {}).get("result_history") or []),
@@ -1663,9 +1667,7 @@ class KimiK3Client:
         reasoning_effort: Optional[str] = None,
         seed: Optional[int] = None,
     ) -> tuple[str, Optional[str]]:
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        headers = self.request_headers()
         payload = self.request_payload(
             messages,
             reasoning_effort=reasoning_effort,
@@ -1679,7 +1681,7 @@ class KimiK3Client:
                     headers=headers,
                     json=payload,
                     timeout=(20, self.timeout + 30),
-                    stream=True,
+                    stream=bool(payload.get("stream", False)),
                 )
                 if response.status_code == 200:
                     content_type = response.headers.get("Content-Type", "").lower()
@@ -1736,7 +1738,7 @@ class KimiK3Client:
                         return content, response_id
                     raise PromptEnhancementError(f"{self.display_name} returned empty content")
                 last_error = PromptEnhancementError(
-                    f"{self.display_name} HTTP {response.status_code}: {response.text[:500]}"
+                    self.response_error(response)
                 )
                 if response.status_code not in {408, 409, 429, 500, 502, 503, 504}:
                     raise last_error
@@ -1745,6 +1747,89 @@ class KimiK3Client:
             if attempt < self.retries:
                 time.sleep(min(8.0, 2**attempt) + random.random())
         raise PromptEnhancementError(f"{self.display_name} request failed: {last_error}")
+
+    def request_headers(self) -> Dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+    def response_error(self, response) -> str:
+        return f"{self.display_name} HTTP {response.status_code}: {response.text[:500]}"
+
+
+class K3APIClient(KimiK3Client):
+    """K3 API using the same app/API-key credentials as image captioning."""
+
+    def __init__(self, *, session: Optional[requests.Session] = None) -> None:
+        api_url = os.environ.get("K3_API_URL", "").strip()
+        super().__init__(
+            api_url=api_url or DEFAULT_API_URL,
+            model=os.environ.get("K3_MODEL", PROMPT_ENHANCER_KIMI_K3),
+            api_key=os.environ.get("K3_API_KEY") or os.environ.get("AIHUB_API_KEY", ""),
+            timeout=int(os.environ.get("K3_API_TIMEOUT", "300")),
+            retries=int(os.environ.get("K3_API_RETRIES", "3")),
+            session=session,
+        )
+        self._endpoint_configured = bool(api_url)
+        self.provider = os.environ.get("K3_API_PROVIDER", "moonshot" if self.api_key else "ali")
+        self.app_id = os.environ.get("APP_ID", "")
+        self.app_key = os.environ.get("APP_KEY", "")
+
+    @property
+    def configured(self) -> bool:
+        def valid(value):
+            return bool(value and value.isascii() and not any(c.isspace() for c in value))
+        return bool(self._endpoint_configured and (
+            valid(self.api_key) if self.api_key else valid(self.app_id) and valid(self.app_key)
+        ))
+
+    def available_models(self) -> List[str]:
+        # This authenticated service has no SGLang model-discovery endpoint.
+        return [self.model] if self.configured else []
+
+    def request_headers(self) -> Dict[str, str]:
+        if not self.configured:
+            raise PromptEnhancementError("K3 API endpoint or credentials are not configured")
+        if self.api_key:
+            auth = f"Bearer {self.api_key}?provider={self.provider}"
+        else:
+            request_id = uuid.uuid4().hex
+            auth = (
+                f"Bearer {self.app_id}:{self.app_key}"
+                f"?provider={self.provider}&model={self.model}&timeout={self.timeout}"
+                f"&max_retry=2&request_id={request_id}&cache_task_id=pe-{request_id}"
+            )
+        return {"Authorization": auth, "Content-Type": "application/json"}
+
+    def request_payload(self, messages, *, reasoning_effort=None, seed=None):
+        payload = super().request_payload(messages, reasoning_effort=reasoning_effort, seed=seed)
+        payload.pop("chat_template_kwargs", None)
+        payload["reasoning_effort"] = normalize_prompt_enhancer_reasoning_effort(
+            self.reasoning_effort if reasoning_effort is None else reasoning_effort
+        )
+        if self.api_key:
+            payload.pop("max_tokens")
+            payload.update(
+                max_completion_tokens=int(os.environ.get("K3_MAX_COMPLETION_TOKENS", "16384")),
+                response_format={"type": "json_object"}, temperature=1.0, top_p=0.95, stream=False,
+            )
+        return payload
+
+    def response_error(self, response) -> str:
+        # The internal service can echo authentication details in error bodies.
+        return f"Kimi-K3 API HTTP {response.status_code}"
+
+    def complete(self, messages, *, stream_callback=None, reasoning_effort=None, seed=None):
+        try:
+            return super().complete(messages, stream_callback=stream_callback,
+                                    reasoning_effort=reasoning_effort, seed=seed)
+        except PromptEnhancementError as exc:
+            message = str(exc)
+            for secret in (self.api_key, self.app_id, self.app_key):
+                if secret:
+                    message = message.replace(secret, "[REDACTED]")
+            raise PromptEnhancementError(message) from None
 
 
 class OnlinePromptEnhancer:
@@ -1757,6 +1842,7 @@ class OnlinePromptEnhancer:
         max_condition_frames: int = 40,
         condition_short_side: int = 480,
         transcript_dir: Optional[Path] = None,
+        k3_client: Optional[K3APIClient] = None,
     ) -> None:
         self.output_dir = output_dir.resolve()
         self.client = client or KimiK3Client(
@@ -1766,6 +1852,7 @@ class OnlinePromptEnhancer:
             retries=int(os.environ.get("PE_API_RETRIES", "3")),
             api_key=os.environ.get("PE_API_KEY"),
         )
+        self.k3_client = k3_client if k3_client is not None else K3APIClient()
         self.fps = fps
         self.max_condition_frames = max_condition_frames
         self.condition_short_side = condition_short_side
@@ -1803,7 +1890,9 @@ class OnlinePromptEnhancer:
 
     @property
     def configured(self) -> bool:
-        return bool(self.model_options and getattr(self.client, "configured", False))
+        return bool(self.model_options and (
+            getattr(self.client, "configured", False) or self.k3_client.configured
+        ))
 
     @property
     def model_options(self) -> List[Dict[str, Any]]:
@@ -1812,6 +1901,8 @@ class OnlinePromptEnhancer:
             if isinstance(self.client, KimiK3Client)
             else [DEFAULT_PROMPT_ENHANCER_MODEL]
         )
+        if self.k3_client.configured:
+            ids = list(dict.fromkeys([*ids, self.k3_client.model]))
         preferred = getattr(self.client, "model", DEFAULT_PROMPT_ENHANCER_MODEL)
         default = preferred if preferred in ids else next(iter(ids), "")
         return [
@@ -1861,6 +1952,8 @@ class OnlinePromptEnhancer:
 
     def client_for(self, enhancer_model: object) -> Any:
         model = self.resolve_model(enhancer_model)
+        if self.k3_client.configured and model == self.k3_client.model:
+            return self.k3_client
         return (
             self.client.for_model(model)
             if isinstance(self.client, KimiK3Client)
@@ -2297,10 +2390,26 @@ class OnlinePromptEnhancer:
                     (previous_session or {}).get("segment_frame_lengths") or []
                 )
             ]
-            frame_groups = self._sample_previous_video_history(
-                (previous_session or {}).get("video_url"),
-                segment_frame_lengths,
-            )
+            reference_history_url = (previous_session or {}).get('reference_history_url')
+            if reference_history_url:
+                frame_groups = self._sample_previous_video_history(reference_history_url, segment_frame_lengths[:1])
+                later_groups = self._sample_previous_video_history((previous_session or {}).get('video_url'), segment_frame_lengths[1:])
+                visible_reference_seconds = segment_frame_lengths[0] / self.fps
+                frame_groups += [[(url, absolute + visible_reference_seconds, relative)
+                    for url, absolute, relative in group] for group in later_groups]
+            else:
+                frame_groups = self._sample_previous_video_history(
+                    (previous_session or {}).get("video_url"), segment_frame_lengths)
+            # The public reference clip omits its warm-up prefix. Sampling uses
+            # visible frame counts, while PE timestamps retain model time.
+            hidden_seconds = int((previous_session or {}).get("reference_hidden_frames", 0)) / self.fps
+            if hidden_seconds:
+                frame_groups = [
+                    [(url, absolute + hidden_seconds,
+                      relative + (hidden_seconds if index == 0 else 0))
+                     for url, absolute, relative in group]
+                    for index, group in enumerate(frame_groups)
+                ]
             if len(frame_groups) != len(segment_frame_lengths) or any(
                 not group for group in frame_groups
             ):
@@ -2684,6 +2793,8 @@ class OnlinePromptEnhancer:
                 current_prompt,
             ],
             "segment_frame_lengths": segment_frame_lengths,
+            "reference_hidden_frames": int((previous_session or {}).get("reference_hidden_frames", 0)),
+            "reference_history_url": (previous_session or {}).get("reference_history_url"),
             "video_url": (previous_session or {}).get("video_url"),
             "last_result": (previous_session or {}).get("last_result"),
             "result_history": list(

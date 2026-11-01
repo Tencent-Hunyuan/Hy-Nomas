@@ -221,6 +221,9 @@ class GenerateRequest(BaseModel):
     preserve_kv_cache: bool = False
     reset_session: bool = False
     trusted_segment_boundaries: bool = False
+    reference_image_id: Optional[str] = None
+    hide_reference_carry: bool = False
+    reference_carry_visible_frames: Optional[int] = Field(default=None, ge=0)
 
 
 class GenerationService:
@@ -340,6 +343,11 @@ class GenerationService:
                 else "request_or_config"
             ),
             "fps": int(self.config.inference.video_fps),
+            "reference_image_enabled": bool(
+                self.rollout_type == "seg_ar"
+                and getattr(vae_config, "encoder_checkpoint", None)
+                and Path(str(vae_config.encoder_checkpoint)).is_file()
+            ),
             "guidance_scale": float(self.config.inference.cfg_scale_video),
             "trajectory_translation_scale": float(
                 getattr(self.config.inference, "trajectory_translation_scale", None)
@@ -761,6 +769,22 @@ class GenerationService:
                 )
 
         session_id = (request.session_id or "").strip()
+        reference_image_id = request.reference_image_id
+        if reference_image_id is not None:
+            from apps.reference_image import REFERENCE_SECONDS, resolve_reference_image
+
+            resolve_reference_image(reference_image_id, self.output_dir)
+            if self.rollout_type != "seg_ar" or not session_id or not request.preserve_kv_cache:
+                raise ValueError("Image references require a persistent seg_ar session")
+            if not request.reset_session or len(prompts) != 1:
+                raise ValueError("An image reference can only initialize the first segment")
+            if num_frames != fps * REFERENCE_SECONDS or boundaries != [0, num_frames]:
+                raise ValueError(f"The image reference segment must be exactly {REFERENCE_SECONDS} seconds")
+            if request.camera_trajectory:
+                raise ValueError("Camera motion starts after the fixed image reference segment")
+            encoder_path = getattr(self.config.vae, "encoder_checkpoint", None)
+            if not encoder_path or not Path(str(encoder_path)).is_file():
+                raise ValueError("Configure model.vae.encoder_checkpoint with the DCAE-V weights")
         if session_id and not re.fullmatch(r"[A-Za-z0-9._:-]+", session_id):
             raise ValueError(
                 "session_id may only contain letters, digits, '.', '_', ':', '-'"
@@ -816,6 +840,9 @@ class GenerationService:
             "width": int(request.width or width_default),
             "num_frames": num_frames,
             "timing_source": timing_source,
+            "reference_image_id": reference_image_id,
+            "hide_reference_carry": request.hide_reference_carry,
+            "reference_carry_visible_frames": request.reference_carry_visible_frames,
             "segment_durations_seconds": segment_durations_seconds,
             "video_fps": fps,
             "seed": seed,
@@ -1225,6 +1252,11 @@ class GenerationService:
                     **pixelumm_streaming,
                 }
             )
+            if params.get("reference_carry_visible_frames") is not None:
+                result["replace_pixel_frames"] = min(
+                    int(result.get("replace_pixel_frames", 0)),
+                    int(params["reference_carry_visible_frames"]),
+                )
         if latent_path is not None and latent_path.is_file():
             digest = hashlib.sha256()
             with latent_path.open("rb") as handle:
@@ -1276,7 +1308,64 @@ class GenerationService:
             segment_frame_boundaries=params["segment_boundaries"],
             segment_callback=self._progress_callbacks.get(params["request_id"]),
             preserve_kv_cache=bool(params.get("preserve_kv_cache")),
+            reference_latents=self._encode_reference(params),
         )
+
+    def _encode_reference(self, params: Dict[str, Any]) -> Optional[torch.Tensor]:
+        image_id = params.get("reference_image_id")
+        if image_id is None:
+            return None
+        from apps.reference_image import resolve_reference_image
+        from hymm.models.vae import load_vae
+        from hymm.pipeline.reference_image import encode_reference_image
+
+        # Encode on rank 0 and broadcast the small latent tensor. Publish errors
+        # before the tensor collective so other ranks never wait on a failed encode.
+        status: list[Any] = [None]
+        latent = None
+        if self.rank == 0:
+            encoder = None
+            restore_models = []
+            try:
+                # Full-video DCAE-V encoding has large temporal activations.
+                # These models are idle until the reference latent is ready.
+                # Restore their original residency before the cache-write pass.
+                for model in (self.pipeline.transformer, self.pipeline.vae):
+                    original_device = next(model.parameters()).device
+                    if original_device.type == "cuda":
+                        restore_models.append((model, original_device))
+                        model.to(device="cpu")
+                torch.cuda.empty_cache()
+                encoder, _, _, _ = load_vae(
+                    vae_path=str(self.config.vae.encoder_checkpoint),
+                    vae_precision="bf16", device=self.device,
+                )
+                latent = encode_reference_image(
+                    encoder, resolve_reference_image(image_id, self.output_dir),
+                    height=params["height"], width=params["width"],
+                    num_frames=params["num_frames"], device=self.device,
+                    dtype=torch.bfloat16,
+                )
+                status[0] = {"shape": list(latent.shape)}
+            except Exception as exc:
+                status[0] = {"error": f"Image reference encoding failed: {exc}"}
+            finally:
+                del encoder
+                torch.cuda.empty_cache()
+                for model, original_device in restore_models:
+                    try:
+                        model.to(device=original_device)
+                    except Exception as exc:
+                        status[0] = {"error": f"Could not restore model after image encoding: {exc}"}
+        if self.world_size > 1:
+            dist.broadcast_object_list(status, src=0, group=self.command_group)
+        if "error" in status[0]:
+            raise ValueError(status[0]["error"])
+        if latent is None:
+            latent = torch.empty(status[0]["shape"], device=self.device, dtype=torch.bfloat16)
+        if self.world_size > 1:
+            dist.broadcast(latent, src=0)
+        return latent
 
     def _resolve_output_url(self, relative_url: str) -> Path:
         clean = relative_url.split("?", 1)[0].lstrip("/")
@@ -1868,6 +1957,8 @@ class GenerationService:
                 request = GenerateRequest.model_validate(payload)
                 result = self.generate(request)
                 if isinstance(pe_session, dict):
+                    if request.reference_image_id is not None:
+                        result["reference_image_segment"] = True
                     current_segment_url = str(result["video_url"])
                     previous_result = pe_session.get("last_result")
                     replace_tail_frames = min(
@@ -1882,7 +1973,7 @@ class GenerationService:
                         and "provisional_pixel_frames" in previous_result
                     )
                     published_replace_frames = (
-                        replace_tail_frames if previous_tail_is_published else 0
+                        min(replace_tail_frames, int(previous_result.get('frames', 0))) if previous_tail_is_published else 0
                     )
                     previous_frames = (
                         int(previous_result.get("frames", 0))
@@ -2309,6 +2400,21 @@ class GenerationService:
                 timeline_frame_offset=0,
                 timeline_frame_count=int(params["num_frames"]),
             )
+
+        # Keep the complete reference in KV/decoder state. Retain a short private
+        # evidence clip for PE; execute_queue_job excludes it from playback.
+        if params.get("reference_image_id") is not None:
+            from apps.reference_image import REFERENCE_VISIBLE_SECONDS
+            visible_frames = max(1, round(fps * REFERENCE_VISIBLE_SECONDS))
+            video_np = video_np[-visible_frames:]
+        elif params.get('hide_reference_carry'):
+            # Decoder correction pixels belong to the hidden initialization.
+            video_np = video_np[carry_frames:]
+        elif params.get("reference_carry_visible_frames") is not None:
+            streaming = getattr(self.pipeline, "_last_pixelumm_streaming_metadata", {}) or {}
+            replacement_frames = int(streaming.get("replace_pixel_frames", 0))
+            hidden_replacement = max(0, replacement_frames - int(params["reference_carry_visible_frames"]))
+            video_np = video_np[hidden_replacement:]
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_id = re.sub(r"[^A-Za-z0-9_-]+", "_", params["request_id"])
