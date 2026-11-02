@@ -73,8 +73,14 @@ def _forward(self,x,cos,sin,block_mask=None):
     q=self.q_proj(x).view(b,n,arch.num_heads,arch.head_dim)
     k=self.k_proj(x).view(b,n,arch.num_kv_heads,arch.head_dim)
     v=self.v_proj(x).view(b,n,arch.num_kv_heads,arch.head_dim)
+    magi = self.attention_backend == "magi"
     q,k,v=qkv_prepare(q,k,v,self.q_norm_t.weight,self.q_norm_hw.weight,
-                    self.k_norm_t.weight,self.k_norm_hw.weight,cos,sin,arch.rms_norm_eps,block_mask is None)
+                    self.k_norm_t.weight,self.k_norm_hw.weight,cos,sin,arch.rms_norm_eps,
+                    block_mask is None and not magi)
+    if magi:
+        from .magi_attention import attention, dense
+        out = attention(q,k,v,*block_mask) if block_mask is not None else dense(q,k,v)
+        return self.o_proj(out.reshape(b,n,arch.num_heads*arch.head_dim))
     if block_mask is None:
         out=F.scaled_dot_product_attention(q.transpose(1,2),k.transpose(1,2),v.transpose(1,2))
     else:
@@ -89,8 +95,8 @@ def enable_cute_attention(decoder):
     if type(decoder) is not DCAEVPixelUMMDecoder or decoder.training:
         raise ValueError('CuTe preparation requires an eval PixelUMM decoder')
     device=next(decoder.parameters()).device
-    if device.type!='cuda' or torch.cuda.get_device_capability(device)!=(9,0):
-        raise ValueError('CuTe preparation validated on SM90 only')
+    if device.type!='cuda' or torch.cuda.get_device_capability(device) not in {(9,0),(10,3)}:
+        raise ValueError('CuTe preparation validated on SM90 and SM103 only')
     if decoder.arch.head_dim!=128 or decoder.arch.rope_sections!=(64,32,32):
         raise ValueError('CuTe preparation requires the PixelUMM 128-dim rotary layout')
     import cutlass.cute

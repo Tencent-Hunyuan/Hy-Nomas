@@ -122,7 +122,7 @@ _LOCAL_LAYOUTS: dict = {}
 _COMPILED_FLEX = None
 
 
-def local_attention_layout(grid: tuple[int, int, int], tile: int, device):
+def local_attention_layout(grid: tuple[int, int, int], tile: int, device, backend="flex"):
     """``(perm, inverse, block_mask)`` of the sliding-tile attention, or None when the plane has
     at most 3 x 3 tiles (full attention). ``tokens[:, perm]`` is the tile-major order the mask is
     built in; cached per shape."""
@@ -132,7 +132,7 @@ def local_attention_layout(grid: tuple[int, int, int], tile: int, device):
     tiles_h, tiles_w = -(-height // tile), -(-width // tile)
     if tiles_h <= 3 and tiles_w <= 3:
         return None
-    key = (grid, tile, str(device))
+    key = (grid, tile, str(device), backend)
     if key not in _LOCAL_LAYOUTS:
         t, h, w = torch.meshgrid(*(torch.arange(n, device=device) for n in grid), indexing="ij")
         tile_h, tile_w = (h // tile).flatten(), (w // tile).flatten()
@@ -147,11 +147,15 @@ def local_attention_layout(grid: tuple[int, int, int], tile: int, device):
                 (center_w[q_idx] - tile_w[kv_idx]).abs() <= 1
             )
 
-        count = frames * height * width
-        block_mask = create_block_mask(
-            mask_mod, None, None, count, count, device=device,
-            _compile=torch.device(device).type == "cuda",
-        )
+        if backend == "magi":
+            from .magi_attention import local_ranges
+            block_mask = local_ranges(grid, tile, device)
+        else:
+            count = frames * height * width
+            block_mask = create_block_mask(
+                mask_mod, None, None, count, count, device=device,
+                _compile=torch.device(device).type == "cuda",
+            )
         _LOCAL_LAYOUTS[key] = (perm, torch.argsort(perm), block_mask)
     return _LOCAL_LAYOUTS[key]
 
@@ -194,6 +198,7 @@ class GenAttention(nn.Module):
     def __init__(self, arch: GenExpertArch):
         super().__init__()
         self.arch = arch
+        self.attention_backend = "flex"
         hidden, heads, kv, dim = arch.hidden_size, arch.num_heads, arch.num_kv_heads, arch.head_dim
         self.q_proj = nn.Linear(hidden, heads * dim, bias=False)
         self.k_proj = nn.Linear(hidden, kv * dim, bias=False)
@@ -239,6 +244,10 @@ class GenAttention(nn.Module):
         # PixelUMM's generation path keeps q/k in fp32 through QK-norm and RoPE.
         q = self._prepare_qk(q, cos, sin, self.q_norm_t, self.q_norm_hw, v.dtype)
         k = self._prepare_qk(k, cos, sin, self.k_norm_t, self.k_norm_hw, v.dtype)
+        if self.attention_backend == "magi":
+            from .magi_attention import attention, dense
+            out = attention(q, k, v, *block_mask) if block_mask is not None else dense(q, k, v)
+            return self.o_proj(out.reshape(batch, count, arch.num_heads * arch.head_dim))
         if block_mask is not None:
             out = _flex_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), block_mask)
         else:
@@ -294,6 +303,7 @@ class DCAEVPixelUMMDecoder(nn.Module):
         if local_attention_tile < 0:
             raise ValueError(f"local_attention_tile must be >= 0 tokens, got {local_attention_tile}")
         self.arch = arch
+        self.attention_backend = "flex"
         self.local_attention_tile = int(local_attention_tile)
         hidden = arch.hidden_size
         self.embed = nn.Linear(TUBE_DIM, hidden)
@@ -333,7 +343,7 @@ class DCAEVPixelUMMDecoder(nn.Module):
             tokens = self.embed(patchify(xt.to(dtype))) + self._condition_tokens(latent.to(dtype))
             cos, sin = mrope_tables(self.arch, grid, latent.device)
             layout = (
-                local_attention_layout(grid, self.local_attention_tile, latent.device)
+                local_attention_layout(grid, self.local_attention_tile, latent.device, self.attention_backend)
                 if self.local_attention_tile
                 else None
             )

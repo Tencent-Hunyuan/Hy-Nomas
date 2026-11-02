@@ -1,4 +1,4 @@
-"""Temporal frame sampling with a CPU KV archive.
+"""Temporal frame sampling with a CPU or opt-in GPU KV archive.
 
 The GPU working set contains at most ``past_frames`` video frames plus one
 text block per represented segment. Already-rotated keys keep their original
@@ -9,6 +9,7 @@ full archive lets future grids reselect frames absent from the GPU working set.
 
 from dataclasses import dataclass
 import math
+import os
 from numbers import Real
 
 from hymm.utils.inference_metrics import profiled
@@ -16,6 +17,16 @@ from hymm.utils.inference_metrics import profiled
 
 ARCHIVED_HISTORY_SAMPLINGS = ("uniform", "recent_mix_uniform", "temporal_context")
 HISTORY_SAMPLINGS = ("recent", *ARCHIVED_HISTORY_SAMPLINGS)
+_GPU_REQUEST_CACHES = {}
+
+
+def release_gpu_request_history():
+    """Release payloads only after a caller has ended a nonpersistent request."""
+    for cache in _GPU_REQUEST_CACHES.values():
+        cache.pop("swa_archive", None)
+        for key in ("k", "v", "k_scale", "v_scale"):
+            cache.pop(key, None)
+    _GPU_REQUEST_CACHES.clear()
 
 
 class UnsupportedStreamingRollbackError(ValueError):
@@ -308,22 +319,48 @@ def commit_uniform_history(cache, mask, current_k, current_v, current_mask,
     from hymm.utils.inference_metrics import stage
     from .kv_cache_storage import storage_bytes
 
-    with stage("kv_d2h"):
-        archived = {
-            key: segment[key].to(device='cpu', copy=True, non_blocking=False).contiguous()
-            for key in storage_keys
-        }
-    del segment
+    fast_history = os.environ.get("HY_KV_FAST_HISTORY", "0") == "1"
+    gpu_archive = os.environ.get("HY_KV_ARCHIVE_DEVICE", "cpu") == "cuda"
+    if gpu_archive and not current_k.is_cuda:
+        raise ValueError("GPU KV archive requires CUDA current K/V")
+    if gpu_archive:
+        _GPU_REQUEST_CACHES[id(cache)] = cache
+        with stage("kv_gpu_archive"):
+            # Own storage: incoming K/V may alias a reusable attention buffer.
+            archived = {key: segment[key].clone(memory_format=torch.contiguous_format)
+                        for key in storage_keys}
+    else:
+        with stage("kv_d2h"):
+            if fast_history and current_k.is_cuda:
+                archived = {}
+                for key in storage_keys:
+                    source = segment[key]
+                    target = torch.empty(source.shape, dtype=source.dtype,
+                                         device="cpu", pin_memory=True)
+                    target.copy_(source, non_blocking=True)
+                    archived[key] = target
+                torch.cuda.current_stream(current_k.device).synchronize()
+            else:
+                archived = {
+                    key: segment[key].to(device='cpu', copy=True, non_blocking=False).contiguous()
+                    for key in storage_keys
+                }
     record = ArchivedSegment(
         segment_index, frame_start, frame_count, image_tokens, text_tokens,
         action_start,
         mask=current_mask.detach().to(
-            device='cpu', dtype=torch.bool, copy=True, non_blocking=False,
+            device=current_k.device if gpu_archive else 'cpu',
+            dtype=torch.bool, copy=True, non_blocking=False,
         ).contiguous(),
         **archived,
     )
     records = [*history, record]
-    _rebuild_history(cache, mask, records, frame_ids, tokens_per_frame)
+    if (fast_history or gpu_archive) and current_k.is_cuda:
+        _rebuild_history_fast(cache, mask, records, frame_ids, tokens_per_frame,
+                              segment_index, segment, current_mask)
+    else:
+        _rebuild_history(cache, mask, records, frame_ids, tokens_per_frame)
+    del segment
     cache['swa_archive'] = records
     cache['swa_total_frames'] = frame_start + frame_count
     cache['swa_archive_bytes'] = cache.get('swa_archive_bytes', 0) + sum(
@@ -332,7 +369,8 @@ def commit_uniform_history(cache, mask, current_k, current_v, current_mask,
     )
     stats = cache.setdefault("kv_codec_stats", {})
     stats["encode_calls"] = stats.get("encode_calls", 0) + int(int8_storage)
-    stats["d2h_bytes"] = stats.get("d2h_bytes", 0) + storage_bytes(archived)
+    stats["d2h_bytes"] = stats.get("d2h_bytes", 0) + (0 if gpu_archive else storage_bytes(archived))
+    cache["swa_archive_device"] = "cuda" if gpu_archive else "cpu"
 
 
 def _rebuild_history(cache, mask, records, frame_ids, tokens_per_frame):
@@ -358,13 +396,16 @@ def _rebuild_history(cache, mask, records, frame_ids, tokens_per_frame):
         text_end = video_end + old.text_tokens
         layout.append((old.segment_index, cursor, video_end, video_end,
                        text_end, old.action_start))
-        for key in storage_keys:
-            packed[key].append(getattr(old, key).index_select(1, indices))
-        packed_mask.append(old.mask.index_select(1, indices))
+        indices = indices.to(old.k.device)
+        with stage("kv_gpu_pack" if old.k.is_cuda else "kv_cpu_pack"):
+            for key in storage_keys:
+                packed[key].append(getattr(old, key).index_select(1, indices))
+            packed_mask.append(old.mask.index_select(1, indices))
         cursor = text_end
     if cursor > cache['swa_capacity'] or cursor > mask.shape[1]:
         raise ValueError(f"Uniform history needs {cursor} tokens; GPU capacity is {cache['swa_capacity']}")
-    with stage("kv_h2d"):
+    gpu_archive = bool(records) and records[0].k.is_cuda
+    with stage("kv_gpu_pack" if gpu_archive else "kv_h2d"):
         if cursor:
             for key in storage_keys:
                 cache[key][:, :cursor].copy_(torch.cat(packed[key], dim=1), non_blocking=False)
@@ -376,9 +417,74 @@ def _rebuild_history(cache, mask, records, frame_ids, tokens_per_frame):
     cache['swa_uniform_layout'] = tuple(layout)
     cache['swa_valid_len'] = cursor
     stats = cache.setdefault("kv_codec_stats", {})
-    stats["h2d_bytes"] = stats.get("h2d_bytes", 0) + sum(
+    stats["h2d_bytes"] = stats.get("h2d_bytes", 0) + (0 if gpu_archive else sum(
         tensor.numel() * tensor.element_size() for tensors in packed.values() for tensor in tensors
-    )
+    ))
+
+
+def _rebuild_history_fast(cache, mask, records, frame_ids, tokens_per_frame,
+                          current_segment, current_payload, current_mask):
+    """Pack directly into GPU history; current-segment selection never leaves CUDA."""
+    import torch
+    from hymm.utils.inference_metrics import stage
+
+    storage_keys = ('k', 'v', 'k_scale', 'v_scale') if cache['k'].dtype == torch.int8 else ('k', 'v')
+    cursor, layout, transferred = 0, [], 0
+    pending = []
+    for old in records:
+        selected = [f - old.frame_start for f in frame_ids
+                    if old.frame_start <= f < old.frame_start + old.frame_count]
+        if not selected:
+            continue
+        indices = (torch.tensor(selected, dtype=torch.long)[:, None] * tokens_per_frame
+                   + torch.arange(tokens_per_frame)[None, :]).flatten()
+        if old.text_tokens:
+            indices = torch.cat([indices, torch.arange(old.image_tokens,
+                                                       old.image_tokens + old.text_tokens)])
+        video_end = cursor + len(selected) * tokens_per_frame
+        text_end = video_end + old.text_tokens
+        if text_end > cache['swa_capacity'] or text_end > mask.shape[1]:
+            raise ValueError("Selected history exceeds GPU working-set capacity")
+        layout.append((old.segment_index, cursor, video_end, video_end,
+                       text_end, old.action_start))
+        if old.segment_index == current_segment or old.k.is_cuda:
+            with stage("kv_gpu_pack"):
+                gpu_indices = indices.to(cache['k'].device)
+                payload = (current_payload if old.segment_index == current_segment else
+                           {key: getattr(old, key) for key in storage_keys})
+                source_mask = current_mask if old.segment_index == current_segment else old.mask
+                for key in storage_keys:
+                    torch.index_select(payload[key], 1, gpu_indices,
+                                       out=cache[key][:, cursor:text_end])
+                torch.index_select(source_mask, 1, gpu_indices,
+                                   out=mask[:, cursor:text_end])
+        else:
+            with stage("kv_cpu_pack"):
+                gathered = {}
+                for key in storage_keys:
+                    source = getattr(old, key)
+                    target = torch.empty((source.shape[0], len(indices), *source.shape[2:]),
+                                         dtype=source.dtype, device="cpu", pin_memory=True)
+                    torch.index_select(source, 1, indices, out=target)
+                    gathered[key] = target
+                selected_mask = old.mask.index_select(1, indices).pin_memory()
+            with stage("kv_h2d"):
+                for key, source in gathered.items():
+                    cache[key][:, cursor:text_end].copy_(source, non_blocking=True)
+                    transferred += source.numel() * source.element_size()
+                mask[:, cursor:text_end].copy_(selected_mask, non_blocking=True)
+            pending.append((gathered, selected_mask))
+        cursor = text_end
+    mask[:, cursor:] = False
+    # Keep pinned sources alive and readable until the queued copies have completed.
+    if pending:
+        torch.cuda.current_stream(cache['k'].device).synchronize()
+    mask._action_tail_ranges = []
+    cache['swa_frame_ids'] = frame_ids
+    cache['swa_uniform_layout'] = tuple(layout)
+    cache['swa_valid_len'] = cursor
+    stats = cache.setdefault("kv_codec_stats", {})
+    stats["h2d_bytes"] = stats.get("h2d_bytes", 0) + transferred
 
 
 def selected_action_tails(layout, mask):
