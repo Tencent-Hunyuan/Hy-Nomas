@@ -3502,8 +3502,10 @@ class CPTCausalInferencePipeline(BasePipeline):
             pass
         torch.cuda.empty_cache()
 
-        decode_rank_within_sp = int(getattr(nccl_info, "rank_within_spgroup", 0) or 0)
-        if save_latents_path and decode_rank_within_sp == 0:
+        # Latents are replicated across the complete SP x TP model group.
+        # Only one rank may write/rename the shared temporary output file.
+        decode_rank_in_replica = get_model_parallel_info()[2]
+        if save_latents_path and decode_rank_in_replica == 0:
             try:
                 import numpy as np
 

@@ -312,3 +312,44 @@ def test_offline_inference_never_implicitly_preserves_kv():
     assert calls
     assert all(keyword.arg != "preserve_kv_cache"
                for call in calls for keyword in call.keywords)
+
+
+@pytest.mark.parametrize("sp_size,tp_size", [(8, 1), (1, 8), (2, 4)])
+def test_final_latents_have_one_writer_per_model_replica(tmp_path, monkeypatch, sp_size, tp_size):
+    """Exercise the actual save/rename branch with each model-parallel rank."""
+    import os
+    import numpy as np
+    from hymm.distributed.parallel_states import nccl_info, get_model_parallel_info
+
+    process = _process_ast()
+    rank_statement = deepcopy(next(
+        node for node in process.body if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "decode_rank_in_replica"
+                for target in node.targets)
+    ))
+    save_statement = deepcopy(next(
+        node for node in process.body if isinstance(node, ast.If)
+        and "save_latents_path" in ast.unparse(node.test)
+    ))
+    function = ast.parse("def save(save_latents_path, output_latents, segment_vae_decode=True):\n"
+                         "    final_output_error = None\n").body[0]
+    function.body += [rank_statement, save_statement,
+                      ast.Return(value=ast.Name(id="final_output_error", ctx=ast.Load()))]
+    namespace = {"os": os, "logger": Mock(), "get_model_parallel_info": get_model_parallel_info}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])),
+                 "<final-latents-save>", "exec"), namespace)
+    write = Mock(wraps=np.save)
+    monkeypatch.setattr(np, "save", write)
+    monkeypatch.setattr(nccl_info, "sp_size", sp_size)
+    monkeypatch.setattr(nccl_info, "tp_size", tp_size)
+    monkeypatch.setattr(nccl_info, "mp_size", sp_size * tp_size)
+    path = tmp_path / "final.npy"
+    for rank in range(sp_size * tp_size):
+        monkeypatch.setattr(nccl_info, "rank_within_spgroup", rank // tp_size)
+        monkeypatch.setattr(nccl_info, "rank_within_tpgroup", rank % tp_size)
+        monkeypatch.setattr(nccl_info, "rank_within_mpgroup", rank)
+        latent = torch.full((1, 2, 3, 2, 2), float(rank))
+        assert namespace["save"](str(path), latent) is None
+    assert write.call_count == 1
+    np.testing.assert_array_equal(np.load(path), np.zeros((2, 3, 2, 2)))
+    assert not path.with_suffix(".npy.tmp.npy").exists()

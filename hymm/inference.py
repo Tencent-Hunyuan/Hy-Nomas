@@ -1701,6 +1701,11 @@ def main():
                 world_mesh=world_mesh,
             )
 
+    # Opt-in torch.profiler windows; a no-op unless HY_PROFILE_DIR is set.
+    from hymm.utils.torch_profile_windows import install as _install_window_profiler
+
+    window_profiler = _install_window_profiler(pipeline, rank)
+
     Path(args.inference.save_path).mkdir(parents=True, exist_ok=True)
     Path(args.inference.save_path, f"model_load.rank{rank}.json").write_text(
         json.dumps(load_metrics.summary(), indent=2) + "\n"
@@ -2550,6 +2555,9 @@ def main():
         except Exception as e:
             # Never let marker-writing failures break inference.
             logger.warning(f"Failed to write shard-done marker (non-fatal): {e}")
+
+    if window_profiler is not None:
+        window_profiler.finalize()
 
     if world_size > 1:
         dist.barrier()
