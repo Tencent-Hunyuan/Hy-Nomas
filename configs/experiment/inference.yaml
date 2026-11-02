@@ -57,6 +57,7 @@ model:
     deepgemm_fp8: false
     cutlass_fp8: false
     cute_attention: false
+    attention_backend: flex
     compile_decoder: false
 
 # These attention/prompt flags are shared by training and inference.

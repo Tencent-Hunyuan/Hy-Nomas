@@ -46,14 +46,34 @@ def _install_inference_optimizations(module, config, logger) -> None:
         else:
             count = enable_cutlass_fp8(module)
         logger.info(f"PixelUMM CUTLASS SM89 FP8: {count} MLP/Q/O linears, 128x128 scales")
+    attention_backend = str(_get(config, "attention_backend", "flex"))
+    if attention_backend not in {"flex", "magi"}:
+        raise ValueError("PixelUMM attention_backend must be flex or magi")
+    if attention_backend == "magi":
+        from . import magi_attention
+        module.attention_backend = attention_backend
+        for layer in module.layers:
+            layer.attn.attention_backend = attention_backend
+        logger.info("PixelUMM attention backend: Magi Blackwell ranges/GQA")
     if bool(_get(config, "cute_attention", False)):
         from .cute_attention import enable_cute_attention
 
         count = enable_cute_attention(module)
         logger.info(f"PixelUMM CuTe QK RMSNorm/RoPE: {count} attention layers")
     if bool(_get(config, "compile_decoder", False)):
-        module.forward = torch.compile(module.forward, mode="default", fullgraph=True, dynamic=False)
-        logger.info("PixelUMM decoder forward compiled (fullgraph, static shapes)")
+        if attention_backend == "magi":
+            for layer in module.layers:
+                layer.forward = torch.compile(
+                    layer.forward, fullgraph=True, dynamic=False,
+                    options={"triton.cudagraphs": False},
+                )
+            logger.info(
+                f"PixelUMM {attention_backend} decoder layers compiled "
+                "(per-layer fullgraph, static shapes)"
+            )
+        else:
+            module.forward = torch.compile(module.forward, mode="default", fullgraph=True, dynamic=False)
+            logger.info("PixelUMM decoder forward compiled (fullgraph, static shapes)")
 
 
 def maybe_load_pixelumm_decoder(args, *, device, logger):

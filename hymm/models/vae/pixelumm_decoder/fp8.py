@@ -29,7 +29,11 @@ def _linear(x: torch.Tensor, weight: torch.Tensor, scale: torch.Tensor) -> torch
     import deep_gemm
     qx = _compiled_quantize(x)
     output = torch.empty((x.shape[0], weight.shape[0]), device=x.device, dtype=torch.bfloat16)
-    deep_gemm.fp8_gemm_nt(qx, (weight, scale), output)
+    # Serialized scales are FP32; Blackwell's UE8M0 conversion can produce NaNs.
+    if torch.cuda.get_device_capability(x.device)[0] >= 10:
+        deep_gemm.fp8_gemm_nt(qx, (weight, scale), output, disable_ue8m0_cast=True)
+    else:
+        deep_gemm.fp8_gemm_nt(qx, (weight, scale), output)
     _calls[(x.device.index, x.shape[0], x.shape[1], weight.shape[0])] += 1
     return output
 
