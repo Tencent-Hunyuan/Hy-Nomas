@@ -156,6 +156,23 @@ DEFAULT_PROMPT_PROFILE = PromptProfile(
     intermediate_turn_prompt_path=INTERMEDIATE_TURN_PROMPT_PATH,
 )
 
+I2V_PROMPT_DIR = Path(__file__).resolve().parent / "prompts_i2v"
+I2V_PROMPT_PROFILE = PromptProfile(
+    name="i2v-markdown",
+    system_prompt=_read_prompt(
+        I2V_PROMPT_DIR / SYSTEM_PROMPT_PATH.name, "I2V system"
+    ),
+    system_prompt_path=I2V_PROMPT_DIR / SYSTEM_PROMPT_PATH.name,
+    first_turn_prompt=_read_prompt(
+        I2V_PROMPT_DIR / FIRST_TURN_PROMPT_PATH.name, "I2V first-turn"
+    ),
+    first_turn_prompt_path=I2V_PROMPT_DIR / FIRST_TURN_PROMPT_PATH.name,
+    intermediate_turn_prompt=_read_prompt(
+        I2V_PROMPT_DIR / INTERMEDIATE_TURN_PROMPT_PATH.name, "I2V intermediate-turn"
+    ),
+    intermediate_turn_prompt_path=I2V_PROMPT_DIR / INTERMEDIATE_TURN_PROMPT_PATH.name,
+)
+
 
 class PromptEnhancementError(RuntimeError):
     """Prompt-enhancement failure with an optional durable audit snapshot."""
@@ -1328,6 +1345,13 @@ def _normalize_history_messages(
                     ensure_ascii=False,
                     separators=(",", ":"),
                 )
+                # The initial I2V image is immutable evidence, not a sampled
+                # video frame to discard and refresh on the next request.
+                if user_turn == 0 and "user_prompt" in clean_user and isinstance(content, list):
+                    current["content"] = [
+                        {"type": "text", "text": current["content"]},
+                        *[part for part in content if part.get("type") == "image_url"],
+                    ]
             user_turn += 1
         elif role == "assistant" and parsed is not None:
             if "segment" in parsed and "segments" not in parsed:
@@ -1869,6 +1893,19 @@ class OnlinePromptEnhancer:
             prompt_profile=self.prompt_profile,
         )
 
+    def profile_for_session(self, session: Optional[Dict[str, Any]]) -> PromptProfile:
+        if (session or {}).get("prompt_profile") == I2V_PROMPT_PROFILE.name:
+            return I2V_PROMPT_PROFILE
+        return self.prompt_profile
+
+    def transcript_store_for_session(
+        self, session: Optional[Dict[str, Any]]
+    ) -> PETranscriptStore:
+        profile = self.profile_for_session(session)
+        if profile is self.prompt_profile:
+            return self.transcript_store
+        return PETranscriptStore(self.transcript_store.directory, prompt_profile=profile)
+
     def _resize_condition_frame(self, image: Image.Image) -> Image.Image:
         """Downscale a K3 conditioning frame by its short side.
 
@@ -2124,6 +2161,8 @@ class OnlinePromptEnhancer:
         history: List[Dict[str, Any]],
         frame_groups: List[List[tuple]],
         segment_start_times_ms: List[int],
+        *,
+        prompt_profile: Optional[PromptProfile] = None,
     ) -> tuple[List[Dict[str, Any]], int, int]:
         """Attach each completed segment once before the following user turn."""
         rebuilt: List[Dict[str, Any]] = []
@@ -2144,7 +2183,7 @@ class OnlinePromptEnhancer:
                 if parsed_user is not None
                 else str(message.get("content") or "")
             )
-            instructions = self.prompt_profile.turn_prompt(first=user_turn == 0)
+            instructions = (prompt_profile or self.prompt_profile).turn_prompt(first=user_turn == 0)
             preceding_segment = user_turn - 1
             frames = (
                 frame_groups[preceding_segment]
@@ -2168,7 +2207,14 @@ class OnlinePromptEnhancer:
                         frame_index_start=frame_index_start,
                     )
                 )
+                if user_turn == 0 and parsed_user is not None and "user_prompt" in parsed_user:
+                    original = message.get("content")
+                    if isinstance(original, list):
+                        rebuilt[-1]["content"].extend(
+                            part for part in original if part.get("type") == "image_url"
+                        )
             elif frames is not None:
+                current = dict(message)
                 current["content"] = self._previous_video_content(
                     user_text,
                     frames,
@@ -2253,6 +2299,8 @@ class OnlinePromptEnhancer:
         seed: Optional[int] = None,
         stream_callback: Optional[Callable[[str, str], None]] = None,
     ) -> EnhancedPrompt:
+        prompt_profile = self.profile_for_session(previous_session)
+        transcript_store = self.transcript_store_for_session(previous_session)
         enhancer_model = self.resolve_model(enhancer_model)
         reasoning_effort = normalize_prompt_enhancer_reasoning_effort(
             reasoning_effort
@@ -2429,6 +2477,7 @@ class OnlinePromptEnhancer:
                 history,
                 frame_groups,
                 segment_start_times_ms,
+                prompt_profile=prompt_profile,
             )
             user_object: Dict[str, Any] = (
                 {"camera_control": camera_control}
@@ -2439,7 +2488,7 @@ class OnlinePromptEnhancer:
                 user_object, ensure_ascii=False, separators=(",", ":")
             )
 
-        turn_prompt = self.prompt_profile.turn_prompt(first=first)
+        turn_prompt = prompt_profile.turn_prompt(first=first)
         if turn_prompt is not None:
             user_message = _turn_user_message(
                 turn_prompt,
@@ -2484,12 +2533,12 @@ class OnlinePromptEnhancer:
         base_messages = [
             {
                 "role": "system",
-                "content": self.prompt_profile.system_prompt,
+                "content": prompt_profile.system_prompt,
             },
             *history,
         ]
         audit_metadata = _turn_audit_metadata(
-            self.transcript_store,
+            transcript_store,
             request,
             previous_session,
             enhancement_mode=enhancer_model,
@@ -2569,7 +2618,7 @@ class OnlinePromptEnhancer:
                     "final_k3_request": attempt_record["k3_request"],
                 }
             )
-            audit_path = self.transcript_store.append_turn(
+            audit_path = transcript_store.append_turn(
                 session_id,
                 audit,
             )
@@ -2614,7 +2663,7 @@ class OnlinePromptEnhancer:
                         "completed_at": time.time(),
                     }
                 )
-                self.transcript_store.append_turn(session_id, audit)
+                transcript_store.append_turn(session_id, audit)
                 wrapped = (
                     exc
                     if isinstance(exc, PromptEnhancementError)
@@ -2647,7 +2696,7 @@ class OnlinePromptEnhancer:
                     "attempts": attempts,
                 }
             )
-            self.transcript_store.append_turn(session_id, audit)
+            transcript_store.append_turn(session_id, audit)
             if not errors:
                 break
         if errors:
@@ -2663,7 +2712,7 @@ class OnlinePromptEnhancer:
                     "completed_at": time.time(),
                 }
             )
-            self.transcript_store.append_turn(session_id, audit)
+            transcript_store.append_turn(session_id, audit)
             error.pe_audit = _json_clone(audit)
             raise error
 
@@ -2802,7 +2851,7 @@ class OnlinePromptEnhancer:
             ),
             "branch_revision": branch_revision,
             "rollback_pending": False,
-            "prompt_profile": self.prompt_profile.name,
+            "prompt_profile": prompt_profile.name,
             "prompt_enhancer_reasoning_effort": reasoning_effort,
             "prompt_enhancer_seed": seed,
             "prompt_enhancer_seed_source": (

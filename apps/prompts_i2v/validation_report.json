@@ -1,0 +1,24 @@
+{
+  "status": "pass",
+  "version": "i2v_prompt_profile_20261103_minimal_i2v_pe",
+  "examples": 31,
+  "base_prompt_rules_preserved": true,
+  "turns_checked": 50,
+  "standalone_caption_examples": 10,
+  "action_excerpts": 8,
+  "reference_images": 22,
+  "image_assets": 79,
+  "checksummed_files": 88,
+  "categories": {
+    "A": 4,
+    "B": 2,
+    "C": 3,
+    "D": 4,
+    "E": 9,
+    "F": 9
+  },
+  "first_styles": {
+    "real-world footage": 10,
+    "video game": 3
+  }
+}
