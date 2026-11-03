@@ -1918,6 +1918,7 @@ def create_gateway_app(
                 enhanced = caption_to_enhanced(
                     record, session_id=session_id, fps=fps,
                     perspective=(pe_input or {}).get("perspective", record["perspective"]),
+                    reference_image_path=resolve_reference_image(payload["reference_image_id"], output_dir),
                 )
                 raw_user_prompt = record["environment_description"]
                 enhanced.session["last_overlay"] = {
@@ -2159,7 +2160,7 @@ def create_gateway_app(
                 if isinstance(prompt_enhancer, OnlinePromptEnhancer):
                     try:
                         persist_pe_turn(
-                            prompt_enhancer.transcript_store,
+                            prompt_enhancer.transcript_store_for_session(enhanced.session),
                             pe_input,
                             previous_session,
                             enhanced,
@@ -2248,7 +2249,7 @@ def create_gateway_app(
             ):
                 try:
                     transcript_path = persist_pe_failure(
-                        prompt_enhancer.transcript_store,
+                        prompt_enhancer.transcript_store_for_session(previous_session),
                         pe_input,
                         previous_session,
                         exc,

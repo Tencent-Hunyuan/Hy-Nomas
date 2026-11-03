@@ -384,7 +384,9 @@ def test_captioner_receives_user_perspective_and_retimes_output_to_five_seconds(
         assert 'User-selected perspective_view: second-person' in messages[-1]['content'][0]['text']
         assert 'test-app:test-secret?provider=ali&model=kimi-k3' in session.post.call_args.kwargs['headers']['Authorization']
     else:
-        user_input = json.loads(messages[-1]['content'][0]['text'])
+        from apps.kimi_k3_prompt_enhancer import I2V_PROMPT_PROFILE
+        assert messages[-1]['content'][0]['text'] == I2V_PROMPT_PROFILE.first_turn_prompt
+        user_input = json.loads(messages[-1]['content'][1]['text'])
         assert user_input['perspective_view'] == 'second-person'
         assert 'initial 5-second segment' in user_input['user_prompt']
         from pathlib import Path
