@@ -254,6 +254,26 @@ The gateway stores normalized uploads and their caption JSON under
 `outputs/seg_ar_demo/reference_images`. References can only initialize new
 interactive worlds; they cannot replace the image in an existing session.
 
+### Session rollback, snapshot, and restore
+
+The GPU worker exposes the interactive session lifecycle over HTTP:
+
+- `POST /v1/rollback` — `{"session_id": "..."}`: remove the latest generated
+  segment and restore the matching KV/cache state (the same primitive used by
+  the demo's undo button).
+- `GET /v1/session/state` — active session id and current `cache_valid_len`.
+- `POST /v1/session/snapshot` — `{"session_id": "...", "path": "..."}`: persist
+  the KV cache, cache masks, noise state, frame counters, and segment metadata
+  so a world can be resumed later.
+- `POST /v1/session/restore` — `{"session_id": "...", "path": "..."}`: load a
+  snapshot on the same worker and continue generation from it. Restoring resets
+  the current pipeline state first.
+
+Snapshots are written with `torch.save` and contain tensors and RNG state, so
+only restore files produced by the same worker; treat them as trusted local
+files. A snapshot can only be taken for the session that is currently active on
+that worker.
+
 ## Settings, logs, and shutdown
 
 Append overrides to the launch command from step 2.3 or 2.5. The defaults below come from [inference.yaml](../configs/experiment/inference.yaml); the single-GPU preset inherits these four settings.
