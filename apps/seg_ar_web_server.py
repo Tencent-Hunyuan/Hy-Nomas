@@ -2908,6 +2908,21 @@ def create_app(
     def get_config() -> Dict[str, Any]:
         return service.public_config()
 
+    @app.post("/v1/rollback")
+    async def rollback(payload: Dict[str, Any]) -> Dict[str, Any]:
+        # Expose the existing session rollback primitive: remove the latest
+        # interactive segment and restore the matching KV state.
+        session_id = str((payload or {}).get("session_id") or "").strip()
+        if not session_id:
+            raise HTTPException(status_code=400, detail="session_id is required")
+        try:
+            return service.rollback_session(session_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.exception("rollback request failed")
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
     @app.post("/v1/generate")
     async def generate(request: GenerateRequest) -> Dict[str, Any]:
         # Keep the collective model call on uvicorn's main thread. Declaring
