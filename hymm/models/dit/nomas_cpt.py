@@ -773,10 +773,9 @@ def causal_attention_with_cache_mp(
         with stage("cache_attention"):
             hidden = flex_masked_attention(q_full, full_k, full_v, q_mask, kv_mask)
     elif attn_mode == "flash3":
-        from .modules.attention.range_attention import note_non_range_call
+        from .modules.attention.range_attention import (
+            note_non_range_call, pad_tokens, unpad_positions, unpad_tokens)
         note_non_range_call()
-        from flash_attn.bert_padding import pad_input, unpad_input
-        from einops import rearrange as _rearrange
 
         if kernel_dtype not in (torch.float16, torch.bfloat16):
             raise RuntimeError(
@@ -792,21 +791,15 @@ def causal_attention_with_cache_mp(
                 f"cache_txt={cache_txt}, cache_valid_len={cache_valid_len}"
             )
 
-        H = q_full.shape[2]  # heads
         S_q = q_full.shape[1]
 
-        # Unpad Q
-        q_flat = _rearrange(q_full, "b s h d -> b s (h d)")
-        q_unpad, q_indices, cu_seqlens_q, max_seqlen_q, _ = unpad_input(q_flat, q_mask)
-        q_unpad = _rearrange(q_unpad, "nnz (h d) -> nnz h d", h=H)
-
-        # Unpad K, V
-        k_flat = _rearrange(full_k, "b s h d -> b s (h d)")
-        v_flat = _rearrange(full_v, "b s h d -> b s (h d)")
-        k_unpad, _, cu_seqlens_k, max_seqlen_k, _ = unpad_input(k_flat, kv_mask)
-        v_unpad, _, _, _, _ = unpad_input(v_flat, kv_mask)
-        k_unpad = _rearrange(k_unpad, "nnz (h d) -> nnz h d", h=H)
-        v_unpad = _rearrange(v_unpad, "nnz (h d) -> nnz h d", h=H)
+        q_indices, cu_seqlens_q = unpad_positions(q_mask)
+        k_indices, cu_seqlens_k = unpad_positions(kv_mask)
+        q_unpad = unpad_tokens(q_full, q_indices)
+        k_unpad = unpad_tokens(full_k, k_indices)
+        v_unpad = unpad_tokens(full_v, k_indices)
+        max_seqlen_q = int((cu_seqlens_q[1:] - cu_seqlens_q[:-1]).max())
+        max_seqlen_k = int((cu_seqlens_k[1:] - cu_seqlens_k[:-1]).max())
 
         from flash_attn_interface import flash_attn_varlen_func as _flash_attn_varlen
 
@@ -823,13 +816,7 @@ def causal_attention_with_cache_mp(
         )
 
         # Re-pad output to [B, S_q, H, D]
-        hidden = pad_input(
-            _rearrange(out_unpad, "nnz h d -> nnz (h d)"),
-            q_indices,
-            B,
-            S_q,
-        )
-        hidden = _rearrange(hidden, "b s (h d) -> b s h d", h=H)
+        hidden = pad_tokens(out_unpad, q_indices, B, S_q)
     else:
         raise ValueError(f"Unsupported attn_mode for KV cache: {attn_mode}")
 
@@ -3377,6 +3364,9 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                 rope_dim_list=self.rope_dim_list,
                 rope_theta=self.rope_theta,
             )
+            # Built on the CPU: move once here, not in each block's pre-attention.
+            freqs_cos = freqs_cos.to(hidden_states.device)
+            freqs_sin = freqs_sin.to(hidden_states.device)
 
         # Patch embedding
         img = self.img_in(img)
