@@ -11,7 +11,7 @@ WORKER_SLOT="${WORKER_SLOT:-0}"
 WORKER_LOCK="${WORKER_LOCK:-/tmp/nomas_seg_ar_gpu_worker_${WORKER_SLOT}.lock}"
 NNODES="${NNODES:-1}"
 NODE_RANK="${NODE_RANK:-0}"
-NPROC_PER_NODE="${NPROC_PER_NODE:-${SP_SIZE}}"
+NPROC_PER_NODE="${NPROC_PER_NODE:-${MODEL_PARALLEL_SIZE}}"
 MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT="${MASTER_PORT:-29500}"
 RDZV_ID="${RDZV_ID:-nomas-seg-ar-${MASTER_PORT}}"
@@ -48,8 +48,8 @@ if (( NNODES < 1 || NODE_RANK < 0 || NODE_RANK >= NNODES )); then
   echo "Invalid distributed topology: NNODES=${NNODES}, NODE_RANK=${NODE_RANK}" >&2
   exit 2
 fi
-if (( NPROC_PER_NODE < 1 || NNODES * NPROC_PER_NODE != SP_SIZE )); then
-  echo "SP_SIZE must equal NNODES * NPROC_PER_NODE; got ${SP_SIZE} != ${NNODES} * ${NPROC_PER_NODE}" >&2
+if (( NPROC_PER_NODE < 1 || NNODES * NPROC_PER_NODE != MODEL_PARALLEL_SIZE )); then
+  echo "SP_SIZE * TP_SIZE must equal NNODES * NPROC_PER_NODE; got ${MODEL_PARALLEL_SIZE} != ${NNODES} * ${NPROC_PER_NODE}" >&2
   exit 2
 fi
 
@@ -63,7 +63,7 @@ echo "  output:     ${SAVE_PATH}"
 echo "  worker id:  ${NOMAS_WORKER_ID}"
 echo "  slot:       ${WORKER_SLOT}"
 echo "  CUDA GPUs:  ${CUDA_VISIBLE_DEVICES:-all}"
-echo "  topology:   ${NNODES} node(s) x ${NPROC_PER_NODE} GPU(s) = SP${SP_SIZE}"
+echo "  topology:   ${NNODES} node(s) x ${NPROC_PER_NODE} GPU(s) = SP${SP_SIZE} x TP${TP_SIZE}"
 if (( NNODES > 1 )); then
   echo "  rendezvous: ${MASTER_ADDR}:${MASTER_PORT} rank ${NODE_RANK}/${NNODES}"
 fi

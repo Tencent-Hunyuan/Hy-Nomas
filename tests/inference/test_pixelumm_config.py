@@ -139,7 +139,7 @@ def test_pixelumm_parallel_loader_requires_active_sp_group(monkeypatch):
     monkeypatch.setattr(PixelUMMDCAELatentDecoder, "from_checkpoint", Mock())
     monkeypatch.setattr(torch.distributed, "is_initialized", lambda: False)
     args = _flatten_cfg(_compose("+experiment=inference"))
-    with pytest.raises(RuntimeError, match="active multi-rank SP group"):
+    with pytest.raises(RuntimeError, match="active multi-rank SP/TP model group"):
         maybe_load_pixelumm_decoder(args, device="cpu", logger=Mock())
 
 

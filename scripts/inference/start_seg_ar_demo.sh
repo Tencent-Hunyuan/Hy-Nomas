@@ -17,7 +17,7 @@ is_enabled() {
 }
 
 # Multi-node workers are enabled only when their hosts are supplied explicitly.
-# SP_SIZE comes from the inference config (or an explicit launch override).
+# SP_SIZE and TP_SIZE come from the inference config or launch overrides.
 if [[ -n "${NOMAS_WORKER_HOSTS:-}" ]] \
     && [[ -z "${NOMAS_WORKER_SCRIPT:-}" ]]; then
   export NOMAS_WORKER_SCRIPT="${PWD}/scripts/inference/run_seg_ar_multinode_worker.sh"
@@ -58,6 +58,8 @@ if is_enabled "${NOMAS_PRINT_TOPOLOGY_ONLY:-false}"; then
   printf 'MASTER_PORT=%s\n' "${MASTER_PORT:-}"
   printf 'NPROC_PER_NODE=%s\n' "${NPROC_PER_NODE:-}"
   printf 'SP_SIZE=%s\n' "${SP_SIZE:-}"
+  printf 'TP_SIZE=%s\n' "${TP_SIZE:-}"
+  printf 'MODEL_PARALLEL_SIZE=%s\n' "${MODEL_PARALLEL_SIZE:-}"
   printf 'RDZV_ID=%s\n' "${RDZV_ID:-}"
   printf 'PORT=%s\n' "${PORT:-}"
   printf 'NOMAS_DISPATCHER_ENABLED=%s\n' "${NOMAS_DISPATCHER_ENABLED:-}"

@@ -675,6 +675,8 @@ class DefaultTrainer:
         args = self.args
         world_size = self.world_size
         sp_size = int(args.parallelism.sp_size)
+        if getattr(args.parallelism, "tp_size", 1) != 1:
+            raise ValueError("parallelism.tp_size > 1 is currently supported by inference only")
         sharding_strategy = args.parallelism.fsdp_sharding_strategy
 
         if sharding_strategy == "full":

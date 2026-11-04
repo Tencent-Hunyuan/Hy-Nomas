@@ -1,5 +1,5 @@
 #!/bin/bash
-# Public inference launcher. The inference preset uses segment-AR inference.
+# Public inference launcher. The inference preset uses segment-AR with SP=1, TP=8.
 #
 # Usage:
 #   bash scripts/inference/inference_from_config.sh inference \
@@ -53,7 +53,10 @@ EXPERIMENT="${EXPERIMENT%.yaml}"
 EXPERIMENT="${EXPERIMENT#configs/experiment/}"
 
 # ================= Auto-detect GPUs =================
-if command -v nvidia-smi >/dev/null 2>&1; then
+if [ -n "${CUDA_VISIBLE_DEVICES:-}" ]; then
+    IFS=',' read -r -a _VISIBLE_DEVICES <<< "$CUDA_VISIBLE_DEVICES"
+    NUM_GPUS=${#_VISIBLE_DEVICES[@]}
+elif command -v nvidia-smi >/dev/null 2>&1; then
     NUM_GPUS=$(nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | wc -l)
 else
     NUM_GPUS=1
@@ -69,8 +72,10 @@ fi
 
 # ================= Extract shell-level args =================
 SP_SIZE=""
+TP_SIZE=""
 ROLLOUT_TYPE=""
 _SP_SIZE_FROM_CLI=0
+_TP_SIZE_FROM_CLI=0
 _ROLLOUT_TYPE_FROM_CLI=0
 # Preserve platform-provided topology before resolving the inference group.
 _ENV_NODE_RANK="${NODE_RANK:-}"
@@ -93,6 +98,11 @@ while [[ $# -gt 0 ]]; do
         --sp-size)
             SP_SIZE="$2"
             _SP_SIZE_FROM_CLI=1
+            shift 2
+            ;;
+        --tp-size)
+            TP_SIZE="$2"
+            _TP_SIZE_FROM_CLI=1
             shift 2
             ;;
         --rollout-type)
@@ -136,7 +146,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ================= Read SP_SIZE and ROLLOUT_TYPE from experiment YAML if not on CLI =================
+# ================= Read parallel degrees and rollout from the experiment =================
 _EXPERIMENT_FILE="configs/experiment/${EXPERIMENT}.yaml"
 if [ -f "$_EXPERIMENT_FILE" ]; then
 _yaml_values=$(python3 -c "
@@ -202,18 +212,23 @@ def resolve_yaml(filepath, configs_root='configs', visited=None):
 
 data = resolve_yaml('${_EXPERIMENT_FILE}')
 sp = data.get('sp_size') or (data.get('parallelism') or {}).get('sp_size') or 1
+tp = data.get('tp_size') or (data.get('parallelism') or {}).get('tp_size') or 1
 rt = data.get('rollout_type') or (data.get('inference') or {}).get('rollout_type') or 'one_shot'
-print(f'{sp} {rt}')
-" 2>/dev/null || echo "1 one_shot")
+print(f'{sp} {tp} {rt}')
+" 2>/dev/null || echo "1 1 one_shot")
 else
-    _yaml_values="1 one_shot"
+    _yaml_values="1 1 one_shot"
 fi
 
 _yaml_sp=$(echo "$_yaml_values" | awk '{print $1}')
-_yaml_rt=$(echo "$_yaml_values" | awk '{print $2}')
+_yaml_tp=$(echo "$_yaml_values" | awk '{print $2}')
+_yaml_rt=$(echo "$_yaml_values" | awk '{print $3}')
 
 if [ -z "$SP_SIZE" ]; then
     SP_SIZE="$_yaml_sp"
+fi
+if [ -z "$TP_SIZE" ]; then
+    TP_SIZE="$_yaml_tp"
 fi
 if [ -z "$ROLLOUT_TYPE" ]; then
     ROLLOUT_TYPE="$_yaml_rt"
@@ -222,11 +237,15 @@ fi
 # Keep launcher-level and Hydra-level overrides consistent. This allows either
 # ``--sp-size 16`` or ``parallelism.sp_size=16`` to control both sides.
 _HYDRA_SP_SIZE=""
+_HYDRA_TP_SIZE=""
 _HYDRA_ROLLOUT_TYPE=""
 for _arg in "${PASSTHROUGH_ARGS[@]}"; do
     case "$_arg" in
-        parallelism.sp_size=*|+parallelism.sp_size=*)
+        parallelism.sp_size=*|+parallelism.sp_size=*|++parallelism.sp_size=*)
             _HYDRA_SP_SIZE="${_arg#*=}"
+            ;;
+        parallelism.tp_size=*|+parallelism.tp_size=*|++parallelism.tp_size=*)
+            _HYDRA_TP_SIZE="${_arg#*=}"
             ;;
         inference.rollout_type=*|+inference.rollout_type=*)
             _HYDRA_ROLLOUT_TYPE="${_arg#*=}"
@@ -243,6 +262,20 @@ if [ -n "$_HYDRA_SP_SIZE" ]; then
 elif [ -n "$SP_SIZE" ] && [ "$SP_SIZE" != "$_yaml_sp" ]; then
     PASSTHROUGH_ARGS+=("parallelism.sp_size=$SP_SIZE")
 fi
+if [ -n "$_HYDRA_TP_SIZE" ]; then
+    if [ "$_TP_SIZE_FROM_CLI" -eq 1 ] && [ "$TP_SIZE" != "$_HYDRA_TP_SIZE" ]; then
+        echo "Error: --tp-size ($TP_SIZE) conflicts with parallelism.tp_size ($_HYDRA_TP_SIZE)." >&2
+        exit 1
+    fi
+    TP_SIZE="$_HYDRA_TP_SIZE"
+elif [ -n "$TP_SIZE" ] && [ "$TP_SIZE" != "$_yaml_tp" ]; then
+    PASSTHROUGH_ARGS+=("parallelism.tp_size=$TP_SIZE")
+fi
+if [[ ! "$SP_SIZE" =~ ^[1-9][0-9]*$ || ! "$TP_SIZE" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: sp_size and tp_size must be positive integers." >&2
+    exit 1
+fi
+MODEL_PARALLEL_SIZE=$((SP_SIZE * TP_SIZE))
 if [ -n "$_HYDRA_ROLLOUT_TYPE" ]; then
     if [ "$_ROLLOUT_TYPE_FROM_CLI" -eq 1 ] \
             && [ "$ROLLOUT_TYPE" != "$_HYDRA_ROLLOUT_TYPE" ]; then
@@ -319,6 +352,7 @@ echo "Python script: ${PYTHON_SCRIPT}"
 echo "GPUs per node: $NUM_GPUS"
 echo "Total GPUs:    $TOTAL_GPUS"
 echo "SP Size:       $SP_SIZE"
+echo "TP Size:       $TP_SIZE"
 echo "Topology:      ${_TOPOLOGY_MODE}"
 echo "Platform:      node ${_PLATFORM_INDEX}/${NNODES}"
 echo "Torchrun:      node ${NODE_RANK}/${NNODES}"
@@ -328,13 +362,13 @@ echo "Extra CLI args: ${PASSTHROUGH_ARGS[*]}"
 echo "=========================================="
 
 # ================= Build launcher =================
-if [ $(( TOTAL_GPUS % SP_SIZE )) -ne 0 ]; then
-    echo "Error: Total GPUs ($TOTAL_GPUS) must be a multiple of SP_SIZE ($SP_SIZE)"
+if [ $(( TOTAL_GPUS % MODEL_PARALLEL_SIZE )) -ne 0 ]; then
+    echo "Error: Total GPUs ($TOTAL_GPUS) must be a multiple of SP_SIZE * TP_SIZE ($MODEL_PARALLEL_SIZE)"
     exit 1
 fi
 
 if [ "$TOTAL_GPUS" -gt 1 ] 2>/dev/null; then
-    # Use torchrun for multi-GPU: supports both SP>1 and pure DP (sp=1, dp=NUM_GPUS)
+    # Use torchrun for multi-GPU: supports SP, TP, and independent DP replicas
 LAUNCHER="torchrun --nnodes=$NNODES --nproc_per_node=$NUM_GPUS --node_rank=$NODE_RANK --rdzv_endpoint=${MASTER_ADDR}:${RDZV_PORT} --rdzv_id=$RDZV_PORT"
 else
     LAUNCHER="python"
@@ -342,8 +376,8 @@ fi
 
 # ================= Run inference =================
 if [ -n "$DEMO_REPLAY_MANIFEST" ]; then
-    if [ "$ROLLOUT_TYPE" != "seg_ar" ] || [ "$TOTAL_GPUS" -ne "$SP_SIZE" ]; then
-        echo "Demo replay requires seg_ar and exactly one SP replica per torchrun world." >&2
+    if [ "$ROLLOUT_TYPE" != "seg_ar" ] || [ "$TOTAL_GPUS" -ne "$MODEL_PARALLEL_SIZE" ]; then
+        echo "Demo replay requires seg_ar and exactly one SP/TP model replica per torchrun world." >&2
         exit 1
     fi
     _REPLAY_OUTPUT=""
