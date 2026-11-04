@@ -460,6 +460,7 @@ def get_rotary_pos_embed_with_offset(
     heads_num: int,
     rope_dim_list=None,
     rope_theta: float = 10000.0,
+    device=None,
 ):
     """
     Get rotary position embeddings with time offset for causal generation.
@@ -484,6 +485,7 @@ def get_rotary_pos_embed_with_offset(
         theta=rope_theta,
         use_real=True,
         theta_rescale_factor=1,
+        device=device,
     )
     return freqs_cos, freqs_sin
 

@@ -1708,6 +1708,9 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
         self.guidance_embed = guidance_embed
         self.rope_dim_list = rope_dim_list
         self.rope_theta = rope_theta
+        # One current-chunk table shared across layers and denoising steps.
+        # Keep it outside buffers so module dtype casts cannot round FP32 RoPE.
+        self._rope_cache = None
         self.use_attention_mask = use_attention_mask
         self.text_projection = text_projection
         self.moe_config = moe_config
@@ -2187,7 +2190,12 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
         for block in self.single_blocks:
             block.disable_deterministic()
 
-    def get_rotary_pos_embed(self, rope_sizes, device=None):
+    def _apply(self, fn, recurse=True):
+        # Release cached device storage on model migration/offload or dtype casts.
+        self._rope_cache = None
+        return super()._apply(fn, recurse=recurse)
+
+    def get_rotary_pos_embed(self, rope_sizes, device=None, time_offset=0):
         target_ndim = 3
         head_dim = self.hidden_size // self.heads_num
         rope_dim_list = self.rope_dim_list
@@ -2196,15 +2204,45 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
         assert sum(rope_dim_list) == head_dim, (
             "sum(rope_dim_list) should equal to head_dim of attention layer"
         )
-        freqs_cos, freqs_sin = get_nd_rotary_pos_embed(
-            rope_dim_list,
-            rope_sizes,
-            theta=self.rope_theta,
-            use_real=True,
-            theta_rescale_factor=1,
-            device=device,
+        device = torch.device(device) if device is not None else torch.get_default_device()
+        if device.type == "cuda" and device.index is None:
+            device = torch.device("cuda", torch.cuda.current_device())
+        elif device.type == "cpu":
+            device = torch.device("cpu")
+        rope_sizes = tuple(rope_sizes)
+        cache_key = (
+            rope_sizes, time_offset, device, tuple(rope_dim_list), self.rope_theta,
         )
-        return freqs_cos, freqs_sin
+        if self._rope_cache is not None and self._rope_cache[0] == cache_key:
+            return self._rope_cache[1]
+
+        # Evict the previous chunk before allocating the next pair. Normal tensors
+        # also allow a cache warmed in inference_mode to be reused during training.
+        self._rope_cache = None
+        with torch.inference_mode(False), torch.no_grad(), torch.autocast(
+            device_type=device.type, enabled=False,
+        ):
+            if time_offset == 0:
+                tables = get_nd_rotary_pos_embed(
+                    rope_dim_list,
+                    rope_sizes,
+                    theta=self.rope_theta,
+                    use_real=True,
+                    theta_rescale_factor=1,
+                    device=device,
+                )
+            else:
+                tables = get_rotary_pos_embed_with_offset(
+                    rope_sizes=rope_sizes,
+                    time_offset=time_offset,
+                    hidden_size=self.hidden_size,
+                    heads_num=self.heads_num,
+                    rope_dim_list=rope_dim_list,
+                    rope_theta=self.rope_theta,
+                    device=device,
+                )
+        self._rope_cache = (cache_key, tables)
+        return tables
 
     def forward(
         self,
@@ -3381,21 +3419,11 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                 for start, end in getattr(cache_mask, "_action_tail_ranges", []):
                     cache_mask[:, int(start) : int(end)] = False
 
-        # RoPE: use the same function as forward() when offset=0 to ensure
-        # bit-exact results. Only use the offset variant for subsequent chunks.
-        if global_frame_counter == 0:
-            freqs_cos, freqs_sin = self.get_rotary_pos_embed(
-                (tt, th, tw), device=hidden_states.device
-            )
-        else:
-            freqs_cos, freqs_sin = get_rotary_pos_embed_with_offset(
-                rope_sizes=(tt, th, tw),
-                time_offset=global_frame_counter,
-                hidden_size=self.hidden_size,
-                heads_num=self.heads_num,
-                rope_dim_list=self.rope_dim_list,
-                rope_theta=self.rope_theta,
-            )
+        # Reuse this chunk's FP32 device tables across every denoising step.
+        freqs_cos, freqs_sin = self.get_rotary_pos_embed(
+            (tt, th, tw), device=hidden_states.device,
+            time_offset=global_frame_counter,
+        )
 
         # Patch embedding
         img = self.img_in(img)
