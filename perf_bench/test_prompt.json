@@ -1,0 +1,194 @@
+[
+  {
+    "test_id": "000cb9f3c01bd7d0b927e9baeaff122a_0_2011",
+    "total_duration": "01:07.033",
+    "perspective_view": "third-person observer",
+    "Style": "真实视频",
+    "merged_dimension": [
+      "交互"
+    ],
+    "dimension": [
+      "运动artifacts"
+    ],
+    "subject_list": [
+      {
+        "subject_id": "<|Subject1|>",
+        "display_name": "穿棕色衣服的泥瓦匠",
+        "subject_attribute": "一名成年男子，身穿深棕色长袖传统服装并戴深色手套，最初蹲在低矮石台和一座部分砌好的圆形石结构旁，处理石块和灰浆。"
+      },
+      {
+        "subject_id": "<|Subject2|>",
+        "display_name": "穿白衬衫的助手",
+        "subject_attribute": "一名较年轻的成年男子，留深色短发，身穿白色短袖polo衫和黑色长裤，最初握着一根长木柄工具进入画面下方，靠近装有灰浆的手推车。"
+      },
+      {
+        "subject_id": "<|Subject3|>",
+        "display_name": "黑白相间的狗",
+        "subject_attribute": "一只黑白相间的狗，卧在院子左侧一座 rustic 开放式棚屋旁的泥土地上，首次在镜头向左摇过院落时可见。"
+      },
+      {
+        "subject_id": "<|Subject4|>",
+        "display_name": "穿深色罩袍的女性",
+        "subject_attribute": "一名身穿黑色长罩袍、内衬可见绿色衣物的人物，站在大树旁 rustic 户外厨房棚屋的操作台前。"
+      }
+    ],
+    "segments": [
+      {
+        "start_time": "00:00.000",
+        "end_time": "00:17.000",
+        "visual_description_long": "片段开头展现阳光普照的乡间山坡：宽阔的绿色草场上穿行着狭窄的土路，散布着浅色石块，枝叶从画面上方伸入，远处干旱坡地上可见村庄和小型建筑。<Camera1>镜头从草场稳定地向下倾斜，移向下方遮阴的泥土作业区</Camera1>。画面下方露出粗糙的石台、一张铺有花纹布和白色印花坐垫的低矮长方形石凳、堆放的砖块，以及中央一座部分砌好的圆形石结构。前景处停着一辆装满灰色灰浆的手推车和一把长柄铁锹，斑驳的树影在裸露的土壤和稀疏草地上移动。施工点周围散落着石块、工具和小石堆。<Camera2>镜头随后稳定为俯视作业区的高角度固定画面，持续聚焦圆形砌石结构和灰浆</Camera2>。",
+        "description_change": null,
+        "contained_actions": [
+          {
+            "start_time": "00:01.600",
+            "end_time": "00:05.000",
+            "action_description": "<Action1><|Subject1|>蹲在圆形石结构旁处理灰浆附近的石块，同时<|Subject2|>进入画面下方，将一根长木柄工具举到手推车区域上方</Action1>。"
+          },
+          {
+            "start_time": "00:05.000",
+            "end_time": "00:10.000",
+            "action_description": "<Action2><|Subject2|>用长柄铁锹在手推车内搅拌和翻动灰色灰浆，随后端着装满灰浆的铁锹走向圆形结构，同时<|Subject1|>逐块搬起石块并安放到逐渐升高的圆形石圈上</Action2>。"
+          },
+          {
+            "start_time": "00:10.000",
+            "end_time": "00:14.000",
+            "action_description": "<Action3><|Subject1|>俯身在结构上方，将多块石头按压、转动并调整进石圈上的新灰浆中，同时<|Subject2|>手持工具站在近旁观看砌石过程</Action3>。"
+          },
+          {
+            "start_time": "00:14.000",
+            "end_time": "00:17.000",
+            "action_description": "<Action4><|Subject1|>伸手向后方石台取更多材料，继续将石块砌到圆形墙上，同时<|Subject2|>在手推车周围变换位置，并俯身仔细观察砌石作业</Action4>。"
+          }
+        ]
+      },
+      {
+        "start_time": "00:17.000",
+        "end_time": "00:26.000",
+        "visual_description_long": null,
+        "description_change": "与前一片段相比，可见场景、背景和其他物体的布局在实质上保持不变。高角度俯视构图仍固定在遮阴的泥土作业区，灰浆手推车、铁锹、带坐垫的石凳和堆放的砖块均保持原位，斑驳树影继续覆盖地面。",
+        "contained_actions": [
+          {
+            "start_time": "00:17.000",
+            "end_time": "00:19.000",
+            "action_description": "<Action1><|Subject1|>俯身在圆形石结构上方，将石块安放并按压到其上部石圈，同时<|Subject2|>直起身，开始绕到结构右侧</Action1>。"
+          },
+          {
+            "start_time": "00:19.000",
+            "end_time": "00:21.500",
+            "action_description": "<Action2><|Subject2|>继续绕到结构另一侧，面朝外站立、双手靠近腰部，同时<|Subject1|>持续将石块调整并砌入石圈上的灰浆中</Action2>。"
+          },
+          {
+            "start_time": "00:21.500",
+            "end_time": "00:26.000",
+            "action_description": "<Action3><|Subject2|>转回身，俯身在结构上方，用双手在结构顶边安放和调整石块，与继续沿石圈砌石、对齐石块的<|Subject1|>并肩作业</Action3>。"
+          }
+        ]
+      },
+      {
+        "start_time": "00:26.000",
+        "end_time": "00:34.000",
+        "visual_description_long": null,
+        "description_change": "与前一片段相比，可见场景、背景和其他物体的布局在实质上保持不变。固定俯视构图仍覆盖遮阴的泥土作业区、带铁锹的灰浆手推车、带坐垫的石凳和堆放的砖块，斑驳树影持续投射在地面上。",
+        "contained_actions": [
+          {
+            "start_time": "00:26.000",
+            "end_time": "00:29.500",
+            "action_description": "<Action1><|Subject1|>俯身在圆形石结构上方，继续向上部石圈安放并按压更多石块，同时<|Subject2|>蹲在结构右边缘，处理并调整其基部附近的石块</Action1>。"
+          },
+          {
+            "start_time": "00:29.500",
+            "end_time": "00:32.000",
+            "action_description": "<Action2><|Subject1|>直起身、后退几步，爬上带坐垫的石台并坐在其边缘，同时<|Subject2|>在右侧平坦石板上坐下，双腿伸直、身体后仰</Action2>。"
+          },
+          {
+            "start_time": "00:32.000",
+            "end_time": "00:34.000",
+            "action_description": "<Action3><|Subject1|>坐在石台边缘，拿起一把扁平手工具并望向石结构，同时<|Subject2|>保持坐姿，用双手摆弄一个小物件</Action3>。"
+          }
+        ]
+      },
+      {
+        "start_time": "00:34.000",
+        "end_time": "00:43.000",
+        "visual_description_long": null,
+        "description_change": "与前一片段相比，可见场景、背景和其他物体的布局在实质上保持不变。俯视构图仍覆盖遮阴的泥土作业区、圆形石结构、带坐垫的石台、灰浆手推车和堆放的砖块，树影斑驳地投在地面上。<Camera1>镜头略微向上漂移并稍稍扩大视野，在画面顶部露出更多树干、草地边缘和斜坡土岸</Camera1>。",
+        "contained_actions": [
+          {
+            "start_time": "00:34.000",
+            "end_time": "00:36.000",
+            "action_description": "<Action1><|Subject1|>坐在石台边缘，俯身用双手摆弄铺在花纹布上的一个小器具和物品，同时<|Subject2|>坐在右侧地面上，摆弄手中的小物件</Action1>。"
+          },
+          {
+            "start_time": "00:36.000",
+            "end_time": "00:39.000",
+            "action_description": "<Action2><|Subject1|>从坐姿起身，转为站立俯身于石台上方的姿势，继续调整和摆弄布上的物品，同时<|Subject2|>保持坐姿，抬起一只手挠头和颈部</Action2>。"
+          },
+          {
+            "start_time": "00:39.000",
+            "end_time": "00:43.000",
+            "action_description": "<Action3><|Subject1|>保持俯身于石台上方，专注整理垫子上的物品，同时<|Subject2|>继续摆弄小物件，并逐渐将坐姿向画面右下边缘移动</Action3>。"
+          }
+        ]
+      },
+      {
+        "start_time": "00:43.000",
+        "end_time": "00:51.000",
+        "visual_description_long": null,
+        "description_change": "与前一片段相比，可见场景、背景和其他物体的布局在实质上保持不变。遮阴的泥土作业区、带坐垫的石台、圆形石结构、灰浆手推车和堆放的砖块均在斑驳树影下保持原位。<Camera1>镜头在结尾附近略微向上漂移，在画面顶部露出更多树干、悬挂的衣物和草地边缘</Camera1>。",
+        "contained_actions": [
+          {
+            "start_time": "00:43.000",
+            "end_time": "00:45.000",
+            "action_description": "<Action1><|Subject1|>站立俯身于石台上方，用双手调整花纹布上的小器具和物品，同时<|Subject2|>坐在右下方摆弄一个小物件</Action1>。"
+          },
+          {
+            "start_time": "00:45.000",
+            "end_time": "00:48.000",
+            "action_description": "<Action2><|Subject1|>从石台上拿起一个扁平的浅色物体，俯身朝向圆形石结构，并将该物体放到其石块覆盖的顶部，同时<|Subject2|>保持坐姿，转头观看</Action2>。"
+          },
+          {
+            "start_time": "00:48.000",
+            "end_time": "00:51.000",
+            "action_description": "<Action3><|Subject1|>用双手在结构顶部按压并整理该扁平物体及其周围的石块，同时<|Subject2|>继续摆弄小物件，并逐渐将坐姿向画面右下边缘移动</Action3>。"
+          }
+        ]
+      },
+      {
+        "start_time": "00:51.000",
+        "end_time": "01:00.000",
+        "visual_description_long": null,
+        "description_change": "与前一片段相比，画面完全离开砌石作业区，镜头转而环视周围环境。<Camera1>镜头从石台稳定地向上倾斜，穿过大树的树干和茂密枝叶，掠过黄绿色的柔荑花序和嫩叶</Camera1>。上升过程中，下方仍可见红色支撑杆、悬挂的灰色衣物、白色盆和堆放的砖块。<Camera2>镜头随后穿过枝叶缓慢向左摇摄，展现出泥土院坝、一座存放物品的 rustic 开放式土坯棚屋、远处的山坡，以及一只卧在棚屋旁的黑白相间的狗</Camera2>。明亮的日光和清晰的阴影贯穿整个环视过程。",
+        "contained_actions": [
+          {
+            "start_time": "00:51.000",
+            "end_time": "00:53.000",
+            "action_description": "<Action1><|Subject1|>保持俯身在石台旁、低头靠近作业区，随后随着画面向上倾斜而跌出画面下方</Action1>。"
+          },
+          {
+            "start_time": "00:58.500",
+            "end_time": "01:00.000",
+            "action_description": "<Action2><|Subject3|>静卧在 rustic 棚屋旁的泥土地上，随着向左的摇摄进入画面</Action2>。"
+          }
+        ]
+      },
+      {
+        "start_time": "01:00.000",
+        "end_time": "01:07.033",
+        "visual_description_long": null,
+        "description_change": "与前一片段相比，画面现在聚焦于大树下的 rustic 开放式土坯厨房棚屋，其深色台面上摆放着炊具和碗碟，侧面挂着一块绿色布。<Camera1>镜头继续绕树干缓慢向左摇摄，逐渐露出石基上的黑色圆柱形储水罐、红色容器、堆放的木柴、石砌挡土墙，以及背景中散布树木的干旱梯级山坡</Camera1>。明亮的阳光和斑驳的树影持续覆盖泥土院坝。",
+        "contained_actions": [
+          {
+            "start_time": "01:00.000",
+            "end_time": "01:03.500",
+            "action_description": "<Action1><|Subject4|>站在棚屋操作台前，身体部分被树干遮挡，上身做出小幅动作，似乎在操作台上的物品，同时<|Subject3|>静卧在棚屋前的泥土地上</Action1>。"
+          },
+          {
+            "start_time": "01:03.500",
+            "end_time": "01:07.033",
+            "action_description": "<Action2><|Subject4|>在摇摄继续的过程中仍站在树后的操作台前，同时<|Subject3|>保持卧姿，并逐渐移出画面右下边缘</Action2>。"
+          }
+        ]
+      }
+    ]
+  }
+]

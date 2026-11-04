@@ -1141,6 +1141,8 @@ def _load_from_json(
     global_only_in_first_segment: bool = False,
     no_desc_long_after_first: bool = False,
     normalize_action_timestamp: bool = False,
+    *,
+    items: Optional[List[Dict[str, Any]]] = None,
 ) -> List[PromptEntry]:
     """
     Load prompt entries from a JSON file.
@@ -1158,8 +1160,13 @@ def _load_from_json(
             f"  keep_keywords={keep_keywords}  (whole-item serialisation mode, whitelist)"
         )
 
-    with open(json_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    # A caller may select a suite entry in memory while retaining json_path
+    # as the base for relative camera sidecars. Normal file loading is unchanged.
+    if items is None:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        data = items
 
     # Mixed suites may contain both camera-controlled and text-only samples.
     # Resolve each entry independently; one text-only entry must not disable
@@ -2570,3 +2577,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reproduce the SP8/TP8 traces with both memory profilers disabled.
+# Run SP8/TP8 traces or the B300 SP4/TP4 benchmarks with memory profiling disabled.
 # Required model locations: replace the placeholders with your local paths.
 # DIT_WEIGHT=/path/to/dit/model.safetensors \
 # PIXELUMM_CHECKPOINT=/path/to/pixelumm/model.safetensors \
@@ -12,10 +12,14 @@ unset BASH_ENV ENV
 
 usage() {
     cat <<'HELP'
-Usage: bash perf_bench/run_sp8_tp8.sh [both|sp8|tp8] [LOCAL_ROOT]
+Usage: bash perf_bench/run_sp8_tp8.sh [both|sp8|tp8|b300_sp4|b300_tp4] [LOCAL_ROOT]
 
 Defaults to running SP8 (sp_size=8, tp_size=1), then TP8 (sp_size=1,
 tp_size=8), sequentially on one eight-GPU machine. Stops on failure.
+Use b300_sp4 (SP=4, TP=1) or b300_tp4 (SP=1, TP=4) on four B300 GPUs.
+Both use scripts/inference/inference_b300_sp4.py for one full warmup
+followed by one measured request. TP4 disables DiT torch_compile because the
+current fused projections bypass TP reductions; VAE compilation stays enabled.
 
 Required environment variables (no defaults):
   DIT_WEIGHT            DiT checkpoint (local file).
@@ -27,15 +31,27 @@ Required environment variables (no defaults):
 Optional environment overrides:
   PYTHON_BIN            Python executable; defaults to this worktree's .venv,
                         then ../Hy-Nomas/.venv, then python3 on PATH.
-  PROMPT_FILE           Prompt JSON; defaults to REPO_ROOT/perf_bench/test_prompt.json.
+  PROMPT_FILE           Defaults to REPO_ROOT/perf_bench/test_prompt.json.
+                        B300 modes accept pipeline or annotation JSON.
   LOCAL_ROOT            New output directory at any writable location.
                         Defaults to a unique directory under /tmp.
                         The second positional argument takes precedence.
-  CUDA_VISIBLE_DEVICES  Exactly eight GPUs; default: 0,1,2,3,4,5,6,7.
+  CUDA_VISIBLE_DEVICES  Eight GPUs for sp8/tp8; four distinct numeric indices for
+                        b300_sp4/b300_tp4 (default: 0,1,2,3).
   HY_PROFILE_SEGMENTS    Segment indices to trace; default: 0,6.
   HY_PROFILE_RANKS       Ranks to trace; default: 0.
   SP8_MASTER_PORT        Default: 29618.
   TP8_MASTER_PORT        Default: 29628.
+  B300_PROFILE          1 (default) traces the measured run; 0 disables traces.
+  B300_SEGMENTS         Optional positive limit on the number of input segments.
+  B300_ENTRY_INDEX      Zero-based sample index; required for multi-entry JSON lists.
+  CUDA_HOME             B300 default: /usr/local/cuda; point to your toolkit.
+  HF_HUB_OFFLINE        B300 default: 0 (allows downloading a model ID).
+  OMP_NUM_THREADS       B300 default: 8.
+
+B300 modes use NCCL_SOCKET_IFNAME=lo, NCCL_IB_DISABLE=1, NCCL_NET=Socket and
+NCCL_NET_PLUGIN=none by default; explicit environment settings take precedence.
+They retain the Python entry point's Magi/CuTe/DeepGEMM and VAE compile settings.
 
 Examples (replace the placeholder paths):
   export DIT_WEIGHT=/path/to/dit/model.safetensors
@@ -44,14 +60,22 @@ Examples (replace the placeholder paths):
   bash perf_bench/run_sp8_tp8.sh
   bash perf_bench/run_sp8_tp8.sh tp8 ./perf_bench/run_tp8
   HY_PROFILE_SEGMENTS=6 bash perf_bench/run_sp8_tp8.sh both
+  bash perf_bench/run_sp8_tp8.sh b300_sp4 ./perf_bench/run_b300_sp4
+  bash perf_bench/run_sp8_tp8.sh b300_tp4 ./perf_bench/run_b300_tp4
+  B300_PROFILE=0 bash perf_bench/run_sp8_tp8.sh b300_sp4 ./perf_bench/run_b300_timing
   TEXT_ENCODER_PATH=Qwen/Qwen2.5-VL-7B-Instruct bash perf_bench/run_sp8_tp8.sh both
 
 Outputs: LOCAL_ROOT/{sp8,tp8}/{traces,metrics,video,cache}, run.log,
 command.sh and exit_code.txt in each case directory. Existing run directories
 are rejected. Logs, traces and JIT caches are stored under LOCAL_ROOT.
+B300 modes write results.json, run{0,1}/stages.rank*.jsonl and run1/video.mp4
+under LOCAL_ROOT/<case>; traces are under <case>/traces (measured run only).
+The last traced segment includes the final VAE decode if that segment is selected.
+Profiling adds overhead to reported timing; use B300_PROFILE=0 for timing runs.
 
 Both inference.profile_memory=false and HY_PROFILE_MEMORY=0 are forced.
-Trace shapes are recorded; stacks are not. Segment 0 includes cold compilation.
+Trace shapes are recorded; stacks are not. SP8/TP8 segment 0 includes cold
+compilation; B300 modes record only after warmup.
 Synchronous trace export can inflate the following segment's wall time.
 HELP
 }
@@ -66,8 +90,8 @@ fi
 CASE="${1:-both}"
 case "$CASE" in
     both) CASES=(sp8 tp8) ;;
-    sp8|tp8) CASES=("$CASE") ;;
-    *) fail "Unknown case '$CASE'; use both, sp8 or tp8." ;;
+    sp8|tp8|b300_sp4|b300_tp4) CASES=("$CASE") ;;
+    *) fail "Unknown case '$CASE'; use both, sp8, tp8, b300_sp4 or b300_tp4." ;;
 esac
 
 for required_var in DIT_WEIGHT PIXELUMM_CHECKPOINT TEXT_ENCODER_PATH; do
@@ -108,9 +132,15 @@ PROMPT_FILE="$(realpath -- "$PROMPT_FILE")"
 DIT_WEIGHT="$(realpath -- "$DIT_WEIGHT")"
 PIXELUMM_CHECKPOINT="$(realpath -- "$PIXELUMM_CHECKPOINT")"
 
-CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}"
+EXPECTED_GPUS=8
+DEFAULT_GPUS=0,1,2,3,4,5,6,7
+if [[ "$CASE" == b300_sp4 || "$CASE" == b300_tp4 ]]; then
+    EXPECTED_GPUS=4
+    DEFAULT_GPUS=0,1,2,3
+fi
+CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-$DEFAULT_GPUS}"
 IFS=',' read -r -a GPU_IDS <<< "$CUDA_VISIBLE_DEVICES"
-[[ ${#GPU_IDS[@]} == 8 && "$CUDA_VISIBLE_DEVICES" != *, ]] || fail "CUDA_VISIBLE_DEVICES must list exactly eight GPUs."
+[[ ${#GPU_IDS[@]} == "$EXPECTED_GPUS" && "$CUDA_VISIBLE_DEVICES" != *, ]] || fail "CUDA_VISIBLE_DEVICES must list exactly $EXPECTED_GPUS GPUs for $CASE."
 for gpu_id in "${GPU_IDS[@]}"; do
     [[ -n "$gpu_id" && "$gpu_id" != *[[:space:]]* ]] || fail "Invalid GPU list: $CUDA_VISIBLE_DEVICES"
 done
@@ -119,6 +149,27 @@ TP8_MASTER_PORT="${TP8_MASTER_PORT:-29628}"
 for port in "$SP8_MASTER_PORT" "$TP8_MASTER_PORT"; do
     [[ "$port" =~ ^[1-9][0-9]{0,4}$ ]] && (( port <= 65535 )) || fail "Invalid master port: $port"
 done
+
+B300_ARGS=()
+if [[ "$CASE" == b300_sp4 || "$CASE" == b300_tp4 ]]; then
+    B300_PROFILE="${B300_PROFILE:-1}"
+    [[ "$B300_PROFILE" == 0 || "$B300_PROFILE" == 1 ]] || fail "B300_PROFILE must be 0 or 1."
+    if [[ -n "${B300_SEGMENTS:-}" ]]; then
+        [[ "$B300_SEGMENTS" =~ ^[1-9][0-9]*$ ]] || fail "B300_SEGMENTS must be a positive integer."
+        B300_ARGS+=(--segments "$B300_SEGMENTS")
+    fi
+    if [[ -n "${B300_ENTRY_INDEX:-}" ]]; then
+        [[ "$B300_ENTRY_INDEX" =~ ^[0-9]+$ ]] || fail "B300_ENTRY_INDEX must be a nonnegative integer."
+        B300_ARGS+=(--entry-index "$B300_ENTRY_INDEX")
+    fi
+    # Preserve camera sidecar paths when the prompt is copied into LOCAL_ROOT.
+    B300_ARGS+=(--input-base-dir "$(dirname -- "$PROMPT_FILE")")
+    # Validate/convert JSON before allocating a run directory or GPU workers.
+    # Annotation conversion imports the regular parser, but loads no models.
+    "$PYTHON_BIN" "$REPO_ROOT/scripts/inference/inference_b300_sp4.py" \
+        "$PROMPT_FILE" --gpus "$CUDA_VISIBLE_DEVICES" \
+        "${B300_ARGS[@]}" --validate-only
+fi
 
 LOCAL_ROOT="${2:-${LOCAL_ROOT:-}}"
 if [[ -n "$LOCAL_ROOT" ]]; then
@@ -157,6 +208,8 @@ run_case() {
     case "$name" in
         sp8) sp=8; tp=1; port="$SP8_MASTER_PORT" ;;
         tp8) sp=1; tp=8; port="$TP8_MASTER_PORT" ;;
+        b300_sp4) sp=4; tp=1; port="" ;;
+        b300_tp4) sp=1; tp=4; port="" ;;
     esac
     case_dir="$LOCAL_ROOT/$name"
     mkdir -p -- "$case_dir"/{metrics,traces,video,cache}
@@ -181,18 +234,52 @@ run_case() {
         "HY_PROFILE_RANKS=${HY_PROFILE_RANKS:-0}"
         HY_PROFILE_SHAPES=1 HY_PROFILE_STACK=0 HY_PROFILE_MEMORY=0
         HY_PROFILE_TABLE_ROWS=120
-        bash scripts/inference/inference_from_config.sh inference
-        --nnodes 1 --node-rank 0 --master-addr 127.0.0.1 --master-port "$port"
-        --sp-size "$sp" --tp-size "$tp"
-        --dit-weight "$DIT_WEIGHT" --save-path "$case_dir/video"
-        "model.vae.checkpoint=$PIXELUMM_CHECKPOINT"
-        "model.text_encoder.model_name=$TEXT_ENCODER_PATH"
-        "inference.prompt=$LOCAL_ROOT/test_prompt.json"
-        inference.profile_memory=false
-        model.vae.deepgemm_fp8=true
-        inference.seg_ar_segment_vae_decode=true
-        model.vae.stable_prefix_streaming=true
     )
+    if [[ "$name" == b300_sp4 || "$name" == b300_tp4 ]]; then
+        command+=(
+            "OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}"
+            "CUDA_HOME=${CUDA_HOME:-/usr/local/cuda}"
+            "HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}"
+            "NCCL_SOCKET_IFNAME=${NCCL_SOCKET_IFNAME:-lo}"
+            "NCCL_IB_DISABLE=${NCCL_IB_DISABLE:-1}"
+            "NCCL_NET_PLUGIN=${NCCL_NET_PLUGIN:-none}"
+            "NCCL_NET=${NCCL_NET:-Socket}"
+            "NCCL_DEBUG=${NCCL_DEBUG:-WARN}"
+        )
+        if [[ "$B300_PROFILE" == 0 ]]; then command+=(HY_PROFILE_DIR=); fi
+        # This Python entry point launches its own torchrun process.
+        command+=(
+            "$PYTHON_BIN" scripts/inference/inference_b300_sp4.py
+            "$LOCAL_ROOT/test_prompt.json"
+            --gpus "$CUDA_VISIBLE_DEVICES" --output "$case_dir"
+            "${B300_ARGS[@]}"
+            "dit_weight=$DIT_WEIGHT"
+            "model.vae.checkpoint=$PIXELUMM_CHECKPOINT"
+            "model.text_encoder.model_name=$TEXT_ENCODER_PATH"
+            "parallelism.sp_size=$sp" "parallelism.tp_size=$tp"
+            inference.profile_memory=false
+            inference.seg_ar_segment_vae_decode=false
+            model.vae.stable_prefix_streaming=false
+        )
+        if [[ "$name" == b300_tp4 ]]; then
+            # Fused DiT cache projections bypass the TP reduction modules.
+            command+=(inference.torch_compile=false)
+        fi
+    else
+        command+=(
+            bash scripts/inference/inference_from_config.sh inference
+            --nnodes 1 --node-rank 0 --master-addr 127.0.0.1 --master-port "$port"
+            --sp-size "$sp" --tp-size "$tp"
+            --dit-weight "$DIT_WEIGHT" --save-path "$case_dir/video"
+            "model.vae.checkpoint=$PIXELUMM_CHECKPOINT"
+            "model.text_encoder.model_name=$TEXT_ENCODER_PATH"
+            "inference.prompt=$LOCAL_ROOT/test_prompt.json"
+            inference.profile_memory=false
+            model.vae.deepgemm_fp8=true
+            inference.seg_ar_segment_vae_decode=true
+            model.vae.stable_prefix_streaming=true
+        )
+    fi
     {
         printf '#!/usr/bin/env bash\nset -euo pipefail\nunset BASH_ENV ENV\n'
         printf 'cd -- %q\n' "$REPO_ROOT"
@@ -212,10 +299,16 @@ run_case() {
         printf '%s failed (exit %s). See %s/run.log\n' "$name" "$exit_code" "$case_dir" >&2
         return "$exit_code"
     fi
-    printf '%s complete; traces: %s/traces\n' "$name" "$case_dir"
+    if [[ "$name" == b300_sp4 || "$name" == b300_tp4 ]]; then
+        printf '%s complete; results: %s/results.json; video: %s/run1/video.mp4\n' "$name" "$case_dir" "$case_dir"
+        if [[ "$B300_PROFILE" == 1 ]]; then printf 'Traces: %s/traces\n' "$case_dir"; fi
+    else
+        printf '%s complete; traces: %s/traces\n' "$name" "$case_dir"
+    fi
 }
 
 for case_name in "${CASES[@]}"; do
     run_case "$case_name"
 done
 printf 'All requested cases completed: %s\n' "$LOCAL_ROOT"
+
