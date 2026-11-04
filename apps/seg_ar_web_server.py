@@ -1077,6 +1077,96 @@ class GenerationService:
             f"{time.perf_counter() - started:.3f}s"
         )
 
+    @property
+    def active_session_id(self) -> Optional[str]:
+        return self._active_session_id
+
+    _SNAPSHOT_ATTRS = (
+        "cache_valid_len", "global_frame_counter", "segment_token_lengths",
+        "_interactive_cached_action_tails", "_interactive_cached_seg_video_ranges",
+        "_interactive_segment_count", "_interactive_segment_cache_tokens",
+        "_interactive_segment_latent_lengths",
+    )
+
+    def snapshot_session(self, session_id: str, path: str) -> Dict[str, Any]:
+        """Persist the KV cache and interactive state of the active session."""
+        if self.rank != 0:
+            raise RuntimeError("session snapshot may only be initiated on rank 0")
+        with self._lock:
+            if self._active_session_id != session_id:
+                raise ValueError("requested session is not active on this worker")
+            gen = getattr(self.pipeline, "_interactive_noise_generator", None)
+            state = {
+                "session_id": session_id,
+                "kv_cache": getattr(self.pipeline, "kv_cache", None),
+                "cache_mask_list": getattr(self.pipeline, "cache_mask_list", None),
+                "attrs": {a: getattr(self.pipeline, a, None)
+                          for a in self._SNAPSHOT_ATTRS},
+                "noise_bank": getattr(self.pipeline, "_interactive_noise_bank", None),
+                "noise_gen_state": gen.get_state() if gen is not None else None,
+                "noise_seed": getattr(self.pipeline, "_interactive_noise_seed", None),
+                "noise_rng_states": list(getattr(
+                    self.pipeline, "_interactive_segment_noise_rng_states", []) or []),
+            }
+            torch.save(state, path)
+            return {"session_id": session_id, "path": path,
+                    "bytes": os.path.getsize(path)}
+
+    def restore_session(self, session_id: str, path: str) -> Dict[str, Any]:
+        """Restore a previously saved interactive session (world switching)."""
+        if self.rank != 0:
+            raise RuntimeError("session restore may only be initiated on rank 0")
+        with self._lock:
+            if not os.path.isfile(path):
+                raise ValueError("session snapshot not found")
+            self._reset_pipeline_state()
+            # Snapshot files are written by this worker; weights_only=False is
+            # required because the payload includes RNG states and metadata.
+            state = torch.load(path, map_location="cpu", weights_only=False)
+            kv = state.get("kv_cache")
+            if kv is not None:
+                for cache in kv:
+                    for key in ("k", "v", "k_scale", "v_scale"):
+                        if key in cache and torch.is_tensor(cache[key]):
+                            cache[key] = cache[key].to(self.device)
+            masks = state.get("cache_mask_list")
+            if masks is not None:
+                restored = []
+                for tensor in masks:
+                    if torch.is_tensor(tensor):
+                        tensor = tensor.to(self.device)
+                        if not hasattr(tensor, "_action_tail_ranges"):
+                            tensor._action_tail_ranges = []
+                    restored.append(tensor)
+                masks = restored
+            self.pipeline.kv_cache = kv
+            self.pipeline.cache_mask_list = masks
+            for attr, value in (state.get("attrs") or {}).items():
+                setattr(self.pipeline, attr, value)
+            noise_bank = state.get("noise_bank")
+            if noise_bank is not None and torch.is_tensor(noise_bank):
+                noise_bank = noise_bank.to(self.device)
+            self.pipeline._interactive_noise_bank = noise_bank
+            gen_state = state.get("noise_gen_state")
+            if gen_state is not None:
+                if torch.is_tensor(gen_state):
+                    gen_state = gen_state.detach().to("cpu", torch.uint8).contiguous()
+                generator = torch.Generator(device="cpu")
+                generator.set_state(gen_state)
+                self.pipeline._interactive_noise_generator = generator
+            else:
+                self.pipeline._interactive_noise_generator = None
+            self.pipeline._interactive_noise_seed = state.get("noise_seed")
+            rng_states = []
+            for item in (state.get("noise_rng_states") or []):
+                if torch.is_tensor(item):
+                    item = item.detach().to("cpu", torch.uint8).contiguous()
+                rng_states.append(item)
+            self.pipeline._interactive_segment_noise_rng_states = rng_states
+            self._active_session_id = str(session_id)
+            return {"session_id": session_id, "restored": True,
+                    "cache_valid_len": int(getattr(self.pipeline, "cache_valid_len", 0) or 0)}
+
     def rollback_session(self, session_id: str) -> Dict[str, Any]:
         """Collectively remove the latest interactive segment from all ranks."""
         if self.rank != 0:
@@ -2921,6 +3011,41 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:
             logger.exception("rollback request failed")
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.get("/v1/session/state")
+    def session_state() -> Dict[str, Any]:
+        return {
+            "active_session": service.active_session_id,
+            "cache_valid_len": int(getattr(service.pipeline, "cache_valid_len", 0) or 0),
+        }
+
+    @app.post("/v1/session/snapshot")
+    async def snapshot_session(payload: Dict[str, Any]) -> Dict[str, Any]:
+        session_id = str((payload or {}).get("session_id") or "").strip()
+        path = str((payload or {}).get("path") or "").strip()
+        if not session_id or not path:
+            raise HTTPException(status_code=400, detail="session_id and path are required")
+        try:
+            return service.snapshot_session(session_id, path)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.exception("session snapshot failed")
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.post("/v1/session/restore")
+    async def restore_session(payload: Dict[str, Any]) -> Dict[str, Any]:
+        session_id = str((payload or {}).get("session_id") or "").strip()
+        path = str((payload or {}).get("path") or "").strip()
+        if not session_id or not path:
+            raise HTTPException(status_code=400, detail="session_id and path are required")
+        try:
+            return service.restore_session(session_id, path)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.exception("session restore failed")
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     @app.post("/v1/generate")
