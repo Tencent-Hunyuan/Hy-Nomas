@@ -70,7 +70,7 @@ def launcher_overrides(argv: Sequence[str], environ: dict[str, str]) -> list[str
         value = environ.get(name)
         if value:
             if name in string_fields:
-                value = json.dumps(value)
+                value = json.dumps(value, ensure_ascii=False)
             overrides.append(f"{field}={value}")
 
     parser = argparse.ArgumentParser(add_help=False)
@@ -96,7 +96,7 @@ def launcher_overrides(argv: Sequence[str], environ: dict[str, str]) -> list[str
             if name == "rollout_type" and value == "oneshot":
                 value = "one_shot"
             if isinstance(value, str):
-                value = json.dumps(value)
+                value = json.dumps(value, ensure_ascii=False)
             overrides.append(f"{field}={value}")
     overrides.extend(hydra_args)
     if args.single_gpu_low_mem_mode:
