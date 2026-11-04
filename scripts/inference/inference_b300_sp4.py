@@ -174,8 +174,8 @@ assert not args.parallelism.dit_cpu_offload_for_decode
 assert args.vae.attention_backend == "magi" and args.vae.deepgemm_fp8
 assert not args.vae.cutlass_fp8
 assert args.dit.seg_ar_attention_backend == "magi"
-# TP currently requires eager DiT projections so its reductions are preserved.
-assert args.inference.torch_compile == (args.parallelism.tp_size == 1)
+# SP and TP compile local arithmetic; TP collectives stay outside the graphs.
+assert args.inference.torch_compile
 assert args.vae.compile_decoder and args.vae.cute_attention
 assert os.environ.get("HY_KV_ARCHIVE_DEVICE") == "cuda"
 output_dir.mkdir(parents=True, exist_ok=True)
@@ -341,7 +341,7 @@ for index in range(2):
         "segment_frame_boundaries": data["segment_frame_boundaries"],
         "runs": results,
         "profiling_note": "When HY_PROFILE_DIR is set, only run1 is traced. Timings include profiling overhead; request-to-MP4 also includes final trace export. Use B300_PROFILE=0 in the shell launcher for unprofiled timing.",
-        "notes": "Run0 full requested-segments warmup (no MP4); run1 measured same-process request, fresh KV history. All model weights resident on GPU, output and VAE blend stay GPU. Full-clip VAE decode after all DiT segments. Prompt-to-GPU-video includes text encode, noise preparation, DiT, cache logic and VAE/postprocess, excludes startup, validation, D2H conversion and video export. Existing disk caches retained. SP4 compiles DiT cache pre/post only; TP4 disables DiT compilation to preserve TP reductions.",
+        "notes": "Run0 full requested-segments warmup (no MP4); run1 measured same-process request, fresh KV history. All model weights resident on GPU, output and VAE blend stay GPU. Full-clip VAE decode after all DiT segments. Prompt-to-GPU-video includes text encode, noise preparation, DiT, cache logic and VAE/postprocess, excludes startup, validation, D2H conversion and video export. Existing disk caches retained. SP4 compiles DiT cache pre/post; TP4 compiles local regions around explicit gathers and reduce-scatters.",
     }, indent=2))
     print(json.dumps({k:v for k,v in result.items()
                       if k not in {"stage_rows", "rank_info"}}, indent=2), flush=True)

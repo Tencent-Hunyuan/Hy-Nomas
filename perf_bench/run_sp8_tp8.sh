@@ -18,8 +18,8 @@ Defaults to running SP8 (sp_size=8, tp_size=1), then TP8 (sp_size=1,
 tp_size=8), sequentially on one eight-GPU machine. Stops on failure.
 Use b300_sp4 (SP=4, TP=1) or b300_tp4 (SP=1, TP=4) on four B300 GPUs.
 Both use scripts/inference/inference_b300_sp4.py for one full warmup
-followed by one measured request. TP4 disables DiT torch_compile because the
-current fused projections bypass TP reductions; VAE compilation stays enabled.
+followed by one measured request. SP4 and TP4 keep DiT/VAE torch_compile enabled;
+TP4 retains explicit all-gather/reduce-scatter between compiled local regions.
 
 Required environment variables (no defaults):
   DIT_WEIGHT            DiT checkpoint (local file).
@@ -261,10 +261,6 @@ run_case() {
             inference.seg_ar_segment_vae_decode=false
             model.vae.stable_prefix_streaming=false
         )
-        if [[ "$name" == b300_tp4 ]]; then
-            # Fused DiT cache projections bypass the TP reduction modules.
-            command+=(inference.torch_compile=false)
-        fi
     else
         command+=(
             bash scripts/inference/inference_from_config.sh inference

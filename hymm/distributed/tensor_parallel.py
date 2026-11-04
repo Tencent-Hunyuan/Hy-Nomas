@@ -36,8 +36,6 @@ def validate_tensor_parallel_config(args):
         raise ValueError("Tensor parallel currently requires unquantized DiT weights")
     if getattr(inference, "lora_adapter", None):
         raise ValueError("Tensor parallel does not yet support LoRA adapters")
-    if getattr(inference, "torch_compile", False):
-        raise ValueError("Tensor parallel requires inference.torch_compile=false; fused projections bypass TP reductions")
     if getattr(parallelism, "use_dynamic_ring_attention", False):
         raise ValueError("Tensor parallel does not yet support dynamic ring attention")
     if getattr(dit, "use_moe", False):
@@ -285,8 +283,6 @@ def parallelize_transformer(model, group, sp_size=1):
             raise ValueError(f"Attention heads ({block.heads_num}) must be divisible by sp_size * tp_size ({sp_size * size})")
         if block.moe_config is not None:
             raise ValueError("Tensor parallel currently supports dense DiT MLPs, not MoE")
-        if getattr(block, "compile_cache_prepost", False):
-            raise ValueError("Compiled cache projections bypass tensor-parallel reductions")
         if hasattr(block, "img_attn_q"):
             for stream in ("img", "txt"):
                 norms.extend((block, f"{stream}_norm{i}") for i in (1, 2))

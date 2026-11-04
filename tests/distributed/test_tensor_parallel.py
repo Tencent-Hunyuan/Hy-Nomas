@@ -40,7 +40,7 @@ def test_invalid_topology(sp, tp, world):
 def test_topology_and_incompatible_options():
     assert validate_parallel_sizes(1, 8, 8) == 8
     assert validate_parallel_sizes(2, 2, 8) == 4
-    for key, value in [("torch_compile", True), ("lora_adapter", "/adapter"),
+    for key, value in [("lora_adapter", "/adapter"),
                        ("dit_weight_quantization", "w8_bf16")]:
         args = SimpleNamespace(parallelism=SimpleNamespace(tp_size=8),
                                inference=SimpleNamespace(**{key: value}))

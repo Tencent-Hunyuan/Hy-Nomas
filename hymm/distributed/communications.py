@@ -4,6 +4,7 @@
 # DeepSpeed Team
 
 
+from dataclasses import dataclass
 from typing import Any, Tuple
 
 import torch
@@ -12,12 +13,63 @@ import torch.distributed as dist
 from torch.nn import functional as F
 
 
+@dataclass(frozen=True)
+class SPCommunicationMetadata:
+    """Host-side sizes shared by all attention layers in one model forward."""
+
+    sequence_lengths: Tuple[int, ...]
+    head_sizes: Tuple[int, ...]
+
+
+def prepare_sp_communication(local_sequence_length, heads, device, group):
+    """Exchange sequence/head sizes once, before entering the DiT layer loop."""
+    world_size = dist.get_world_size(group)
+    local = torch.tensor(
+        [[local_sequence_length, heads]], dtype=torch.int64, device=device,
+    )
+    if world_size > 1:
+        sizes = torch.empty((world_size, 2), dtype=torch.int64, device=device)
+        dist.all_gather_into_tensor(sizes, local, group=group)
+    else:
+        sizes = local
+    # One device-to-host synchronization for the complete forward's metadata.
+    rows = sizes.tolist()
+    sequence_lengths = tuple(row[0] for row in rows)
+    all_heads = tuple(row[1] for row in rows)
+    if any(length < 0 for length in sequence_lengths):
+        raise ValueError("SP sequence lengths must be nonnegative")
+    if len(set(all_heads)) != 1 or heads <= 0 or heads % world_size:
+        raise ValueError("SP ranks require identical head counts divisible by SP size")
+    return SPCommunicationMetadata(sequence_lengths, (heads // world_size,) * world_size)
+
+
+def _validate_sizes(sizes, world_size):
+    sizes = tuple(sizes)
+    if len(sizes) != world_size or any(type(size) is not int or size < 0 for size in sizes):
+        raise ValueError("Expected one nonnegative Python integer size per process-group rank")
+    return sizes
+
+
+def _sequence_lengths(input, scatter_idx, group):
+    world_size = dist.get_world_size(group)
+    if scatter_idx == 2:
+        local = torch.tensor([input.shape[1]], dtype=torch.int64, device=input.device)
+        sizes = torch.empty(world_size, dtype=torch.int64, device=input.device)
+        dist.all_gather_into_tensor(sizes, local, group=group)
+        return tuple(sizes.tolist())
+    # Legacy callers without metadata use contiguous ceil-sized sequence shards.
+    length = input.shape[1]
+    chunk = (length + world_size - 1) // world_size
+    return tuple(min(chunk, max(0, length - rank * chunk)) for rank in range(world_size))
+
+
 def _all_to_all_4D(
     input: torch.tensor,
     scatter_idx: int = 2,
     gather_idx: int = 1,
     group=None,
     use_sync: bool = False,
+    sequence_lengths=None,
 ) -> torch.tensor:
     """
     all-to-all for QKV
@@ -28,6 +80,8 @@ def _all_to_all_4D(
         gather_idx (int): default 1
         group : torch process group
         use_sync (bool): whether to call torch.cuda.synchronize() after all_to_all
+        sequence_lengths: Optional per-rank sequence sizes, already on the host.
+            The same sizes describe both directions and their backward passes.
 
     Returns:
         torch.tensor: resharded tensor (bs, seqlen/P, hc, hs)
@@ -37,18 +91,16 @@ def _all_to_all_4D(
     )
 
     seq_world_size = dist.get_world_size(group)
+    rank = dist.get_rank(group)
+    if sequence_lengths is None:
+        sequence_lengths = _sequence_lengths(input, scatter_idx, group)
+    sequence_lengths = _validate_sizes(sequence_lengths, seq_world_size)
+    max_len = max(sequence_lengths)
+    total_len = sum(sequence_lengths)
 
     if scatter_idx == 2 and gather_idx == 1:
-        # Detect uneven seqlen distribution using tensor-based collective (avoids slow pickle-based all_gather_object)
-        local_len = torch.tensor(
-            [input.shape[1]], dtype=torch.int64, device=input.device
-        )
-        all_lens = torch.empty(seq_world_size, dtype=torch.int64, device=input.device)
-        dist.all_gather_into_tensor(all_lens, local_len, group=group)
-        max_len = int(all_lens.max().item())
-        # total_gap is consistent across ALL ranks: it equals the total number of padding tokens
-        # added globally, so every rank trims by the same amount after all_to_all.
-        total_gap = max_len * seq_world_size - int(all_lens.sum().item())
+        if input.shape[1] != sequence_lengths[rank]:
+            raise ValueError("Local sequence length does not match SP metadata")
         local_gap = max_len - input.shape[1]
         if local_gap > 0:
             input = F.pad(input, (0, 0, 0, 0, 0, local_gap))
@@ -60,6 +112,8 @@ def _all_to_all_4D(
             f"Invalid Head size: {hc}, which should be divisible by spsize {seq_world_size}"
         )
         shard_hc = hc // seq_world_size
+        if total_len == 0:
+            return input.new_empty((bs, 0, shard_hc, hs))
 
         # transpose groups of heads with the seq-len parallel dimension, so that we can scatter them!
         # (bs, seqlen/P, hc, hs) -reshape-> (bs, seq_len/P, P, hc/P, hs) -transpose(0,2)-> (P, seq_len/P, bs, hc/P, hs)
@@ -79,27 +133,35 @@ def _all_to_all_4D(
         else:
             output = input_t
         # if scattering the seq-dim, transpose the heads back to the original dimension
-        output = output.reshape(seqlen, bs, shard_hc, hs)
+        output = output.reshape(seq_world_size, shard_seqlen, bs, shard_hc, hs)
+        if any(length != shard_seqlen for length in sequence_lengths):
+            # Remove padding from each sender, including empty/interior shards.
+            output = torch.cat([
+                output[sender, :length] for sender, length in enumerate(sequence_lengths)
+            ], dim=0)
+        else:
+            output = output.reshape(seqlen, bs, shard_hc, hs)
 
         # (seq_len, bs, hc/P, hs) -reshape-> (bs, seq_len, hc/P, hs)
-        output = output.transpose(0, 1).contiguous().reshape(bs, seqlen, shard_hc, hs)
-        if total_gap > 0:
-            output = output[:, :-total_gap].contiguous()
+        output = output.transpose(0, 1).contiguous().reshape(bs, total_len, shard_hc, hs)
 
         return output
 
     elif scatter_idx == 1 and gather_idx == 2:
         # input (torch.tensor): a tensor sharded along dim 1 (bs, seqlen, hc/P, hs) output: (bs, seqlen/P, hc, hs)
         bs, seqlen, shard_hc, hs = input.shape
+        if seqlen != total_len:
+            raise ValueError("Full sequence length does not match SP metadata")
 
         hc = shard_hc * seq_world_size
-        if seqlen % seq_world_size != 0:
-            new_seqlen = (seqlen // seq_world_size + 1) * seq_world_size
-            gap = new_seqlen - seqlen
-            input = F.pad(input, (0, 0, 0, 0, 0, gap))
-            bs, seqlen, shard_hc, hs = input.shape
-        else:
-            gap = 0
+        if total_len == 0:
+            return input.new_empty((bs, 0, hc, hs))
+        if any(length != max_len for length in sequence_lengths):
+            input = torch.cat([
+                F.pad(chunk, (0, 0, 0, 0, 0, max_len - length))
+                for chunk, length in zip(input.split(sequence_lengths, dim=1), sequence_lengths)
+            ], dim=1)
+            seqlen = max_len * seq_world_size
 
         assert seqlen % seq_world_size == 0
 
@@ -131,11 +193,7 @@ def _all_to_all_4D(
         # (hc, seqlen/N, bs, hs) -tranpose(0,2)-> (bs, seqlen/N, hc, hs)
         output = output.transpose(0, 2).contiguous().reshape(bs, shard_seqlen, hc, hs)
 
-        if (
-            gap > 0
-            and dist.get_group_rank(group, dist.get_rank()) == seq_world_size - 1
-        ):
-            output = output[:, :-gap].contiguous()
+        output = output[:, :sequence_lengths[rank]].contiguous()
 
         return output
     else:
@@ -151,20 +209,25 @@ class SeqAllToAll4D(torch.autograd.Function):
         scatter_idx: int,
         gather_idx: int,
         use_sync: bool = False,
+        sequence_lengths=None,
     ) -> torch.Tensor:
         ctx.group = group
         ctx.scatter_idx = scatter_idx
         ctx.gather_idx = gather_idx
         ctx.use_sync = use_sync
+        if sequence_lengths is None:
+            sequence_lengths = _sequence_lengths(input, scatter_idx, group)
+        ctx.sequence_lengths = tuple(sequence_lengths)
 
         return _all_to_all_4D(
-            input, scatter_idx, gather_idx, group=group, use_sync=use_sync
+            input, scatter_idx, gather_idx, group=group, use_sync=use_sync,
+            sequence_lengths=ctx.sequence_lengths,
         )
 
     @staticmethod
     def backward(
         ctx: Any, *grad_output: torch.Tensor
-    ) -> Tuple[None, torch.Tensor, None, None, None]:
+    ) -> Tuple[None, torch.Tensor, None, None, None, None]:
         grad = grad_output[0]
         original_dtype = grad.dtype
         communication_dtype = (
@@ -180,6 +243,7 @@ class SeqAllToAll4D(torch.autograd.Function):
             ctx.gather_idx,
             ctx.scatter_idx,
             ctx.use_sync,
+            ctx.sequence_lengths,
         )
         if grad_input.dtype != original_dtype:
             grad_input = grad_input.to(original_dtype)
@@ -189,7 +253,8 @@ class SeqAllToAll4D(torch.autograd.Function):
             None,
             None,
             None,
-        )
+            None,
+        )[:len(ctx.needs_input_grad)]
 
 
 def all_to_all_4D(
@@ -197,8 +262,22 @@ def all_to_all_4D(
     group: dist.ProcessGroup,
     scatter_dim: int = 2,
     gather_dim: int = 1,
+    sequence_lengths=None,
 ):
-    return SeqAllToAll4D.apply(group, input_, scatter_dim, gather_dim)
+    return SeqAllToAll4D.apply(group, input_, scatter_dim, gather_dim, False, sequence_lengths)
+
+
+def all_to_all_qkv(q, k, v, group, sequence_lengths=None):
+    """Exchange same-layout Q/K/V in one collective, preserving head order."""
+    if any(t.shape != q.shape or t.dtype != q.dtype or t.device != q.device for t in (k, v)):
+        raise ValueError("Fused QKV all-to-all requires identical shapes, dtypes and devices")
+    if q.ndim != 4 or q.shape[0] == 0:
+        raise ValueError("Fused QKV all-to-all requires nonempty-batch [B,S,H,D] tensors")
+    # Batch packing keeps every rank's Q/K/V heads together during the exchange,
+    # and each returned batch slice is contiguous for the attention kernels.
+    packed = torch.cat((q, k, v), dim=0)
+    output = all_to_all_4D(packed, group, sequence_lengths=sequence_lengths)
+    return output.split(q.shape[0], dim=0)
 
 
 class _AllGather(torch.autograd.Function):
@@ -210,18 +289,21 @@ class _AllGather(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx, input_, dim, group):
+    def forward(ctx, input_, dim, group, sizes=None):
         ctx.dim = dim % input_.dim()
         ctx.group = group
         world_size = dist.get_world_size(group)
 
-        # Use tensor-based collective to get sizes along gather dim, avoiding slow pickle-based all_gather_object
-        local_dim_size = torch.tensor(
-            [input_.shape[ctx.dim]], dtype=torch.int64, device=input_.device
-        )
-        all_dim_sizes = torch.empty(world_size, dtype=torch.int64, device=input_.device)
-        dist.all_gather_into_tensor(all_dim_sizes, local_dim_size, group=group)
-        sizes_list = [int(s) for s in all_dim_sizes.tolist()]
+        if sizes is None:
+            local_dim_size = torch.tensor(
+                [input_.shape[ctx.dim]], dtype=torch.int64, device=input_.device
+            )
+            all_dim_sizes = torch.empty(world_size, dtype=torch.int64, device=input_.device)
+            dist.all_gather_into_tensor(all_dim_sizes, local_dim_size, group=group)
+            sizes = all_dim_sizes.tolist()
+        sizes_list = _validate_sizes(sizes, world_size)
+        if input_.shape[ctx.dim] != sizes_list[dist.get_rank(group)]:
+            raise ValueError("Local gather size does not match supplied metadata")
 
         ctx.sizes_list = sizes_list
 
@@ -273,14 +355,14 @@ class _AllGather(torch.autograd.Function):
         # contributions that should be summed).
         grad_chunks = torch.split(grad_output, ctx.sizes_list, dim=dim)
         if world_size == 1:
-            return grad_chunks[0].contiguous(), None, None
+            return (grad_chunks[0].contiguous(), None, None, None)[:len(ctx.needs_input_grad)]
 
         # reduce_scatter_tensor requires equal-size chunks. The forward supports
         # uneven gather sizes, so pad each shard along the gather dimension,
         # reduce-scatter with SUM, then trim this rank's result.
         max_size = max(ctx.sizes_list)
         if max_size == 0:
-            return grad_chunks[rank].contiguous(), None, None
+            return (grad_chunks[rank].contiguous(), None, None, None)[:len(ctx.needs_input_grad)]
 
         # Attention activations are typically bf16 under autocast, which means
         # the old reduce-scatter SUM also accumulated in bf16.  Different SP
@@ -322,17 +404,18 @@ class _AllGather(torch.autograd.Function):
         if grad_input.dtype != grad_output.dtype:
             grad_input = grad_input.to(grad_output.dtype)
 
-        return grad_input, None, None
+        return (grad_input, None, None, None)[:len(ctx.needs_input_grad)]
 
 
-def all_gather(input_: torch.Tensor, dim: int = 1, group=None):
+def all_gather(input_: torch.Tensor, dim: int = 1, group=None, sizes=None):
     """Performs an all-gather operation on the input tensor along the specified dimension.
 
     Args:
         input_ (torch.Tensor): Input tensor of shape [B, H, S, D].
         dim (int, optional): Dimension along which to concatenate. Defaults to 1.
+        sizes: Optional per-rank sizes to avoid a metadata collective.
 
     Returns:
         torch.Tensor: Output tensor after all-gather operation, concatenated along 'dim'.
     """
-    return _AllGather.apply(input_, dim, group)
+    return _AllGather.apply(input_, dim, group, sizes)
