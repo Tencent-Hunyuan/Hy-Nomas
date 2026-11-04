@@ -18,6 +18,33 @@ from hymm.utils.inference_metrics import profiled
 ARCHIVED_HISTORY_SAMPLINGS = ("uniform", "recent_mix_uniform", "temporal_context")
 HISTORY_SAMPLINGS = ("recent", *ARCHIVED_HISTORY_SAMPLINGS)
 _GPU_REQUEST_CACHES = {}
+_SELECTIONS = {"frame_ids": None, "entries": {}}
+
+
+def _selection_indices(record, frame_ids, tokens_per_frame, device=None):
+    """Tokens of ``record`` that ``frame_ids`` selects, and how many frames that is.
+
+    A pure function of the record's geometry, shared by every block of one cache write. Only the
+    latest frame selection is kept.
+    """
+    import torch
+
+    if _SELECTIONS["frame_ids"] != frame_ids:
+        _SELECTIONS.update(frame_ids=frame_ids, entries={})
+    key = (record.frame_start, record.frame_count, record.image_tokens, record.text_tokens,
+           tokens_per_frame, None if device is None else str(device))
+    entry = _SELECTIONS["entries"].get(key)
+    if entry is None:
+        selected = [f - record.frame_start for f in frame_ids
+                    if record.frame_start <= f < record.frame_start + record.frame_count]
+        indices = (torch.tensor(selected, dtype=torch.long)[:, None] * tokens_per_frame
+                   + torch.arange(tokens_per_frame)[None, :]).flatten()
+        if record.text_tokens:
+            indices = torch.cat([indices, torch.arange(record.image_tokens,
+                                                       record.image_tokens + record.text_tokens)])
+        entry = (len(selected), indices if device is None else indices.to(device))
+        _SELECTIONS["entries"][key] = entry
+    return entry
 
 
 def release_gpu_request_history():
@@ -432,24 +459,20 @@ def _rebuild_history_fast(cache, mask, records, frame_ids, tokens_per_frame,
     cursor, layout, transferred = 0, [], 0
     pending = []
     for old in records:
-        selected = [f - old.frame_start for f in frame_ids
-                    if old.frame_start <= f < old.frame_start + old.frame_count]
-        if not selected:
+        on_gpu = old.segment_index == current_segment or old.k.is_cuda
+        selected_count, indices = _selection_indices(old, frame_ids, tokens_per_frame,
+                                                     cache['k'].device if on_gpu else None)
+        if not selected_count:
             continue
-        indices = (torch.tensor(selected, dtype=torch.long)[:, None] * tokens_per_frame
-                   + torch.arange(tokens_per_frame)[None, :]).flatten()
-        if old.text_tokens:
-            indices = torch.cat([indices, torch.arange(old.image_tokens,
-                                                       old.image_tokens + old.text_tokens)])
-        video_end = cursor + len(selected) * tokens_per_frame
+        video_end = cursor + selected_count * tokens_per_frame
         text_end = video_end + old.text_tokens
         if text_end > cache['swa_capacity'] or text_end > mask.shape[1]:
             raise ValueError("Selected history exceeds GPU working-set capacity")
         layout.append((old.segment_index, cursor, video_end, video_end,
                        text_end, old.action_start))
-        if old.segment_index == current_segment or old.k.is_cuda:
+        if on_gpu:
             with stage("kv_gpu_pack"):
-                gpu_indices = indices.to(cache['k'].device)
+                gpu_indices = indices
                 payload = (current_payload if old.segment_index == current_segment else
                            {key: getattr(old, key) for key in storage_keys})
                 source_mask = current_mask if old.segment_index == current_segment else old.mask
