@@ -376,6 +376,7 @@ class PixelUMMDCAELatentDecoder(nn.Module):
                 (t_len, tile_h * LATENT_TOKEN_GRID, tile_w * LATENT_TOKEN_GRID),
                 self.decoder.local_attention_tile,
                 latent.device,
+                self.decoder.attention_backend,
             )
 
         # ``pad_short`` (streaming tail fix): a window on the stride grid may hold fewer than
