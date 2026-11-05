@@ -1,0 +1,2637 @@
+{
+  "schema_version": "i2v_icl_v1",
+  "examples": [
+    {
+      "example_id": "A2",
+      "title": "I2V initialization - gardener",
+      "reference_image": "icl_images/A2_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "first-person",
+        "user_prompt": "First-person view, real-world footage style. Start with a tight close-up on my cupped right hand — with slightly dirty fingers emerging from a dark red sleeve — holding a mound of brown granular fertilizer steadily above a potted shrub. Over the clip, slowly tilt and shift the open palm up, down, and side to side to display the material from slightly different angles, keeping the mound heaped and undisturbed, while the handheld camera gradually pulls back and widens the framing to reveal the surrounding pots, the shrub's full shape, and the concrete ground, with minor natural shake."
+      },
+      "assistant": {
+        "perspective_view": "first-person",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "gardener",
+            "subject_attribute": "An adult gardener is visible only through a bare right hand with natural skin creases and soil-marked fingers above a plant pot. The head and torso are outside the frame. The gardener is embodied by the camera, and has the same first-person viewpoint as the camera throughout the whole video. Most of the gardener is not visible, and optionally only a small part of the gardener can be seen in the video."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:13.000",
+            "visual_description_long": "The opening image shows a compact outdoor container garden in daylight. A pale green round pot occupies the middle of the composition, containing uneven dark soil and a small woody shrub with short cut stems and fresh green leaves. A blue-rimmed pot sits behind it at the left, while another green pot and a dark textured container overlap in the upper background. The rims show scuffs and pale dirt deposits. Gray concrete is visible in the gaps between containers. Brown granular material is present in the foreground above the central pot. <Camera1>The handheld view gradually pulls back from the close foreground, revealing more pot rims, soil, lower stems, and concrete with mild natural shake</Camera1>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:13.000",
+                "action_description": "<Action1><|Subject1|>'s right hand holds a cupped mound of brown granular fertilizer steadily above the potted plant, slowly shifting the open palm up, down, and side to side to display the material</Action1>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "224d8f62bd5fb4894635b83be1d52cf5_0_2144",
+        "source_group": "video:224d8f62bd5fb4894635b83be1d52cf5",
+        "source_line": 2470,
+        "split": "validation",
+        "first_frame_sha256": "f1f533d252d86af18c5538743085df94b28ad28e6459bfc1a4a106d3ac38a651",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 0,
+        "original_example_title": "Gardener inspecting a potted plant"
+      }
+    },
+    {
+      "example_id": "A3",
+      "title": "I2V initialization - watercolor painter",
+      "reference_image": "icl_images/A3_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "first-person",
+        "user_prompt": "A first-person overhead view of my hands as I steady a watercolor notebook on a wooden table and paint a bright blue rectangular swatch next to an existing yellow-green sample. My left hand holds the page in place while my right hand uses the flat brush to begin short downward strokes at the upper edge of the blue swatch. I keep my left hand planted and make repeated vertical passes, extending the blue pigment downward beside the green rectangle. Then I continue layering and smoothing the blue with controlled back-and-forth strokes, widening and evening out the swatch while the page stays in place. Keep the framing tight on the notebook and paint tin with no significant camera movement."
+      },
+      "assistant": {
+        "perspective_view": "first-person",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "watercolor painter",
+            "subject_attribute": "An adult painter is visible through two light-skinned hands above a notebook. A dark-handled flat brush is held near the page, and silver rings are visible on the hand beside the paper. The head and torso are outside the frame. The watercolor painter is embodied by the camera, and has the same first-person viewpoint as the camera throughout the whole video. Most of the watercolor painter is not visible, and optionally only a small part of the watercolor painter can be seen in the video."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:14.000",
+            "visual_description_long": "A wooden tabletop forms the warm brown background of the reference image. An open spiral-bound watercolor notebook lies diagonally across the center, with a pink patterned cover peeking from beneath the white page. A yellow-green rectangular swatch and the beginnings of a blue test area are visible near handwritten pigment notes. An open metal paint tin occupies the upper-right area, with small pans in several distinct colors. The paper is matte and slightly textured, while the surrounding wood has a clear horizontal grain. Soft indoor light casts shallow shadows along the page and tin. During the requested painting sequence, the blue rectangle extends downward and becomes more evenly saturated beside the existing yellow-green sample.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:03.000",
+                "action_description": "<Action1><|Subject1|>'s left hand holds the notebook page steady while <|Subject1|>'s right hand presses the flat brush into the upper edge of the blue swatch and begins short downward strokes</Action1>."
+              },
+              {
+                "start_time": "00:03.000",
+                "end_time": "00:08.000",
+                "action_description": "<Action2><|Subject1|>'s left hand stays planted on the page while <|Subject1|>'s right hand makes repeated vertical brush passes beside the existing green rectangle</Action2>."
+              },
+              {
+                "start_time": "00:08.000",
+                "end_time": "00:14.000",
+                "action_description": "<Action3><|Subject1|>'s right hand continues controlled back-and-forth brush strokes across the blue swatch while <|Subject1|>'s left hand maintains the page position</Action3>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "2220027186efebf13d1bc04f3ac5d6e6_398_1876",
+        "source_group": "video:2220027186efebf13d1bc04f3ac5d6e6",
+        "source_line": 2460,
+        "split": "train",
+        "first_frame_sha256": "b8ddd9656e99e759eea2813acd538624edc33491a6a9cbc8cbc0c87585fa9ceb",
+        "generation_model": "deepseek-flash",
+        "segment_index": 0,
+        "original_example_title": "Artist painting a swatch"
+      }
+    },
+    {
+      "example_id": "A4",
+      "title": "I2V initialization - tractor operator",
+      "reference_image": "icl_images/A4_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "first-person",
+        "user_prompt": "Starting from the reference view inside the tractor cab, keep the first-person perspective as the operator grips the black steering wheel and drives forward along the cut hay rows, with the orange hood aligned to the field path. After a couple of seconds, move the right hand from the steering area toward the side control lever while still driving forward and directing attention toward the right side window. Continue operating the moving tractor while towing the green baler over the windrows, monitoring the implement through the rear-right window as the cab-mounted view rotates right across the side window to show the interior framing, a small wired control box with red indicator lights, and the large green baler behind. Keep the reveal of the control box and towed baler occurring as the view turns, not already established at the start. Maintain bright daylight and the forward path and rear implement centered as described."
+      },
+      "assistant": {
+        "perspective_view": "first-person",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "tractor operator",
+            "subject_attribute": "A seated adult tractor operator is visible only through a bare hand and forearm near the black steering wheel. The head and torso remain outside the frame. The tractor operator is embodied by the camera, and has the same first-person viewpoint as the camera throughout the whole video. Most of the tractor operator is not visible, and optionally only a small part of the tractor operator can be seen in the video."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:10.000",
+            "visual_description_long": "The reference view opens inside a tractor cab looking through a broad windshield. A black steering wheel and dark dashboard occupy the lower foreground, with an orange hood and tall vertical exhaust pipe extending toward the center of the field. Parallel rows of cut grass run across pale green and tan ground. A small white farm building stands at the far left, and a dense line of green trees marks the distant boundary beneath bright daylight. Dark cab pillars frame the glass on both sides. <Camera1>The view advances along the rows, then turns right across the window frame to reveal the side controls and the green baler behind, keeping those later details as a progressive reveal</Camera1>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:02.500",
+                "action_description": "<Action1><|Subject1|>'s visible hand grips the steering wheel and makes small steering adjustments during off-camera operation of the forward-moving tractor</Action1>."
+              },
+              {
+                "start_time": "00:02.500",
+                "end_time": "00:05.000",
+                "action_description": "<Action2><|Subject1|>'s right hand moves from the steering area toward the side control lever while the rest of <|Subject1|> remains outside the frame</Action2>."
+              },
+              {
+                "start_time": "00:05.000",
+                "end_time": "00:10.000",
+                "action_description": "<Action3><|Subject1|>'s visible hand operates the side controls during off-camera driving with the green baler attached behind</Action3>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "2d1ea7f52100d989ea850fcc99edb1ce_0_1611",
+        "source_group": "video:2d1ea7f52100d989ea850fcc99edb1ce",
+        "source_line": 3274,
+        "split": "train",
+        "first_frame_sha256": "17ff63288fa7fa20d875490ea963795eb527cf3f8ac688257007ae5b6ccbe193",
+        "generation_model": "deepseek-flash",
+        "segment_index": 0,
+        "original_example_title": "Heavy-equipment operator inside a cab"
+      }
+    },
+    {
+      "example_id": "A5",
+      "title": "I2V initialization - motorcycle rider",
+      "reference_image": "icl_images/A5_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "first-person",
+        "user_prompt": "From my first-person viewpoint as the rider of a white Ducati DesertX, with my gloved hands gripping both handlebars, ride down the paved forested road and accelerate gradually through the gentle right and left curves, then keep accelerating as the road straightens into a tree-lined stretch, leaning slightly into the remaining bends and following the distant motorcyclist far ahead. Keep the rider-mounted forward view fixed, tilting with each lean. Real-world-footage visual style."
+      },
+      "assistant": {
+        "perspective_view": "first-person",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "motorcycle rider",
+            "subject_attribute": "An adult motorcycle rider is visible only through yellow gloves and light beige sleeves at the handlebars. The face and full body are outside the opening crop. The motorcycle rider is embodied by the camera, and has the same first-person viewpoint as the camera throughout the whole video. Most of the motorcycle rider is not visible, and optionally only a small part of the motorcycle rider can be seen in the video."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:09.000",
+            "visual_description_long": "The opening view faces along a paved two-lane road with paired yellow center lines and a narrow white edge line. Dry gravel shoulders meet scrubby green vegetation, scattered trees, and low hills. Blue sky with sparse pale clouds fills the upper distance. The road initially bends gently between the shrubs, then continues through a more tree-lined stretch. Low roadside vegetation borders the open asphalt, and occasional darker shadows interrupt the pale shoulder. A distant motorcyclist appears farther along the route as requested, remaining a small background participant rather than the controlled subject. <Camera1>The embodied forward view advances along the road and tilts subtly through successive bends, maintaining a consistent forward orientation</Camera1>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:03.700",
+                "action_description": "<Action1><|Subject1|>'s gloved hands grip both handlebars and make small steering and throttle adjustments during off-camera forward riding through gentle curves</Action1>."
+              },
+              {
+                "start_time": "00:03.700",
+                "end_time": "00:09.000",
+                "action_description": "<Action2><|Subject1|>'s gloved hands maintain handlebar contact and gradually increase the throttle during continued off-camera riding along the straightening road</Action2>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "146fa3dc8d4b6a7800026484fceacd1e_0_1345",
+        "source_group": "video:146fa3dc8d4b6a7800026484fceacd1e",
+        "source_line": 1477,
+        "split": "train",
+        "first_frame_sha256": "04581432e6a1dc8b007d70bb2746ad865d064b4e76521fb8eb9f2955dc3c8f20",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 0,
+        "original_example_title": "Motorcycle rider on a desert mountain road"
+      }
+    },
+    {
+      "example_id": "B1",
+      "title": "I2V initialization - bearded man in gray hoodie",
+      "reference_image": "icl_images/B1_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "second-person",
+        "user_prompt": "Film a real-world-footage style selfie-style video of the bearded man in the gray hoodie standing in the garage beside the black car with its hood open, holding the camera at arm's length. Keep the handheld close chest-up framing with natural shake throughout. First, he speaks toward the lens while repeatedly gesturing with his right hand, pinching his fingers together and pointing. Then, still speaking, he raises his left hand with an open palm, glances upward and to the side, then looks back at the camera. Finally, he opens his mouth wide speaking emphatically, turns his head to look down into the engine bay, and points toward the engine with his right hand. Keep him as the dominant subject in frame, with his face centered at all times."
+      },
+      "assistant": {
+        "perspective_view": "second-person",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "bearded man in gray hoodie",
+            "subject_attribute": "An adult man with a full dark beard wears a light gray hoodie and a gray baseball cap. The head and upper torso occupy the close selfie composition beside the raised car hood. The bearded man in gray hoodie is facing the camera and looking directly at the camera throughout the whole video. The bearded man in gray hoodie should be the dominant object in the video. If the camera lose the bearded man in gray hoodie or the bearded man in gray hoodie becomes too small in the video frame, the camera should quickly refocus on the bearded man in gray hoodie, and place the face or the front view of the bearded man in gray hoodie in the center of the video frame."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:09.000",
+            "visual_description_long": "The reference image shows a garage interior with exposed wooden ceiling beams and bright overhead lighting. A black car occupies the left side with its hood raised over a dark engine compartment. Plywood walls on the right support shelves containing boxes, bottles, and small workshop supplies. A white wall-mounted air-conditioning unit sits above a pale board and a cluttered work area. A dark tool chest and blue equipment are visible toward the right edge. Electrical cables and a blue hanging line cross the upper background. The garage door and shelving provide distinct layers of depth. <Camera1>The handheld view has mild natural shake and small angular changes within the same workshop area</Camera1>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:03.000",
+                "action_description": "<Action1><|Subject1|> holds the camera at arm's length and speaks toward the lens while repeatedly gesturing with <|Subject1|>'s right hand, pinching <|Subject1|>'s fingers together and pointing</Action1>."
+              },
+              {
+                "start_time": "00:03.000",
+                "end_time": "00:06.000",
+                "action_description": "<Action2><|Subject1|> continues speaking and raises <|Subject1|>'s left hand with an open palm while keeping <|Subject1|>'s face and gaze directed at the lens</Action2>."
+              },
+              {
+                "start_time": "00:06.000",
+                "end_time": "00:09.000",
+                "action_description": "<Action3><|Subject1|> opens <|Subject1|>'s mouth wide while speaking emphatically and points toward the engine bay with <|Subject1|>'s right hand while maintaining direct gaze at the lens</Action3>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "570e5da42e7c52ae7178d27cf69bbb8e_0_812",
+        "source_group": "video:570e5da42e7c52ae7178d27cf69bbb8e",
+        "source_line": 6381,
+        "split": "train",
+        "first_frame_sha256": "a8101654b231ad30a9c2389cf6ea30904e7cba8d649f094a6e0951d1b9f3063f",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 0,
+        "original_example_title": "Selfie-style walkthrough in a farm shop"
+      }
+    },
+    {
+      "example_id": "B2",
+      "title": "I2V initialization - bearded hiker in rain jacket",
+      "reference_image": "icl_images/B2_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "second-person",
+        "user_prompt": "Using the reference image as the opening frame, generate real-world footage of the bearded hiker in the rain jacket holding the camera at arm's length in the rainy lakeside park. Keep him facing and looking toward the camera and dominant in frame throughout; if the camera loses him or he becomes too small, quickly refocus and center his face or front view. Over the first seven seconds, he walks forward across the wet grass while talking with his mouth open and periodically turning his head toward the lens. Around the four-second mark he continues walking past trees with orange autumn leaves, glancing between the camera and the path ahead as he speaks. The handheld selfie-style camera moves forward, slowly rotating and panning as it advances, gradually revealing the orange-leaved trees from the right and shifting the lake from the left background toward the rear of the frame."
+      },
+      "assistant": {
+        "perspective_view": "second-person",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "bearded hiker in rain jacket",
+            "subject_attribute": "An adult man with a brown beard and longer brown hair wears a dark cap, a black rain jacket, and a backpack with red straps. An outstretched arm is partly visible in the close selfie composition. The bearded hiker in rain jacket is facing the camera and looking directly at the camera throughout the whole video. The bearded hiker in rain jacket should be the dominant object in the video. If the camera lose the bearded hiker in rain jacket or the bearded hiker in rain jacket becomes too small in the video frame, the camera should quickly refocus on the bearded hiker in rain jacket, and place the face or the front view of the bearded hiker in rain jacket in the center of the video frame."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:07.000",
+            "visual_description_long": "The reference image opens in a damp lakeside park under muted overcast light. A green lawn scattered with fallen leaves fills the foreground and right side. Behind it, a gray paved parking area with pale wheel stops runs beside a calm lake. Dark vertical posts mark the path edge, and a small waterside structure is visible at the left distance. Trees with brown and orange foliage stand across the grass, with a wooded shoreline beyond the water. The surfaces look wet and the colors subdued by cloud cover. <Camera1>The handheld view advances through the lawn with small rotations that progressively bring orange-leaved branches overhead and shift the lake farther into the background</Camera1>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:04.000",
+                "action_description": "<Action1><|Subject1|> walks forward across the rainy grass while holding the camera at arm's length and talking with <|Subject1|>'s mouth open, keeping <|Subject1|>'s face and gaze directed at the lens</Action1>."
+              },
+              {
+                "start_time": "00:04.000",
+                "end_time": "00:07.000",
+                "action_description": "<Action2><|Subject1|> continues walking past trees with orange autumn leaves while speaking and maintaining direct gaze at the camera</Action2>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "42ac575555253655f45d89a639827888_1130_2844",
+        "source_group": "video:42ac575555253655f45d89a639827888",
+        "source_line": 4838,
+        "split": "validation",
+        "first_frame_sha256": "e667a00d8e99ae4cf556cbfa5ea4a9b7455f767fd6b28d1d12db88b2340d77a7",
+        "generation_model": "deepseek-flash",
+        "segment_index": 0,
+        "original_example_title": "Hiker with a selfie stick in a desert canyon"
+      }
+    },
+    {
+      "example_id": "C1",
+      "title": "I2V initialization - man in gray suit",
+      "reference_image": "icl_images/C1_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "third-person",
+        "user_prompt": "Using the supplied image as the opening frame, keep a third-person video-game style follow camera behind and slightly above the man in the light gray suit, dark tie, and gray trousers at dusk on the gravel bed beside the trimmed hedges and roadside plants. Over the first 15 seconds, have him walk forward along the gravel bed between the tall hedges toward the roadside corner. He then climbs over the corner of the hedge, lifting one leg over the top and dropping down onto the sidewalk beside the road. Next he runs along the sidewalk beside the hedge and concrete planter wall as cars pass on the adjacent road. He climbs over the low concrete planter wall, stumbles briefly, and continues running along the sidewalk past the end of the wall. Finally, he runs off the sidewalk onto the grassy verge, crosses onto the asphalt road, and sprints along the road and roadside grass as cars with headlights on approach and pass. Keep the camera tracking him in the center of the frame as the view moves out past the planter wall toward the open two-lane road with double yellow lines, a large billboard, power transmission towers, grassy verges with white wildflowers, rocky hillsides, and distant mountains under the dim twilight sky. Keep the wet pavement, dark vegetation, and glowing streetlights and building lights consistent, with cars driving past with headlights on. Do not treat any future reveals as already visible at the start."
+      },
+      "assistant": {
+        "perspective_view": "third-person follow",
+        "Style": "video game",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "man in gray suit",
+            "subject_attribute": "A dark-haired male game character wears a light gray suit jacket and matching trousers. The back of the head and upper body are visible beside the hedge. The camera is placed behind the man in gray suit, and follows the man in gray suit throughout the whole video. The camera is tracking the man in gray suit and the man in gray suit should be placed in the center of the video."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:15.000",
+            "visual_description_long": "The opening game scene shows a gravel planting bed bordered by neatly trimmed green hedges. A low concrete planter edge separates the planting area from a sidewalk and a reflective gray road. Palm-like leaves and taller trees fill the landscaping, while parked and moving cars are visible beyond the hedge. The ambient light is dim dusk, with muted blue-gray pavement and warmer lights in the distance. <Camera1>The rear follow view advances along the hedge and out toward the sidewalk, preserving a consistent slightly elevated angle</Camera1>. As the requested route continues beyond the planter, open grass, roadside flowers, sign structures, and the larger road become visible in sequence rather than being assumed present in the opening crop.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:02.500",
+                "action_description": "<Action1><|Subject1|> walks forward along the gravel bed between tall hedges, heading toward the roadside corner</Action1>."
+              },
+              {
+                "start_time": "00:02.500",
+                "end_time": "00:05.000",
+                "action_description": "<Action2><|Subject1|> climbs over the corner of the hedge, lifting one leg over the top and dropping down onto the sidewalk beside the road</Action2>."
+              },
+              {
+                "start_time": "00:05.000",
+                "end_time": "00:08.000",
+                "action_description": "<Action3><|Subject1|> runs along the sidewalk beside the hedge and concrete planter wall</Action3>."
+              },
+              {
+                "start_time": "00:08.000",
+                "end_time": "00:11.000",
+                "action_description": "<Action4><|Subject1|> climbs over the low concrete planter wall, stumbles briefly, then continues running along the sidewalk past the end of the wall</Action4>."
+              },
+              {
+                "start_time": "00:11.000",
+                "end_time": "00:15.000",
+                "action_description": "<Action5><|Subject1|> runs off the sidewalk onto the grassy verge, crosses onto the asphalt, and sprints along the road edge</Action5>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "07a367110fa2f24ef23a19de58f88746-11007-12358_0_1346",
+        "source_group": "f4cb3d112e4d1c93bfb6bd8665cf5d470c5480e9f280b16e719f5180bd2fa905",
+        "source_line": 532,
+        "split": "train",
+        "first_frame_sha256": "8c662c201cfb3c57ea83bb232db2421b9fb483a7d09026e04f5a6a14c7f7af87",
+        "generation_model": "deepseek-flash",
+        "segment_index": 0,
+        "original_example_title": "Camera tracking a man pushing a shopping cart"
+      }
+    },
+    {
+      "example_id": "C2",
+      "title": "I2V initialization - white-haired armored swordsman",
+      "reference_image": "icl_images/C2_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "third-person",
+        "user_prompt": "Using the reference image as the starting frame, follow the white-haired armored swordsman from a close rear over-the-shoulder view as he swims forward through the dark harbor water with steady arm strokes, kicking up splashes while approaching the wooden sailboat moored near the dock. Over the next several seconds, keep him centered as he swims alongside the sailboat's hull, passing its bow and mast while continuing to stroke through the shimmering water. Then let him swim on past the sailboat toward the row of moored rowboats and the wooden pier, maintaining a steady prone swimming posture with rhythmic arm movements. The camera tracks forward over the water at low height, gradually panning and arcing around the moored sailboat, then continues orbiting past its hull and sweeps left to reveal the row of docked rowboats and the wooden pier structures ahead."
+      },
+      "assistant": {
+        "perspective_view": "third-person follow",
+        "Style": "video game",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "white-haired armored swordsman",
+            "subject_attribute": "A white-haired game character is partly immersed in harbor water, with a dark armored upper back and sword handles protruding behind the shoulders. The lower body is submerged. The camera is placed behind the white-haired armored swordsman, and follows the white-haired armored swordsman throughout the whole video. The camera is tracking the white-haired armored swordsman and the white-haired armored swordsman should be placed in the center of the video."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:12.000",
+            "visual_description_long": "A dark harbor fills the opening image with blue-black water carrying irregular silver reflections. A weathered wooden boat lies to the right, with its raised bow and interior planks close to the water. Elevated docks, thick posts, railings, and wooden buildings form the distant shoreline. The roofs and walls are dimly lit in cool nighttime tones, with small warmer highlights near the structures. The water has soft ripples rather than a flat mirrored surface. <Camera1>The low view advances over the water, gradually arcing past the nearby sailboat and its hull</Camera1>. <Camera2>The view continues leftward toward additional moored rowboats and the wooden pier, revealing their spacing progressively</Camera2>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:04.000",
+                "action_description": "<Action1><|Subject1|> swims forward through the dark water with steady arm strokes while approaching the wooden sailboat moored near the dock</Action1>."
+              },
+              {
+                "start_time": "00:04.000",
+                "end_time": "00:08.000",
+                "action_description": "<Action2><|Subject1|> swims alongside the hull of the large wooden sailboat, passing the bow and mast with rhythmic arm strokes</Action2>."
+              },
+              {
+                "start_time": "00:08.000",
+                "end_time": "00:12.000",
+                "action_description": "<Action3><|Subject1|> swims past the sailboat toward the row of moored rowboats and the wooden pier, maintaining a steady prone swimming posture with rhythmic arm movements</Action3>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "fefd293e5c6f0352d8deacdda76208f4_531_1213",
+        "source_group": "video:fefd293e5c6f0352d8deacdda76208f4",
+        "source_line": 29137,
+        "split": "train",
+        "first_frame_sha256": "6ea1cbba9609359983d62be01244e58e1dbead46812fc002b2bfb90756d153c8",
+        "generation_model": "deepseek-flash",
+        "segment_index": 0,
+        "original_example_title": "Water-level follow shot of an armored swimmer in a harbor (video game)"
+      }
+    },
+    {
+      "example_id": "C3",
+      "title": "I2V initialization - running woman in beige athletic outfit",
+      "reference_image": "icl_images/C3_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "third-person",
+        "user_prompt": "Follow a barefoot woman with reddish-blonde hair in a beige athletic outfit from behind at a steady chase distance as she runs continuously forward along a paved waterfront promenade at sunset, arms pumping, passing trees and a trash receptacle while heading toward the large arch structure ahead. Keep her centered in the frame throughout. In a video-game visual style, let the arch gradually grow nearer, with overhanging branches briefly crossing the foreground around the midpoint before clearing as the path opens again."
+      },
+      "assistant": {
+        "perspective_view": "third-person follow",
+        "Style": "video game",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "running woman in beige athletic outfit",
+            "subject_attribute": "A female game character has reddish-blonde hair and wears a light beige sleeveless top and matching shorts with darker edging. Bare legs and feet are visible from behind. The camera is placed behind the running woman in beige athletic outfit, and follows the running woman in beige athletic outfit throughout the whole video. The camera is tracking the running woman in beige athletic outfit and the running woman in beige athletic outfit should be placed in the center of the video."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:09.000",
+            "visual_description_long": "The reference image shows a waterfront promenade at sunset, paved with dark polygonal tiles. A narrow water channel runs along the right side behind a low stone edge and railing. An elevated roadway crosses the farther background on broad supports. Grass and mature trees line the left side, and palms and tall light poles stand ahead. A large curved arch structure is visible near the center distance. Warm low sunlight produces long diagonal shadows over the paving, while the sky fades toward cooler blue above. <Camera1>The rear follow view advances steadily down the promenade, with nearby trunks and a trash receptacle passing through the foreground as the arch grows closer</Camera1>. Overhanging foliage briefly crosses the view before clearing.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:09.000",
+                "action_description": "<Action1><|Subject1|> runs continuously forward along the paved waterfront promenade, arms pumping at <|Subject1|>'s sides, passing trees and a trash receptacle while heading toward the large arch structure ahead</Action1>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "d87bac9cbde77e45157ae46eed8f2b5e_0_681",
+        "source_group": "video:d87bac9cbde77e45157ae46eed8f2b5e",
+        "source_line": 15562,
+        "split": "train",
+        "first_frame_sha256": "35b68ab748f56733e136ac6c7abc72262030266c5f04b356ec2e04cbf9e63541",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 0,
+        "original_example_title": "Elevated rear follow shot of a jogging woman on a dusk road"
+      }
+    },
+    {
+      "example_id": "D1",
+      "title": "I2V initialization - red BEE COOL electric fat-tire bike",
+      "reference_image": "icl_images/D1_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "third-person observer",
+        "user_prompt": "Using the reference image as the opening frame, show the red BEE COOL electric fat-tire bike remaining stationary and parked upright on the sunlit tan dirt for the full 6 seconds — it does not move or roll. Over that time, have the camera arc smoothly around the parked bike from the side toward the front while gradually pushing in closer, passing the front wheel with its knobby fat tire and disc brake rotor, revealing the black front suspension fork with gold lower stanchions, the round matte-black headlight and bundled cables, then continue tilting and rising up the fork and tighten into an extreme close-up of the black handlebar, stem, control mounts, grips and brake levers against the pale sand. Keep a real-world-footage visual style."
+      },
+      "assistant": {
+        "perspective_view": "third-person observer",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "red BEE COOL electric fat-tire bike",
+            "subject_attribute": "A red electric fat-tire bicycle has a glossy black battery cover, red frame, black fork, round headlight, and a large knobby front tire. The saddle and rear wheel are partly outside the initial close composition. The camera films the red BEE COOL electric fat-tire bike from an external position, and the red BEE COOL electric fat-tire bike is visible in the video. The framing of the video from the camera is independent of the red BEE COOL electric fat-tire bike, and does not follow the movement of the red BEE COOL electric fat-tire bike."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:06.000",
+            "visual_description_long": "Flat tan dirt covers the opening background, with fine granular texture and scattered tiny marks. Bright direct sunlight gives the level dry surface a warm pale color. Crisp dark shadows stretch across the lower ground, while smaller variations in the sandy texture remain visible between them. The close initial composition contains no building, fence, or tree line. The same open dirt surface stays behind the requested inspection, with the ground texture becoming less distinct in the tighter crop. <Camera1>The view arcs from the side toward the front and moves closer along the ground-level work area</Camera1>. <Camera2>The view then rises and tilts upward into a tighter inspection angle, leaving only pale sand behind the close foreground</Camera2>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:06.000",
+                "action_description": "<Action1><|Subject1|> remains stationary and parked upright on the sandy ground throughout the segment</Action1>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "bf257b72f612f969e58d809d4d395913_1698_5111",
+        "source_group": "video:bf257b72f612f969e58d809d4d395913",
+        "source_line": 13700,
+        "split": "train",
+        "first_frame_sha256": "06de2d44eaef42584eedb519607f4274dad17de7907a622cd672bb0458f041f2",
+        "generation_model": "deepseek-flash",
+        "segment_index": 0,
+        "original_example_title": "a parked electric mountain bike"
+      }
+    },
+    {
+      "example_id": "D2",
+      "title": "I2V initialization - auto shop mechanic",
+      "reference_image": "icl_images/D2_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "third-person observer",
+        "user_prompt": "Real-world footage style: In an auto workshop, the mechanic in the black Hiltz Auto Co. cap and shirt, wearing his yellow-cuffed work gloves, stands beside the exposed rusted chassis of the grey-primer vintage coupe. He first holds up the curved metal strip, rotating and raising it to show its notched, weld-dotted inner edge to the camera. He then lowers it over the chassis rails and adjusts its angle with both gloved hands to check the fit. After that he lifts it away and carries it to the orange rear body panel, raising it to the panel's upper curved edge and pressing, sliding, and aligning it with both hands along the wheel-opening contour. The camera starts with a medium side view, pushes in toward the strip on the chassis around mid-segment, then pulls back and shifts right to reframe the orange panel as the strip is raised toward it."
+      },
+      "assistant": {
+        "perspective_view": "third-person observer",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "auto shop mechanic",
+            "subject_attribute": "An adult mechanic wears a dark button-up work shirt, dark trousers, and heavy yellow-cuffed gloves. The lower face and torso are visible beside a stripped vehicle chassis, with the top of the head outside the initial crop. The camera films the auto shop mechanic from an external position, and the auto shop mechanic is visible in the video. The framing of the video from the camera is independent of the auto shop mechanic, and does not follow the movement of the auto shop mechanic."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:14.000",
+            "visual_description_long": "The reference image opens in an automotive workshop around a partly dismantled vintage coupe. A gray-primer roof and rear body section rise behind an exposed rust-brown chassis. An orange rear panel with a curved wheel opening stands at the right, next to a detached dark door panel. Large treaded tires, brackets, and chassis rails fill the lower work area. Red wall-mounted tool storage, scattered equipment, and a concrete floor form the background under overhead lighting. <Camera1>The view pushes closer toward the curved metal workpiece above the rails, revealing the notched inner edge</Camera1>. <Camera2>It then pulls back and shifts right toward the orange panel and wheel opening as the requested fitting work moves there</Camera2>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:03.000",
+                "action_description": "<Action1><|Subject1|> stands beside the exposed chassis holding a curved metal strip, rotating and raising it to display its notched, weld-dotted inner edge toward the camera</Action1>."
+              },
+              {
+                "start_time": "00:03.000",
+                "end_time": "00:08.500",
+                "action_description": "<Action2><|Subject1|> lowers the curved strip over the chassis rails, grips it with both gloved hands, and adjusts the strip's angle above the frame to check the fit</Action2>."
+              },
+              {
+                "start_time": "00:08.500",
+                "end_time": "00:11.000",
+                "action_description": "<Action3><|Subject1|> lifts the strip from the chassis, carries it toward the orange rear body panel, and raises it to the panel's upper curved edge</Action3>."
+              },
+              {
+                "start_time": "00:11.000",
+                "end_time": "00:14.000",
+                "action_description": "<Action4><|Subject1|> presses the curved strip against the orange panel edge and slides the strip with both hands along the wheel-opening contour</Action4>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "34742e58dd6b5d67c7b56c4e129ca234_0_1745",
+        "source_group": "video:34742e58dd6b5d67c7b56c4e129ca234",
+        "source_line": 3799,
+        "split": "train",
+        "first_frame_sha256": "7b9228008064fb283fd9e17a54d94d5b3f4f0a61be0beb242f1ae7c6e11ce07b",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 0,
+        "original_example_title": "Fixed side view of a man installing a go-kart engine"
+      }
+    },
+    {
+      "example_id": "D3",
+      "title": "I2V initialization - gray seal",
+      "reference_image": "icl_images/D3_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "third-person observer",
+        "user_prompt": "An elevated third-person view of a gray seal floating upright in calm blue-green water, its head above the surface. For the first few seconds it stays nearly stationary, facing toward the camera while small ripples spread around its neck. It then lifts its head slightly higher out of the water and slowly turns it from facing forward to its left, coming into profile. It holds that leftward profile, gazing steadily in that direction while continuing to float upright, its whiskers spread forward and gentle rings rippling outward. Throughout, the camera holds a high downward angle and gradually zooms in, tightening toward the water surface so the pale stone ledge at the top of the frame exits view and the framing ends close on the surface, with small bubbles and gentle disturbances visible around the center. Real-world-footage visual style."
+      },
+      "assistant": {
+        "perspective_view": "third-person observer",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "gray seal",
+            "subject_attribute": "A gray seal's head and upper neck are visible above the water, with a pale muzzle and darker mottling. Most of the body is submerged. The camera films the gray seal from an external position, and the gray seal is visible in the video. The framing of the video from the camera is independent of the gray seal, and does not follow the movement of the gray seal."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:10.000",
+            "visual_description_long": "The reference image looks down across calm blue-green water. Broad soft reflections create patches of lighter gray and darker green across the surface, with fine ripples visible through the center. A pale stone ledge cuts across the upper-right edge, and its dark reflection lies directly beneath it. The rest of the opening crop is water rather than a sandy shore or enclosure interior. Diffuse daylight keeps the contrast gentle and the atmosphere cool. <Camera1>The elevated view gradually tightens toward the central water area, causing the stone ledge to leave the upper edge</Camera1>. Small bubbles and expanding surface rings remain visible in the closer view.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:03.600",
+                "action_description": "<Action1><|Subject1|> floats upright with the head above the water, facing toward the elevated view and remaining nearly stationary</Action1>."
+              },
+              {
+                "start_time": "00:03.600",
+                "end_time": "00:06.000",
+                "action_description": "<Action2><|Subject1|> lifts the head slightly higher above the water and slowly turns the head toward <|Subject1|>'s left into profile</Action2>."
+              },
+              {
+                "start_time": "00:06.000",
+                "end_time": "00:10.000",
+                "action_description": "<Action3><|Subject1|> holds the left-facing profile while remaining upright in the water</Action3>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "ee4bc1de3f5b7962a18d47d18e9d6248_0_773",
+        "source_group": "video:ee4bc1de3f5b7962a18d47d18e9d6248",
+        "source_line": 17022,
+        "split": "train",
+        "first_frame_sha256": "13a8a6c647a0f69d9f4eab1cbb3c5a9eab0a68f886ea283f7e8e899cd8c24d40",
+        "generation_model": "deepseek-flash",
+        "segment_index": 0,
+        "original_example_title": "Fixed low shot of a gray seal resting on a beach"
+      }
+    },
+    {
+      "example_id": "D4",
+      "title": "I2V initialization - small propeller airplane G-BTLB",
+      "reference_image": "icl_images/D4_reference.jpg",
+      "history": [],
+      "user": {
+        "perspective_view": "third-person observer",
+        "user_prompt": "Using the reference image as the opening view at time zero, generate a real-world-footage shot of the small propeller airplane G-BTLB on a sunny general-aviation airfield. Over the six seconds, the airplane taxis continuously from left to right along the paved strip with its nose propeller spinning, holding roughly constant heading and ground contact as it passes grass verges, small airfield markers, an orange cone, and a red-and-black runway sign reading “26-08 D1.” The camera makes a steady rightward pan across the airfield during this time, gradually revealing new sections of pavement, grassy verges, the sign, the orange cone, and additional yellow marker boards, while background vehicles and foliage drift leftward out of frame. The camera's movement is independent of the airplane and does not follow its motion; keep a layered depth with blurred foreground grass, the paved strip in the midground, and rural fields and trees beyond."
+      },
+      "assistant": {
+        "perspective_view": "third-person observer",
+        "Style": "real-world footage",
+        "subject_list": [
+          {
+            "subject_id": "<|Subject1|>",
+            "display_name": "small propeller airplane G-BTLB",
+            "subject_attribute": "A small white propeller airplane has teal-blue striping, a glazed cabin, fixed landing gear, and dark G-BTLB registration on the rear fuselage. It is oriented toward the right in the opening airfield view. The camera films the small propeller airplane G-BTLB from an external position, and the small propeller airplane G-BTLB is visible in the video. The framing of the video from the camera is independent of the small propeller airplane G-BTLB, and does not follow the movement of the small propeller airplane G-BTLB."
+          }
+        ],
+        "segments": [
+          {
+            "start_time": "00:00.000",
+            "end_time": "00:06.000",
+            "visual_description_long": "A sunny airfield stretches horizontally through the reference image. Tall dry grass and small yellow flowers form a soft foreground band. Beyond them, gray pavement and shorter grass divide the middle ground into runway and verge strips. Small ground markers are scattered across the field, while parked vehicles, rural buildings, and a dark tree line occupy the far distance. The light is bright with a slight haze near the horizon, and the open runway keeps the composition layered from the blurred verge to the rural background. <Camera1>The view pans steadily right across the airfield, progressively revealing an orange cone, additional marker boards, and a red-and-black runway sign reading 26-08 D1 along the paved strip</Camera1>.",
+            "description_change": null,
+            "contained_actions": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:06.000",
+                "action_description": "<Action1><|Subject1|> taxis continuously from left to right along the paved strip with <|Subject1|>'s nose propeller spinning, holding a roughly constant heading and maintaining ground contact</Action1>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "03f45919d7512a0b6043a86dccd2e7c3_108_1529",
+        "source_group": "video:03f45919d7512a0b6043a86dccd2e7c3",
+        "source_line": 262,
+        "split": "train",
+        "first_frame_sha256": "bd6460d046ec21994068c5d44e0562db8f501bc42041b1158ef6614a39cb02c8",
+        "generation_model": "deepseek-flash",
+        "segment_index": 0,
+        "original_example_title": "Panning shot of a propeller airplane taxiing on an airfield"
+      }
+    },
+    {
+      "example_id": "E1",
+      "title": "I2V text continuation - red BEE COOL electric fat-tire bike",
+      "reference_image": "icl_images/D1_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "Using the reference image as the opening frame, show the red BEE COOL electric fat-tire bike remaining stationary and parked upright on the sunlit tan dirt for the full 6 seconds — it does not move or roll. Over that time, have the camera arc smoothly around the parked bike from the side toward the front while gradually pushing in closer, passing the front wheel with its knobby fat tire and disc brake rotor, revealing the black front suspension fork with gold lower stanchions, the round matte-black headlight and bundled cables, then continue tilting and rising up the fork and tighten into an extreme close-up of the black handlebar, stem, control mounts, grips and brake levers against the pale sand. Keep a real-world-footage visual style."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "red BEE COOL electric fat-tire bike",
+                "subject_attribute": "A red electric fat-tire bicycle has a glossy black battery cover, red frame, black fork, round headlight, and a large knobby front tire. The saddle and rear wheel are partly outside the initial close composition. The camera films the red BEE COOL electric fat-tire bike from an external position, and the red BEE COOL electric fat-tire bike is visible in the video. The framing of the video from the camera is independent of the red BEE COOL electric fat-tire bike, and does not follow the movement of the red BEE COOL electric fat-tire bike."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:06.000",
+                "visual_description_long": "Flat tan dirt covers the opening background, with fine granular texture and scattered tiny marks. Bright direct sunlight gives the level dry surface a warm pale color. Crisp dark shadows stretch across the lower ground, while smaller variations in the sandy texture remain visible between them. The close initial composition contains no building, fence, or tree line. The same open dirt surface stays behind the requested inspection, with the ground texture becoming less distinct in the tighter crop. <Camera1>The view arcs from the side toward the front and moves closer along the ground-level work area</Camera1>. <Camera2>The view then rises and tilts upward into a tighter inspection angle, leaving only pale sand behind the close foreground</Camera2>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:06.000",
+                    "action_description": "<Action1><|Subject1|> remains stationary and parked upright on the sandy ground throughout the segment</Action1>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/D1_segment_000_0.jpg",
+            "icl_images/D1_segment_000_1.jpg",
+            "icl_images/D1_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "Pull back from the fork and headlight to reveal red BEE COOL electric fat-tire bike in full side profile on the open dirt field with trees behind."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:06.000",
+            "end_time": "00:19.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the tight sand-backed crop expands into a wider dirt field bordered by a grassy strip, dense green trees, a small white sign, and distant chain-link fencing. <Camera1>The view pulls backward and arcs outward from the close foreground, revealing the broader field before easing into a wide composition</Camera1>.",
+            "contained_actions": [
+              {
+                "start_time": "00:06.000",
+                "end_time": "00:19.000",
+                "action_description": "<Action1><|Subject1|> remains stationary and parked upright on the dirt field throughout the segment</Action1>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "bf257b72f612f969e58d809d4d395913_1698_5111",
+        "source_group": "video:bf257b72f612f969e58d809d4d395913",
+        "source_line": 13700,
+        "split": "train",
+        "first_frame_sha256": "06de2d44eaef42584eedb519607f4274dad17de7907a622cd672bb0458f041f2",
+        "generation_model": "deepseek-flash",
+        "segment_index": 1,
+        "original_example_title": "Closer orbit around the parked mountain bike"
+      }
+    },
+    {
+      "example_id": "E2",
+      "title": "I2V text continuation - man in gray suit",
+      "reference_image": "icl_images/C1_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person",
+            "user_prompt": "Using the supplied image as the opening frame, keep a third-person video-game style follow camera behind and slightly above the man in the light gray suit, dark tie, and gray trousers at dusk on the gravel bed beside the trimmed hedges and roadside plants. Over the first 15 seconds, have him walk forward along the gravel bed between the tall hedges toward the roadside corner. He then climbs over the corner of the hedge, lifting one leg over the top and dropping down onto the sidewalk beside the road. Next he runs along the sidewalk beside the hedge and concrete planter wall as cars pass on the adjacent road. He climbs over the low concrete planter wall, stumbles briefly, and continues running along the sidewalk past the end of the wall. Finally, he runs off the sidewalk onto the grassy verge, crosses onto the asphalt road, and sprints along the road and roadside grass as cars with headlights on approach and pass. Keep the camera tracking him in the center of the frame as the view moves out past the planter wall toward the open two-lane road with double yellow lines, a large billboard, power transmission towers, grassy verges with white wildflowers, rocky hillsides, and distant mountains under the dim twilight sky. Keep the wet pavement, dark vegetation, and glowing streetlights and building lights consistent, with cars driving past with headlights on. Do not treat any future reveals as already visible at the start."
+          },
+          "assistant": {
+            "perspective_view": "third-person follow",
+            "Style": "video game",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "man in gray suit",
+                "subject_attribute": "A dark-haired male game character wears a light gray suit jacket and matching trousers. The back of the head and upper body are visible beside the hedge. The camera is placed behind the man in gray suit, and follows the man in gray suit throughout the whole video. The camera is tracking the man in gray suit and the man in gray suit should be placed in the center of the video."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:15.000",
+                "visual_description_long": "The opening game scene shows a gravel planting bed bordered by neatly trimmed green hedges. A low concrete planter edge separates the planting area from a sidewalk and a reflective gray road. Palm-like leaves and taller trees fill the landscaping, while parked and moving cars are visible beyond the hedge. The ambient light is dim dusk, with muted blue-gray pavement and warmer lights in the distance. <Camera1>The rear follow view advances along the hedge and out toward the sidewalk, preserving a consistent slightly elevated angle</Camera1>. As the requested route continues beyond the planter, open grass, roadside flowers, sign structures, and the larger road become visible in sequence rather than being assumed present in the opening crop.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:02.500",
+                    "action_description": "<Action1><|Subject1|> walks forward along the gravel bed between tall hedges, heading toward the roadside corner</Action1>."
+                  },
+                  {
+                    "start_time": "00:02.500",
+                    "end_time": "00:05.000",
+                    "action_description": "<Action2><|Subject1|> climbs over the corner of the hedge, lifting one leg over the top and dropping down onto the sidewalk beside the road</Action2>."
+                  },
+                  {
+                    "start_time": "00:05.000",
+                    "end_time": "00:08.000",
+                    "action_description": "<Action3><|Subject1|> runs along the sidewalk beside the hedge and concrete planter wall</Action3>."
+                  },
+                  {
+                    "start_time": "00:08.000",
+                    "end_time": "00:11.000",
+                    "action_description": "<Action4><|Subject1|> climbs over the low concrete planter wall, stumbles briefly, then continues running along the sidewalk past the end of the wall</Action4>."
+                  },
+                  {
+                    "start_time": "00:11.000",
+                    "end_time": "00:15.000",
+                    "action_description": "<Action5><|Subject1|> runs off the sidewalk onto the grassy verge, crosses onto the asphalt, and sprints along the road edge</Action5>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/C1_segment_000_0.jpg",
+            "icl_images/C1_segment_000_1.jpg",
+            "icl_images/C1_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "Run downhill through tall grass and white wildflowers toward the highway. Continue down the dirt and grass slope parallel to it, passing bushes and the overhead sign gantry. Descend onto the paved shoulder and run along the road edge with cars passing on the right. Slow to a stop, stand briefly facing oncoming traffic, then begin walking forward along the road. Follow down the embankment and ease to a near stop behind him."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:15.000",
+            "end_time": "00:30.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the grassy verge extends down toward a busy multilane highway with overhead sign gantries, a paved shoulder, and a large illuminated building beyond. Traffic moves along the lanes beneath a pink-gray dusk sky. <Camera1>The view advances down the slope through grass and flowers, then levels onto the highway shoulder and eases toward a stop</Camera1>.",
+            "contained_actions": [
+              {
+                "start_time": "00:15.000",
+                "end_time": "00:19.000",
+                "action_description": "<Action1><|Subject1|> runs through tall grass and white wildflowers across the sloping hillside, heading toward the highway below</Action1>."
+              },
+              {
+                "start_time": "00:19.000",
+                "end_time": "00:24.000",
+                "action_description": "<Action2><|Subject1|> continues running downhill along the dirt and grass slope parallel to the highway, passing bushes and the overhead sign gantry</Action2>."
+              },
+              {
+                "start_time": "00:24.000",
+                "end_time": "00:27.500",
+                "action_description": "<Action3><|Subject1|> descends the final stretch of the embankment, steps onto the paved shoulder, and runs along the road edge</Action3>."
+              },
+              {
+                "start_time": "00:27.500",
+                "end_time": "00:30.000",
+                "action_description": "<Action4><|Subject1|> slows to a stop on the highway shoulder, stands briefly facing the oncoming traffic, then begins walking forward along the road</Action4>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "07a367110fa2f24ef23a19de58f88746-11007-12358_0_1346",
+        "source_group": "f4cb3d112e4d1c93bfb6bd8665cf5d470c5480e9f280b16e719f5180bd2fa905",
+        "source_line": 532,
+        "split": "train",
+        "first_frame_sha256": "8c662c201cfb3c57ea83bb232db2421b9fb483a7d09026e04f5a6a14c7f7af87",
+        "generation_model": "deepseek-flash",
+        "segment_index": 1,
+        "original_example_title": "Man stops the cart and presents the groceries"
+      }
+    },
+    {
+      "example_id": "E3",
+      "title": "I2V text continuation - gardener",
+      "reference_image": "icl_images/A2_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "first-person",
+            "user_prompt": "First-person view, real-world footage style. Start with a tight close-up on my cupped right hand — with slightly dirty fingers emerging from a dark red sleeve — holding a mound of brown granular fertilizer steadily above a potted shrub. Over the clip, slowly tilt and shift the open palm up, down, and side to side to display the material from slightly different angles, keeping the mound heaped and undisturbed, while the handheld camera gradually pulls back and widens the framing to reveal the surrounding pots, the shrub's full shape, and the concrete ground, with minor natural shake."
+          },
+          "assistant": {
+            "perspective_view": "first-person",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "gardener",
+                "subject_attribute": "An adult gardener is visible only through a bare right hand with natural skin creases and soil-marked fingers above a plant pot. The head and torso are outside the frame. The gardener is embodied by the camera, and has the same first-person viewpoint as the camera throughout the whole video. Most of the gardener is not visible, and optionally only a small part of the gardener can be seen in the video."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:13.000",
+                "visual_description_long": "The opening image shows a compact outdoor container garden in daylight. A pale green round pot occupies the middle of the composition, containing uneven dark soil and a small woody shrub with short cut stems and fresh green leaves. A blue-rimmed pot sits behind it at the left, while another green pot and a dark textured container overlap in the upper background. The rims show scuffs and pale dirt deposits. Gray concrete is visible in the gaps between containers. Brown granular material is present in the foreground above the central pot. <Camera1>The handheld view gradually pulls back from the close foreground, revealing more pot rims, soil, lower stems, and concrete with mild natural shake</Camera1>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:13.000",
+                    "action_description": "<Action1><|Subject1|>'s right hand holds a cupped mound of brown granular fertilizer steadily above the potted plant, slowly shifting the open palm up, down, and side to side to display the material</Action1>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/A2_segment_000_0.jpg",
+            "icl_images/A2_segment_000_1.jpg",
+            "icl_images/A2_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "Have the camera zoom in closer on gardener's hands, which keeps the fertilizer cupped, then bring the other hand in to pinch and crumble the granules between thumb and fingers."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:13.000",
+            "end_time": "00:28.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the visible scene, background, and other-object layout remain unchanged. <Camera1>The view pushes in smoothly toward the brown granular material, narrowing the visible garden to a close texture study while the surrounding pots progressively leave the crop</Camera1>.",
+            "contained_actions": [
+              {
+                "start_time": "00:13.000",
+                "end_time": "00:21.700",
+                "action_description": "<Action1><|Subject1|>'s right hand keeps the brown fertilizer heaped in the open palm above the pot</Action1>."
+              },
+              {
+                "start_time": "00:21.700",
+                "end_time": "00:28.000",
+                "action_description": "<Action2><|Subject1|>'s other hand enters from the frame edge and pinches, rubs, and crumbles small portions of the granules between thumb and fingers</Action2>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "224d8f62bd5fb4894635b83be1d52cf5_0_2144",
+        "source_group": "video:224d8f62bd5fb4894635b83be1d52cf5",
+        "source_line": 2470,
+        "split": "validation",
+        "first_frame_sha256": "f1f533d252d86af18c5538743085df94b28ad28e6459bfc1a4a106d3ac38a651",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "Camera drifts to reveal hanging fruit while the gardener keeps inspecting"
+      }
+    },
+    {
+      "example_id": "E5",
+      "title": "I2V text continuation - tractor operator",
+      "reference_image": "icl_images/A4_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "first-person",
+            "user_prompt": "Starting from the reference view inside the tractor cab, keep the first-person perspective as the operator grips the black steering wheel and drives forward along the cut hay rows, with the orange hood aligned to the field path. After a couple of seconds, move the right hand from the steering area toward the side control lever while still driving forward and directing attention toward the right side window. Continue operating the moving tractor while towing the green baler over the windrows, monitoring the implement through the rear-right window as the cab-mounted view rotates right across the side window to show the interior framing, a small wired control box with red indicator lights, and the large green baler behind. Keep the reveal of the control box and towed baler occurring as the view turns, not already established at the start. Maintain bright daylight and the forward path and rear implement centered as described."
+          },
+          "assistant": {
+            "perspective_view": "first-person",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "tractor operator",
+                "subject_attribute": "A seated adult tractor operator is visible only through a bare hand and forearm near the black steering wheel. The head and torso remain outside the frame. The tractor operator is embodied by the camera, and has the same first-person viewpoint as the camera throughout the whole video. Most of the tractor operator is not visible, and optionally only a small part of the tractor operator can be seen in the video."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:10.000",
+                "visual_description_long": "The reference view opens inside a tractor cab looking through a broad windshield. A black steering wheel and dark dashboard occupy the lower foreground, with an orange hood and tall vertical exhaust pipe extending toward the center of the field. Parallel rows of cut grass run across pale green and tan ground. A small white farm building stands at the far left, and a dense line of green trees marks the distant boundary beneath bright daylight. Dark cab pillars frame the glass on both sides. <Camera1>The view advances along the rows, then turns right across the window frame to reveal the side controls and the green baler behind, keeping those later details as a progressive reveal</Camera1>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:02.500",
+                    "action_description": "<Action1><|Subject1|>'s visible hand grips the steering wheel and makes small steering adjustments during off-camera operation of the forward-moving tractor</Action1>."
+                  },
+                  {
+                    "start_time": "00:02.500",
+                    "end_time": "00:05.000",
+                    "action_description": "<Action2><|Subject1|>'s right hand moves from the steering area toward the side control lever while the rest of <|Subject1|> remains outside the frame</Action2>."
+                  },
+                  {
+                    "start_time": "00:05.000",
+                    "end_time": "00:10.000",
+                    "action_description": "<Action3><|Subject1|>'s visible hand operates the side controls during off-camera driving with the green baler attached behind</Action3>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/A4_segment_000_0.jpg",
+            "icl_images/A4_segment_000_1.jpg",
+            "icl_images/A4_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "Keep driving as tractor operator along the windrows, steering with the left hand; alternate your view between the forward windshield and the rear-right baler, checking the implement as the tractor advances."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:10.000",
+            "end_time": "00:25.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, successive cut hay rows pass beneath the cab, while the same tree-lined field and distant white building remain visible. <Camera1>The view turns from the rear-right implement area toward the windshield and dashboard, then returns toward the rear-right opening before rotating forward again near the end</Camera1>.",
+            "contained_actions": [
+              {
+                "start_time": "00:10.000",
+                "end_time": "00:14.500",
+                "action_description": "<Action1><|Subject1|>'s visible hand maintains the tractor controls during continued off-camera forward driving</Action1>."
+              },
+              {
+                "start_time": "00:14.500",
+                "end_time": "00:20.500",
+                "action_description": "<Action2><|Subject1|>'s left hand grips and adjusts the steering wheel while the rest of <|Subject1|> remains off-camera</Action2>."
+              },
+              {
+                "start_time": "00:20.500",
+                "end_time": "00:25.000",
+                "action_description": "<Action3><|Subject1|>'s visible hand continues operating the controls during off-camera forward driving</Action3>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "2d1ea7f52100d989ea850fcc99edb1ce_0_1611",
+        "source_group": "video:2d1ea7f52100d989ea850fcc99edb1ce",
+        "source_line": 3274,
+        "split": "train",
+        "first_frame_sha256": "17ff63288fa7fa20d875490ea963795eb527cf3f8ac688257007ae5b6ccbe193",
+        "generation_model": "deepseek-flash",
+        "segment_index": 1,
+        "original_example_title": "Continued driving forward down the dirt track"
+      }
+    },
+    {
+      "example_id": "E6",
+      "title": "I2V text continuation - bearded man in gray hoodie",
+      "reference_image": "icl_images/B1_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "second-person",
+            "user_prompt": "Film a real-world-footage style selfie-style video of the bearded man in the gray hoodie standing in the garage beside the black car with its hood open, holding the camera at arm's length. Keep the handheld close chest-up framing with natural shake throughout. First, he speaks toward the lens while repeatedly gesturing with his right hand, pinching his fingers together and pointing. Then, still speaking, he raises his left hand with an open palm, glances upward and to the side, then looks back at the camera. Finally, he opens his mouth wide speaking emphatically, turns his head to look down into the engine bay, and points toward the engine with his right hand. Keep him as the dominant subject in frame, with his face centered at all times."
+          },
+          "assistant": {
+            "perspective_view": "second-person",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "bearded man in gray hoodie",
+                "subject_attribute": "An adult man with a full dark beard wears a light gray hoodie and a gray baseball cap. The head and upper torso occupy the close selfie composition beside the raised car hood. The bearded man in gray hoodie is facing the camera and looking directly at the camera throughout the whole video. The bearded man in gray hoodie should be the dominant object in the video. If the camera lose the bearded man in gray hoodie or the bearded man in gray hoodie becomes too small in the video frame, the camera should quickly refocus on the bearded man in gray hoodie, and place the face or the front view of the bearded man in gray hoodie in the center of the video frame."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:09.000",
+                "visual_description_long": "The reference image shows a garage interior with exposed wooden ceiling beams and bright overhead lighting. A black car occupies the left side with its hood raised over a dark engine compartment. Plywood walls on the right support shelves containing boxes, bottles, and small workshop supplies. A white wall-mounted air-conditioning unit sits above a pale board and a cluttered work area. A dark tool chest and blue equipment are visible toward the right edge. Electrical cables and a blue hanging line cross the upper background. The garage door and shelving provide distinct layers of depth. <Camera1>The handheld view has mild natural shake and small angular changes within the same workshop area</Camera1>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:03.000",
+                    "action_description": "<Action1><|Subject1|> holds the camera at arm's length and speaks toward the lens while repeatedly gesturing with <|Subject1|>'s right hand, pinching <|Subject1|>'s fingers together and pointing</Action1>."
+                  },
+                  {
+                    "start_time": "00:03.000",
+                    "end_time": "00:06.000",
+                    "action_description": "<Action2><|Subject1|> continues speaking and raises <|Subject1|>'s left hand with an open palm while keeping <|Subject1|>'s face and gaze directed at the lens</Action2>."
+                  },
+                  {
+                    "start_time": "00:06.000",
+                    "end_time": "00:09.000",
+                    "action_description": "<Action3><|Subject1|> opens <|Subject1|>'s mouth wide while speaking emphatically and points toward the engine bay with <|Subject1|>'s right hand while maintaining direct gaze at the lens</Action3>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/B1_segment_000_0.jpg",
+            "icl_images/B1_segment_000_1.jpg",
+            "icl_images/B1_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "The man turns and walks around the black car's front while talking, briefly looking down and back to the lens. Passing shelves and tool areas, he raises his right hand near his chest, points forward, sweeps it level and opens his palm while alternating camera and sideways glances. Arc the selfie view through the garage past the door, lathe, tires and race car, then rotate left across shelving and the blue tool cabinet."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:09.000",
+            "end_time": "00:18.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, more of the garage interior is revealed around the open car hood, including shelving, stacked tires, workshop equipment, and the blue tool cabinet. <Camera1>The view arcs through the front work area, first sweeping across the garage-door side and then rotating left across shelving and tools</Camera1>.",
+            "contained_actions": [
+              {
+                "start_time": "00:09.000",
+                "end_time": "00:11.500",
+                "action_description": "<Action1><|Subject1|> speaks toward the camera while turning and walking around the front of the black car, keeping <|Subject1|>'s face and gaze directed at the lens</Action1>."
+              },
+              {
+                "start_time": "00:11.500",
+                "end_time": "00:14.500",
+                "action_description": "<Action2><|Subject1|> continues walking through the garage while talking, passing the shelving and tool areas, and raises <|Subject1|>'s right hand to gesture near <|Subject1|>'s chest</Action2>."
+              },
+              {
+                "start_time": "00:14.500",
+                "end_time": "00:18.000",
+                "action_description": "<Action3><|Subject1|> keeps addressing and looking directly at the camera while pointing forward, sweeping <|Subject1|>'s right hand in a leveling motion, and opening <|Subject1|>'s palm with fingers spread</Action3>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "570e5da42e7c52ae7178d27cf69bbb8e_0_812",
+        "source_group": "video:570e5da42e7c52ae7178d27cf69bbb8e",
+        "source_line": 6381,
+        "split": "train",
+        "first_frame_sha256": "a8101654b231ad30a9c2389cf6ea30904e7cba8d649f094a6e0951d1b9f3063f",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "Unchanged scene while the man keeps talking to the camera"
+      }
+    },
+    {
+      "example_id": "E7",
+      "title": "I2V text continuation - bearded hiker in rain jacket",
+      "reference_image": "icl_images/B2_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "second-person",
+            "user_prompt": "Using the reference image as the opening frame, generate real-world footage of the bearded hiker in the rain jacket holding the camera at arm's length in the rainy lakeside park. Keep him facing and looking toward the camera and dominant in frame throughout; if the camera loses him or he becomes too small, quickly refocus and center his face or front view. Over the first seven seconds, he walks forward across the wet grass while talking with his mouth open and periodically turning his head toward the lens. Around the four-second mark he continues walking past trees with orange autumn leaves, glancing between the camera and the path ahead as he speaks. The handheld selfie-style camera moves forward, slowly rotating and panning as it advances, gradually revealing the orange-leaved trees from the right and shifting the lake from the left background toward the rear of the frame."
+          },
+          "assistant": {
+            "perspective_view": "second-person",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "bearded hiker in rain jacket",
+                "subject_attribute": "An adult man with a brown beard and longer brown hair wears a dark cap, a black rain jacket, and a backpack with red straps. An outstretched arm is partly visible in the close selfie composition. The bearded hiker in rain jacket is facing the camera and looking directly at the camera throughout the whole video. The bearded hiker in rain jacket should be the dominant object in the video. If the camera lose the bearded hiker in rain jacket or the bearded hiker in rain jacket becomes too small in the video frame, the camera should quickly refocus on the bearded hiker in rain jacket, and place the face or the front view of the bearded hiker in rain jacket in the center of the video frame."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:07.000",
+                "visual_description_long": "The reference image opens in a damp lakeside park under muted overcast light. A green lawn scattered with fallen leaves fills the foreground and right side. Behind it, a gray paved parking area with pale wheel stops runs beside a calm lake. Dark vertical posts mark the path edge, and a small waterside structure is visible at the left distance. Trees with brown and orange foliage stand across the grass, with a wooded shoreline beyond the water. The surfaces look wet and the colors subdued by cloud cover. <Camera1>The handheld view advances through the lawn with small rotations that progressively bring orange-leaved branches overhead and shift the lake farther into the background</Camera1>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:04.000",
+                    "action_description": "<Action1><|Subject1|> walks forward across the rainy grass while holding the camera at arm's length and talking with <|Subject1|>'s mouth open, keeping <|Subject1|>'s face and gaze directed at the lens</Action1>."
+                  },
+                  {
+                    "start_time": "00:04.000",
+                    "end_time": "00:07.000",
+                    "action_description": "<Action2><|Subject1|> continues walking past trees with orange autumn leaves while speaking and maintaining direct gaze at the camera</Action2>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/B2_segment_000_0.jpg",
+            "icl_images/B2_segment_000_1.jpg",
+            "icl_images/B2_segment_000_2.jpg"
+          ]
+        },
+        {
+          "user": {
+            "camera_control": {
+              "durationMs": 10000,
+              "keyEvents": [
+                {
+                  "t": 0.0,
+                  "code": "KeyS",
+                  "pressed": true
+                },
+                {
+                  "t": 291.6666666666667,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 708.3333333333334,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 791.6666666666666,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 833.3333333333334,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 1000.0,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 1083.3333333333333,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 1583.3333333333333,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 1625.0,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 1708.3333333333333,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 1750.0,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 5375.0,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 5416.666666666667,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 5458.333333333333,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 5666.666666666667,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 6750.0,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 6791.666666666667,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 7916.666666666667,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 8208.333333333334,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 9208.333333333334,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 9541.666666666666,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 9583.333333333334,
+                  "code": "KeyD",
+                  "pressed": true
+                },
+                {
+                  "t": 9750.0,
+                  "code": "KeyD",
+                  "pressed": false
+                },
+                {
+                  "t": 10000.0,
+                  "code": "KeyS",
+                  "pressed": false
+                }
+              ]
+            }
+          },
+          "assistant": {
+            "segments": [
+              {
+                "start_time": "00:07.000",
+                "end_time": "00:17.000",
+                "visual_description_long": null,
+                "description_change": "Compared to the previous segment, the visible scene and composition transition continuously.",
+                "contained_actions": []
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/B2_segment_001_0.jpg",
+            "icl_images/B2_segment_001_1.jpg",
+            "icl_images/B2_segment_001_2.jpg"
+          ],
+          "camera_review": {
+            "status": "reviewed_conservative",
+            "decision": "insufficient_evidence_fallback",
+            "reason": "The sequence mixes backward movement, lateral taps, and changing rotations. The cumulative geometry cannot be reconstructed reliably from three sampled history frames."
+          }
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "Walk slowly over the open rainy lawn with the camera at arm's length, continuing to talk and glance toward the lens. Slow to a near standstill, survey the trees and grass on both sides, briefly face the camera while speaking, then look back over the shoulder toward the treeline. Keep autumn trees mainly on the left and the open lawn and pines on the right."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:17.000",
+            "end_time": "00:28.595",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the lawn opens more widely on the right, while the denser autumn trees remain mostly to the left. Scattered pines and a distant shelter appear near the far tree line beneath the same gray sky. <Camera1>The handheld view slows its forward movement and rotates gently from side to side across the grass and tree line</Camera1>.",
+            "contained_actions": [
+              {
+                "start_time": "00:17.000",
+                "end_time": "00:23.000",
+                "action_description": "<Action1><|Subject1|> continues walking slowly across the grass while holding the camera at arm's length and talking with <|Subject1|>'s mouth open, maintaining direct gaze at the lens</Action1>."
+              },
+              {
+                "start_time": "00:23.000",
+                "end_time": "00:28.595",
+                "action_description": "<Action2><|Subject1|> slows to a near standstill while speaking, keeping <|Subject1|>'s face and gaze directed at the lens</Action2>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "42ac575555253655f45d89a639827888_1130_2844",
+        "source_group": "video:42ac575555253655f45d89a639827888",
+        "source_line": 4838,
+        "split": "validation",
+        "first_frame_sha256": "e667a00d8e99ae4cf556cbfa5ea4a9b7455f767fd6b28d1d12db88b2340d77a7",
+        "generation_model": "deepseek-flash",
+        "segment_index": 2,
+        "original_example_title": "Hiker stops under a rock overhang as the corridor narrows"
+      }
+    },
+    {
+      "example_id": "E8",
+      "title": "I2V text continuation - white-haired armored swordsman",
+      "reference_image": "icl_images/C2_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person",
+            "user_prompt": "Using the reference image as the starting frame, follow the white-haired armored swordsman from a close rear over-the-shoulder view as he swims forward through the dark harbor water with steady arm strokes, kicking up splashes while approaching the wooden sailboat moored near the dock. Over the next several seconds, keep him centered as he swims alongside the sailboat's hull, passing its bow and mast while continuing to stroke through the shimmering water. Then let him swim on past the sailboat toward the row of moored rowboats and the wooden pier, maintaining a steady prone swimming posture with rhythmic arm movements. The camera tracks forward over the water at low height, gradually panning and arcing around the moored sailboat, then continues orbiting past its hull and sweeps left to reveal the row of docked rowboats and the wooden pier structures ahead."
+          },
+          "assistant": {
+            "perspective_view": "third-person follow",
+            "Style": "video game",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "white-haired armored swordsman",
+                "subject_attribute": "A white-haired game character is partly immersed in harbor water, with a dark armored upper back and sword handles protruding behind the shoulders. The lower body is submerged. The camera is placed behind the white-haired armored swordsman, and follows the white-haired armored swordsman throughout the whole video. The camera is tracking the white-haired armored swordsman and the white-haired armored swordsman should be placed in the center of the video."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:12.000",
+                "visual_description_long": "A dark harbor fills the opening image with blue-black water carrying irregular silver reflections. A weathered wooden boat lies to the right, with its raised bow and interior planks close to the water. Elevated docks, thick posts, railings, and wooden buildings form the distant shoreline. The roofs and walls are dimly lit in cool nighttime tones, with small warmer highlights near the structures. The water has soft ripples rather than a flat mirrored surface. <Camera1>The low view advances over the water, gradually arcing past the nearby sailboat and its hull</Camera1>. <Camera2>The view continues leftward toward additional moored rowboats and the wooden pier, revealing their spacing progressively</Camera2>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:04.000",
+                    "action_description": "<Action1><|Subject1|> swims forward through the dark water with steady arm strokes while approaching the wooden sailboat moored near the dock</Action1>."
+                  },
+                  {
+                    "start_time": "00:04.000",
+                    "end_time": "00:08.000",
+                    "action_description": "<Action2><|Subject1|> swims alongside the hull of the large wooden sailboat, passing the bow and mast with rhythmic arm strokes</Action2>."
+                  },
+                  {
+                    "start_time": "00:08.000",
+                    "end_time": "00:12.000",
+                    "action_description": "<Action3><|Subject1|> swims past the sailboat toward the row of moored rowboats and the wooden pier, maintaining a steady prone swimming posture with rhythmic arm movements</Action3>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/C2_segment_000_0.jpg",
+            "icl_images/C2_segment_000_1.jpg",
+            "icl_images/C2_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "Continue the scene as the open harbor with the large sailboat gives way to a shallower shoreline beneath elevated wooden docks, where moored rowboats with hay cargo are gradually replaced by a muddy bank with a wooden ramp, a burning torch on a post, and a grassy village of log cabins with thatched and shingled roofs lit by warm lanterns. The white-haired armored swordsman continues swimming forward past the moored rowboats toward the shoreline beneath the elevated wooden dock. He then wades upright out of the shallow water onto the muddy bank, runs past a burning torch post, and vaults over the wooden plank wall into the grassy village. After that he runs through the tall grass between the log cabins, following a dirt path toward a thatched-roof hut. He climbs onto the sloped thatched roof of the hut, scrambles up to the ridge, and stands atop it overlooking the village. Throughout this, the camera continues tracking forward at low height over the water, passing the rowboats and approaching the shore, then follows at close range up the muddy bank, over the wooden plank wall, and through the grassy paths between the cabins, and finally rises and tilts downward as the framing ascends onto a thatched rooftop, then holds a high rear view overlooking the torch-lit village paths and surrounding cabins."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:12.000",
+            "end_time": "00:22.733",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the harbor route reaches shallower water beneath raised docks, then a muddy bank, a timber ramp, and torch-lit village paths between wooden cabins. Wooden roof edges and low plank walls become clearer along the route. <Camera1>The low trailing view advances past the rowboats toward the shoreline, then rises over the bank and continues along the grassy paths</Camera1>. <Camera2>The trailing view ascends over a thatched roof and tilts down toward the surrounding cabins and illuminated paths</Camera2>.",
+            "contained_actions": [
+              {
+                "start_time": "00:12.000",
+                "end_time": "00:16.000",
+                "action_description": "<Action1><|Subject1|> continues swimming forward past the moored rowboats toward the shoreline beneath the elevated wooden dock</Action1>."
+              },
+              {
+                "start_time": "00:16.000",
+                "end_time": "00:18.100",
+                "action_description": "<Action2><|Subject1|> wades upright out of the shallow water onto the muddy bank, runs past a burning torch post, and vaults over the wooden plank wall into the grassy village</Action2>."
+              },
+              {
+                "start_time": "00:18.100",
+                "end_time": "00:20.667",
+                "action_description": "<Action3><|Subject1|> runs through the tall grass between the log cabins, following a dirt path toward a thatched-roof hut</Action3>."
+              },
+              {
+                "start_time": "00:20.667",
+                "end_time": "00:22.733",
+                "action_description": "<Action4><|Subject1|> climbs onto the sloped thatched roof of the hut, scrambles up to the ridge, and stands atop it overlooking the village</Action4>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "fefd293e5c6f0352d8deacdda76208f4_531_1213",
+        "source_group": "video:fefd293e5c6f0352d8deacdda76208f4",
+        "source_line": 29137,
+        "split": "train",
+        "first_frame_sha256": "6ea1cbba9609359983d62be01244e58e1dbead46812fc002b2bfb90756d153c8",
+        "generation_model": "deepseek-flash",
+        "segment_index": 1,
+        "original_example_title": "Swimmer rounds the warship's stern and starts climbing the hull"
+      }
+    },
+    {
+      "example_id": "E9",
+      "title": "I2V text continuation - running woman in beige athletic outfit",
+      "reference_image": "icl_images/C3_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person",
+            "user_prompt": "Follow a barefoot woman with reddish-blonde hair in a beige athletic outfit from behind at a steady chase distance as she runs continuously forward along a paved waterfront promenade at sunset, arms pumping, passing trees and a trash receptacle while heading toward the large arch structure ahead. Keep her centered in the frame throughout. In a video-game visual style, let the arch gradually grow nearer, with overhanging branches briefly crossing the foreground around the midpoint before clearing as the path opens again."
+          },
+          "assistant": {
+            "perspective_view": "third-person follow",
+            "Style": "video game",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "running woman in beige athletic outfit",
+                "subject_attribute": "A female game character has reddish-blonde hair and wears a light beige sleeveless top and matching shorts with darker edging. Bare legs and feet are visible from behind. The camera is placed behind the running woman in beige athletic outfit, and follows the running woman in beige athletic outfit throughout the whole video. The camera is tracking the running woman in beige athletic outfit and the running woman in beige athletic outfit should be placed in the center of the video."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:09.000",
+                "visual_description_long": "The reference image shows a waterfront promenade at sunset, paved with dark polygonal tiles. A narrow water channel runs along the right side behind a low stone edge and railing. An elevated roadway crosses the farther background on broad supports. Grass and mature trees line the left side, and palms and tall light poles stand ahead. A large curved arch structure is visible near the center distance. Warm low sunlight produces long diagonal shadows over the paving, while the sky fades toward cooler blue above. <Camera1>The rear follow view advances steadily down the promenade, with nearby trunks and a trash receptacle passing through the foreground as the arch grows closer</Camera1>. Overhanging foliage briefly crosses the view before clearing.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:09.000",
+                    "action_description": "<Action1><|Subject1|> runs continuously forward along the paved waterfront promenade, arms pumping at <|Subject1|>'s sides, passing trees and a trash receptacle while heading toward the large arch structure ahead</Action1>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/C3_segment_000_0.jpg",
+            "icl_images/C3_segment_000_1.jpg",
+            "icl_images/C3_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "Continue running toward the red-haired jogger and pass the trash receptacle on the left. Pass that jogger and weave between the dark-clothed walker and other pedestrians, then overtake the jogger in a brown top on the curving park path. Push through bushes that briefly hide you, emerge onto the open path and keep running toward the tree line and glowing mountains as dusk deepens. Keep the trailing camera."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:09.000",
+            "end_time": "00:22.700",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the waterfront path curves farther into parkland as dusk deepens. The canal and overpass recede, and scattered pedestrians, grassy verges, darker trees, and glowing distant hills become more prominent. Branches briefly obscure the route before the paving opens again. <Camera1>The rear view advances along the curve with modest lateral adjustments through the pedestrian area and foliage</Camera1>.",
+            "contained_actions": [
+              {
+                "start_time": "00:09.000",
+                "end_time": "00:13.000",
+                "action_description": "<Action1><|Subject1|> continues running forward along the waterfront promenade, steadily closing the distance on a red-haired jogger ahead and passing a trash receptacle on the left</Action1>."
+              },
+              {
+                "start_time": "00:13.000",
+                "end_time": "00:17.100",
+                "action_description": "<Action2><|Subject1|> runs past the red-haired jogger and weaves between a walker in dark clothing and other pedestrians along the path as the light dims</Action2>."
+              },
+              {
+                "start_time": "00:17.100",
+                "end_time": "00:20.100",
+                "action_description": "<Action3><|Subject1|> overtakes a jogger in a brown top on the curving park path and continues past trees and grassy verges as the surroundings darken into dusk</Action3>."
+              },
+              {
+                "start_time": "00:20.100",
+                "end_time": "00:22.700",
+                "action_description": "<Action4><|Subject1|> pushes through dense roadside bushes, becomes briefly occluded, then emerges onto the open path and continues running toward the tree line</Action4>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "d87bac9cbde77e45157ae46eed8f2b5e_0_681",
+        "source_group": "video:d87bac9cbde77e45157ae46eed8f2b5e",
+        "source_line": 15562,
+        "split": "train",
+        "first_frame_sha256": "35b68ab748f56733e136ac6c7abc72262030266c5f04b356ec2e04cbf9e63541",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "Road curves and roadside vegetation thickens while the woman jogs on"
+      }
+    },
+    {
+      "example_id": "E10",
+      "title": "I2V text continuation - auto shop mechanic",
+      "reference_image": "icl_images/D2_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "Real-world footage style: In an auto workshop, the mechanic in the black Hiltz Auto Co. cap and shirt, wearing his yellow-cuffed work gloves, stands beside the exposed rusted chassis of the grey-primer vintage coupe. He first holds up the curved metal strip, rotating and raising it to show its notched, weld-dotted inner edge to the camera. He then lowers it over the chassis rails and adjusts its angle with both gloved hands to check the fit. After that he lifts it away and carries it to the orange rear body panel, raising it to the panel's upper curved edge and pressing, sliding, and aligning it with both hands along the wheel-opening contour. The camera starts with a medium side view, pushes in toward the strip on the chassis around mid-segment, then pulls back and shifts right to reframe the orange panel as the strip is raised toward it."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "auto shop mechanic",
+                "subject_attribute": "An adult mechanic wears a dark button-up work shirt, dark trousers, and heavy yellow-cuffed gloves. The lower face and torso are visible beside a stripped vehicle chassis, with the top of the head outside the initial crop. The camera films the auto shop mechanic from an external position, and the auto shop mechanic is visible in the video. The framing of the video from the camera is independent of the auto shop mechanic, and does not follow the movement of the auto shop mechanic."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:14.000",
+                "visual_description_long": "The reference image opens in an automotive workshop around a partly dismantled vintage coupe. A gray-primer roof and rear body section rise behind an exposed rust-brown chassis. An orange rear panel with a curved wheel opening stands at the right, next to a detached dark door panel. Large treaded tires, brackets, and chassis rails fill the lower work area. Red wall-mounted tool storage, scattered equipment, and a concrete floor form the background under overhead lighting. <Camera1>The view pushes closer toward the curved metal workpiece above the rails, revealing the notched inner edge</Camera1>. <Camera2>It then pulls back and shifts right toward the orange panel and wheel opening as the requested fitting work moves there</Camera2>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:03.000",
+                    "action_description": "<Action1><|Subject1|> stands beside the exposed chassis holding a curved metal strip, rotating and raising it to display its notched, weld-dotted inner edge toward the camera</Action1>."
+                  },
+                  {
+                    "start_time": "00:03.000",
+                    "end_time": "00:08.500",
+                    "action_description": "<Action2><|Subject1|> lowers the curved strip over the chassis rails, grips it with both gloved hands, and adjusts the strip's angle above the frame to check the fit</Action2>."
+                  },
+                  {
+                    "start_time": "00:08.500",
+                    "end_time": "00:11.000",
+                    "action_description": "<Action3><|Subject1|> lifts the strip from the chassis, carries it toward the orange rear body panel, and raises it to the panel's upper curved edge</Action3>."
+                  },
+                  {
+                    "start_time": "00:11.000",
+                    "end_time": "00:14.000",
+                    "action_description": "<Action4><|Subject1|> presses the curved strip against the orange panel edge and slides the strip with both hands along the wheel-opening contour</Action4>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/D2_segment_000_0.jpg",
+            "icl_images/D2_segment_000_1.jpg",
+            "icl_images/D2_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "subsequent_text_prompt": "Continue pressing and sliding the strip along the orange panel's upper edge, then bend forward to adjust its lower section near the wheel opening. Hold it with one hand while gesturing and pointing with the other, then return both hands to press and adjust the strip. Finally turn your head toward the camera with both hands still on the workpiece."
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:14.000",
+            "end_time": "00:29.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the curved metal strip sits more closely aligned along the orange panel's upper edge and wheel-opening contour. The chassis, workshop equipment, and background layout remain unchanged.",
+            "contained_actions": [
+              {
+                "start_time": "00:14.000",
+                "end_time": "00:18.000",
+                "action_description": "<Action1><|Subject1|> presses the curved metal strip against the upper edge of the orange rear body panel with both gloved hands, sliding the fingers along its length to seat it into the panel contour</Action1>."
+              },
+              {
+                "start_time": "00:18.000",
+                "end_time": "00:21.500",
+                "action_description": "<Action2><|Subject1|> works the strip downward along the panel edge, bending forward to press and adjust its lower section near the wheel opening</Action2>."
+              },
+              {
+                "start_time": "00:21.500",
+                "end_time": "00:25.000",
+                "action_description": "<Action3><|Subject1|> holds the strip steady with one hand while raising the other hand to gesture and point, then returns both hands to continue pressing the strip against the panel</Action3>."
+              },
+              {
+                "start_time": "00:25.000",
+                "end_time": "00:29.000",
+                "action_description": "<Action4><|Subject1|> resumes adjusting the strip along the panel edge, then turns the head toward the camera while keeping both hands on the workpiece</Action4>."
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "item_id": "34742e58dd6b5d67c7b56c4e129ca234_0_1745",
+        "source_group": "video:34742e58dd6b5d67c7b56c4e129ca234",
+        "source_line": 3799,
+        "split": "train",
+        "first_frame_sha256": "7b9228008064fb283fd9e17a54d94d5b3f4f0a61be0beb242f1ae7c6e11ce07b",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "Fine-tuning the mounted engine and the drive chain"
+      }
+    },
+    {
+      "example_id": "F1",
+      "title": "I2V camera control - black A-TRAIN passenger train",
+      "reference_image": "icl_images/F1_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "From a fixed wide third-person view at dusk, a black A-TRAIN passenger train with white 'A-TRAIN' lettering, gold-striped car sides, and bright headlights approaches steadily along the rightmost curved track toward the camera, growing from a small distant silhouette into a much larger form reaching the mid-right of the frame by the end. Keep the camera completely static in a real-world-footage style."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "black A-TRAIN passenger train",
+                "subject_attribute": "A distant dark passenger train has bright lamps on the front and a small box-like silhouette near the rightmost curved track. The camera films the black A-TRAIN passenger train from an external position, and the black A-TRAIN passenger train is visible in the video. The framing of the video from the camera is independent of the black A-TRAIN passenger train, and does not follow the movement of the black A-TRAIN passenger train."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:15.000",
+                "visual_description_long": "The opening image shows a railway yard under low evening light. Several steel tracks curve through dark gravel in the foreground and converge toward the background. Metal catenary poles, crossbeams, and a dense network of overhead wires divide the upper view. A large scaffold-covered building stands behind the tracks at the right, while a fenced construction area with pale panels and a blue tarp occupies the left. Small trackside boards and a distant red signal punctuate the scene. Low hills are faintly visible beyond the structures under a warm pale sky. The same broad arrangement remains visible during the requested approach, with no intentional camera movement.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:15.000",
+                    "action_description": "<Action1><|Subject1|> approaches steadily on the rightmost curved track, growing from a distant lit silhouette to a larger dark front near the right side</Action1>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F1_segment_000_0.jpg",
+            "icl_images/F1_segment_000_1.jpg",
+            "icl_images/F1_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 15000,
+          "keyEvents": [
+            {
+              "t": 14958.333333333334,
+              "code": "KeyD",
+              "pressed": true
+            },
+            {
+              "t": 15000.0,
+              "code": "KeyD",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:15.000",
+            "end_time": "00:30.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the visible scene and composition transition continuously.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "ac25999779f7cdec9431eb96d5397e43_132_1878",
+        "source_group": "video:ac25999779f7cdec9431eb96d5397e43",
+        "source_line": 12368,
+        "split": "train",
+        "first_frame_sha256": "eaafc264416631ed357ee702807bedb51314fddbcfb7704d72d9c3e2a4801150",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "`KeyD` held across a full 15-second segment"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "insufficient_evidence_fallback",
+        "reason": "KeyD is active during only the final 41.67 ms. Without a calibrated movement scale, exact unchanged composition is not justified."
+      }
+    },
+    {
+      "example_id": "F2",
+      "title": "I2V camera control - freight train of autorack cars",
+      "reference_image": "icl_images/F2_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "Using the reference image as the opening scene, show the long freight train of coupled double-deck autorack cars traveling continuously along the curved track from the left foreground toward the right background over about 12 seconds, passing the fixed roadside viewpoint car by car. Successive silver corrugated railcars steadily traverse the frame from left to right, continuously revealing new car sides, yellow and brown door frames, rust streaks, and graffiti markings as the train recedes. Keep the camera at a stable fixed roadside position with a fixed composition that does not follow the train's movement; the train's motion should be the subject movement, not camera movement. Real-world-footage visual style."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "freight train of autorack cars",
+                "subject_attribute": "A single connected freight consist has tall autorack cars with corrugated silver siding, darker end frames, and visible weathering. The nearest car fills the left opening crop while further cars recede around the curve. The camera films the freight train of autorack cars from an external position, and the freight train of autorack cars is visible in the video. The framing of the video from the camera is independent of the freight train of autorack cars, and does not follow the movement of the freight train of autorack cars."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:12.000",
+                "visual_description_long": "A curved railway line runs beside a damp paved roadside in the reference image. Gray ballast borders the rails, and shallow wet patches darken the pavement at the right. A red stop sign stands near a pale fence in the background, with a partly hidden light-colored vehicle beyond it. Overhanging green and yellow leaves frame the upper-right corner, while more vegetation fills the far distance. Flat overcast light creates soft reflections without strong shadows. The roadside position remains unchanged throughout the requested passage. Gaps beyond the passing traffic preserve the same curved track, fence, sign, and tree-lined background rather than introducing a new location.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:12.000",
+                    "action_description": "<Action1><|Subject1|> travels continuously along the curved track from the left foreground toward the right background, with the connected cars passing in sequence</Action1>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F2_segment_000_0.jpg",
+            "icl_images/F2_segment_000_1.jpg",
+            "icl_images/F2_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 11000,
+          "keyEvents": [
+            {
+              "t": 0.0,
+              "code": "KeyW",
+              "pressed": true
+            },
+            {
+              "t": 11000.0,
+              "code": "KeyW",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:12.000",
+            "end_time": "00:23.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the gravel ballast and damp roadside pavement occupy a larger portion of the foreground. The same curved railway corridor, pale fence, red stop sign, and overhanging leaves remain recognizable beyond them.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "765fca769be52bffd20e9947c3482c9d_132_2011",
+        "source_group": "video:765fca769be52bffd20e9947c3482c9d",
+        "source_line": 8546,
+        "split": "train",
+        "first_frame_sha256": "6b8287fe4d1b2893de041c5721c5470bc1eaf24f6ec52651fe7be041029f507b",
+        "generation_model": "deepseek-flash",
+        "segment_index": 1,
+        "original_example_title": "`KeyW` — moving forward toward a library reading-room entrance"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "qualitative_existing_scene_delta",
+        "reason": "KeyW is active for 11 seconds. Forward movement qualitatively expands the already observed foreground ballast and pavement; no speed or hidden objects are inferred."
+      }
+    },
+    {
+      "example_id": "F3",
+      "title": "I2V camera control - skier in tan jacket",
+      "reference_image": "icl_images/F3_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "An adult skier in a tan/olive jacket, white helmet, reflective purple-blue goggles, dark navy pants, yellow gloves, orange ski boots, and orange-accented skis, holding red-and-black poles, descends a sunny groomed alpine slope toward the camera in real-world footage, steady and frontal from a fixed-looking downhill vantage. Over the first couple of seconds the skier glides downhill toward the camera in an upright balanced stance, poles held low, skis roughly parallel. Then the skier bends the knees, spreads the ski tips into a wedge, angles the poles outward, and kicks up loose snow while slowing and steering. Continuing the controlled descent with linked edging and slight weight shifts, the skier passes closer to the fixed viewpoint as the skis leave visible tracks in the groomed surface."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "skier in tan jacket",
+                "subject_attribute": "An adult skier wears an olive-tan jacket, a pale helmet, reflective purple-blue goggles, dark trousers, and orange boots, with two poles at the sides. The initial stance is nearly side-on on the slope. The camera films the skier in tan jacket from an external position, and the skier in tan jacket is visible in the video. The framing of the video from the camera is independent of the skier in tan jacket, and does not follow the movement of the skier in tan jacket."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:08.000",
+                "visual_description_long": "The reference image opens on a broad alpine snow slope beneath a clear deep-blue sky. Pale ridges rise gently along the left and right background, enclosing the open descent. Packed snow shows faint grooves, scattered scuffs, and small clumps in the foreground. Direct sunlight creates sharp cool-toned shadows across the white surface. A few tiny distant figures are visible near the upper-right ridge, but no nearby crowd or building fills the slope. During the requested descent, loose snow briefly spreads over the existing grooves and fresh tracks become more pronounced across the open foreground. The same pale ridges and clear sky remain behind the descent without a prescribed camera move.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:02.500",
+                    "action_description": "<Action1><|Subject1|> glides downhill toward the camera in an upright balanced stance, holding both poles low and keeping the skis roughly parallel</Action1>."
+                  },
+                  {
+                    "start_time": "00:02.500",
+                    "end_time": "00:05.300",
+                    "action_description": "<Action2><|Subject1|> bends the knees, spreads the ski tips into a wedge, and angles the poles outward while slowing and steering</Action2>."
+                  },
+                  {
+                    "start_time": "00:05.300",
+                    "end_time": "00:08.000",
+                    "action_description": "<Action3><|Subject1|> continues the controlled descent with linked edging and slight weight shifts, maintaining a balanced stance on the skis</Action3>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F3_segment_000_0.jpg",
+            "icl_images/F3_segment_000_1.jpg",
+            "icl_images/F3_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 9000,
+          "keyEvents": [
+            {
+              "t": 0.0,
+              "code": "KeyS",
+              "pressed": true
+            },
+            {
+              "t": 9000.0,
+              "code": "KeyS",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:08.000",
+            "end_time": "00:17.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, a broader expanse of the established packed-snow descent separates the foreground from the pale ridges. Existing ski grooves and scattered clumps continue across the open snow beneath the same clear blue sky, with the orange-topped marker still near the right boundary.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "f1a28388e134bbe890b84a7451aefc37_0_1079",
+        "source_group": "video:f1a28388e134bbe890b84a7451aefc37",
+        "source_line": 17305,
+        "split": "train",
+        "first_frame_sha256": "dc86a6f78668bcd4a473dd603a019dc9d2b46c38f0b89b7827db20a1fcc2d4a2",
+        "generation_model": "deepseek-flash",
+        "segment_index": 1,
+        "original_example_title": "`KeyS` — backing away from a covered market spice stall"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "qualitative_existing_scene_delta",
+        "reason": "KeyS is active for 9 seconds. A broader interval of known snow terrain is described. The future snowmaking machine is removed."
+      }
+    },
+    {
+      "example_id": "F4",
+      "title": "I2V camera control - blue RC crawler truck",
+      "reference_image": "icl_images/F4_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "Real-world footage style, third-person view. A blue RC rock crawler truck rests at the edge of a lake, front wheels on a dark layered rock and rear half in shallow water. Over about eight seconds, it pulls itself forward with its front tires churning against the rock, then climbs higher with the front suspension compressing and extending as the rear wheels drag through the water, kicking up small splashes and ripples. It then pivots over the rock crest with its right-front tire lifted and articulating while the rear end rises partway out of the water. Keep the camera at a close, low, slightly front-side angle with only minor handheld drift and subtle reframing, independent of the truck's movement, in bright sunlight."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "blue RC crawler truck",
+                "subject_attribute": "A small bright-blue RC crawler truck has a boxy pickup body, large black knobby tires with red wheel centers, a dark bumper, and visible suspension links. The front tires rest on the rock while the rear portion is in the water. The camera films the blue RC crawler truck from an external position, and the blue RC crawler truck is visible in the video. The framing of the video from the camera is independent of the blue RC crawler truck, and does not follow the movement of the blue RC crawler truck."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:08.000",
+                "visual_description_long": "The opening image shows a shallow lakeshore in bright daylight. Dark brown layered rock rises from the lower-left foreground, with ridged surfaces and wet edges where it meets the water. Green-brown water fills the rest of the view, carrying small ripples and soft reflections from the far bank. A low tan rocky shoreline runs across the upper background. Submerged stones remain faintly visible near the foreground, giving the water a shallow appearance. During the requested climb, small splashes and spreading rings disturb the surface beside the rock, while sunlight continues to highlight wet stone. <Camera1>The close low view drifts gently with subtle reframing while remaining in the same front-side lakeshore position</Camera1>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:02.500",
+                    "action_description": "<Action1><|Subject1|> grips the layered rock with the front tires and begins pulling forward from the shallow water</Action1>."
+                  },
+                  {
+                    "start_time": "00:02.500",
+                    "end_time": "00:05.500",
+                    "action_description": "<Action2><|Subject1|> climbs higher onto the rock as <|Subject1|>'s front suspension compresses and extends and the rear wheels drag through the water</Action2>."
+                  },
+                  {
+                    "start_time": "00:05.500",
+                    "end_time": "00:08.000",
+                    "action_description": "<Action3><|Subject1|> crawls upward and pivots over the rock crest with <|Subject1|>'s right-front tire lifted and articulating while the rear end rises partly out of the water</Action3>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F4_segment_000_0.jpg",
+            "icl_images/F4_segment_000_1.jpg",
+            "icl_images/F4_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 9000,
+          "keyEvents": [
+            {
+              "t": 4000.0,
+              "code": "KeyA",
+              "pressed": true
+            },
+            {
+              "t": 4041.666666666667,
+              "code": "KeyA",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:08.000",
+            "end_time": "00:17.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the visible scene and composition transition continuously.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "1b9e3d44a60d2b89d916a56943e100c0_0_1346",
+        "source_group": "video:1b9e3d44a60d2b89d916a56943e100c0",
+        "source_line": 2010,
+        "split": "train",
+        "first_frame_sha256": "e613f026888d47e42aeef88de255a8f6aecdf30d38fc7e2c89d38832ad1653b4",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "`KeyA` — stepping left in a maritime museum gallery"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "insufficient_evidence_fallback",
+        "reason": "A single 41.67 ms KeyA tap cannot establish the legacy substantial widening or higher viewpoint."
+      }
+    },
+    {
+      "example_id": "F5",
+      "title": "I2V camera control - commercial airliner",
+      "reference_image": "icl_images/F5_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "first-person",
+            "user_prompt": "First-person view from the right-side white wing of a commercial airliner in flight. Over about 13 seconds, the aircraft holds steady in forward flight at altitude above a sprawling city, gliding smoothly forward so the cityscape below—warehouses, roads, green vegetation, and reddish-brown residential rooftops—streams slowly from the top toward the bottom of the frame. Ahead, the dramatic sky shows massive white cumulus clouds, a patch of deep blue, and a dark gray storm front with visible rain curtains on the horizon, which the aircraft steadily approaches. Bright daylight illuminates the scene throughout."
+          },
+          "assistant": {
+            "perspective_view": "first-person",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "commercial airliner",
+                "subject_attribute": "A commercial airliner is visible only through a white wing extending from the right edge, with a raised wingtip and dark panel seams. The rest of the aircraft remains outside the crop. The commercial airliner is embodied by the camera, and has the same first-person viewpoint as the camera throughout the whole video. Most of the commercial airliner is not visible, and optionally only a small part of the commercial airliner can be seen in the video."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:13.000",
+                "visual_description_long": "The reference image opens high above a sprawling urban area. Large pale warehouse roofs, smaller residential blocks, roads, and green vegetation form a dense grid beneath the horizon. Massive white cumulus clouds rise across the upper sky, with a deep-blue patch at the right and a darker gray storm front stretching across the left and center. Faint rain curtains descend toward the distant terrain. Bright daylight produces strong contrast between the sunlit buildings and cloud shadows. <Camera1>The onboard aerial view advances smoothly toward the horizon, allowing successive rooftops and road blocks to pass slowly downward through the frame while maintaining the same general direction</Camera1>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:13.000",
+                    "action_description": "<Action1><|Subject1|> maintains steady forward flight at altitude while only <|Subject1|>'s wing remains visible at the frame edge without abrupt roll or wing movement</Action1>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F5_segment_000_0.jpg",
+            "icl_images/F5_segment_000_1.jpg",
+            "icl_images/F5_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 12000,
+          "keyEvents": [
+            {
+              "t": 0.0,
+              "code": "KeyD",
+              "pressed": true
+            },
+            {
+              "t": 12000.0,
+              "code": "KeyD",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:13.000",
+            "end_time": "00:25.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the visible scene and composition transition continuously.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "ef263efff8d16fcaf0a5d1d26b052206_0_3979",
+        "source_group": "video:ef263efff8d16fcaf0a5d1d26b052206",
+        "source_line": 17102,
+        "split": "train",
+        "first_frame_sha256": "082b6707f1b30c431bb1cdd2adc8dd1de458921012327840f8d6564d7ec4c1c9",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "`KeyD` — stepping right in a greenhouse aisle"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "insufficient_evidence_fallback",
+        "reason": "KeyD is lateral rather than forward flight. The later canal and field are not inferred from uncalibrated lateral motion."
+      }
+    },
+    {
+      "example_id": "F6",
+      "title": "I2V camera control - gray and white cat",
+      "reference_image": "icl_images/F6_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "In a real-world-footage style, film the gray-and-white cat resting on the parked silver-gray car. Over the first few seconds, the cat lies curled on its side atop the roof and dark sunroof, eyes closed and body mostly motionless. The camera tracks and arcs steadily in a third-person view along the car's roofline from left to right, gradually revealing more of the roof and the urban street behind it, then continues its slow arc while tightening the framing closer toward the dark sunroof; keep this as camera motion, not cat movement. During the later part of the clip, the cat remains sprawled on the sunroof with legs extended, briefly opens its eyes partway, twitches its ears and whiskers, and slightly shifts its head before settling back into a resting pose. Let the daylight reflections on the glossy car roof continue as the cat stays in place."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "gray and white cat",
+                "subject_attribute": "A gray-and-white cat is partly visible along the roof of a parked car near the left edge. Gray and white fur patches are visible at the initial distance. The camera films the gray and white cat from an external position, and the gray and white cat is visible in the video. The framing of the video from the camera is independent of the gray and white cat, and does not follow the movement of the gray and white cat."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:10.000",
+                "visual_description_long": "A parked silver-gray car occupies the lower part of the opening image, with a glossy roof reflecting nearby trees and a dark sunroof set into the upper surface. Behind it is a modern building facade with broad glass windows, dark frames, and a gray projecting ledge. A mature tree trunk rises near the center-right, with thin branches and green leaves spreading above the car. Daylight is soft enough to preserve window reflections and roof highlights without deep glare. The surrounding street remains continuous as more of the adjacent frontage appears. <Camera1>The view arcs right along the roofline, progressively revealing the neighboring storefront and sidewalk</Camera1>. <Camera2>The view then moves closer toward the sunroof while preserving the same street setting</Camera2>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:05.000",
+                    "action_description": "<Action1><|Subject1|> lies curled on the car roof, resting with eyes mostly closed and remaining in place</Action1>."
+                  },
+                  {
+                    "start_time": "00:05.000",
+                    "end_time": "00:10.000",
+                    "action_description": "<Action2><|Subject1|> remains sprawled on the dark sunroof with legs extended, briefly opens the eyes, twitches the ears and whiskers, and shifts the head slightly before settling</Action2>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F6_segment_000_0.jpg",
+            "icl_images/F6_segment_000_1.jpg",
+            "icl_images/F6_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 5000,
+          "keyEvents": [
+            {
+              "t": 1375.0,
+              "code": "ArrowLeft",
+              "pressed": true
+            },
+            {
+              "t": 1416.6666666666667,
+              "code": "ArrowLeft",
+              "pressed": false
+            },
+            {
+              "t": 1583.3333333333333,
+              "code": "ArrowLeft",
+              "pressed": true
+            },
+            {
+              "t": 1625.0,
+              "code": "ArrowLeft",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:10.000",
+            "end_time": "00:15.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the existing storefront glazing and the portion of the street facade on the left become slightly more prominent. The same reflective car roof, market frontage, and leafy branches remain within the scene under unchanged daylight.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "2fcc063c241bc27929e657359c6191d7_0_1139",
+        "source_group": "video:2fcc063c241bc27929e657359c6191d7",
+        "source_line": 3456,
+        "split": "train",
+        "first_frame_sha256": "d3d65966ec150f3c81d49b1eaf96653b5ebef8e495534385c8d76641ea9d960d",
+        "generation_model": "deepseek-flash",
+        "segment_index": 1,
+        "original_example_title": "`ArrowLeft` — looking left across a stone courtyard"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "qualitative_existing_scene_delta",
+        "reason": "Two short ArrowLeft taps support only a modest left-side reveal of previously observed storefront glazing. No focus or zoom change is inferred."
+      }
+    },
+    {
+      "example_id": "F7",
+      "title": "I2V camera control - red agricultural tractor on display",
+      "reference_image": "icl_images/F7_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "Film the glossy red agricultural tractor on display in the trade-show hall. Keep the tractor parked and stationary throughout, with its cab glass, lights, mirrors, and body panels holding fixed positions. Start close to its upper cab near the roof-mounted work lights and side window, then slowly arc left and downward toward the lower bodywork so the oversized tread blocks rise into the foreground. Continue the smooth arc without a cut, widening from a low, slightly upward angle to include neighboring machinery, the CASE IH flag, and suspended banners under the high steel-trussed ceiling, including a pale sign that progressively reveals the wording \"NO ONE WILL OUTWORK\". Use real-world footage style."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "red agricultural tractor on display",
+                "subject_attribute": "A glossy red tractor has a tall glazed cab, dark window frames, roof lights, mirrors, and red body panels. The lower wheels are partly outside the initial upward-looking crop. The camera films the red agricultural tractor on display from an external position, and the red agricultural tractor on display is visible in the video. The framing of the video from the camera is independent of the red agricultural tractor on display, and does not follow the movement of the red agricultural tractor on display."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:09.000",
+                "visual_description_long": "The reference image opens inside an agricultural exhibition hall. Steel roof trusses, ventilation ducts, circular ceiling diffusers, and bright overhead lamps fill the upper background. Suspended banners and adjacent equipment provide layers behind the close foreground, with glossy painted surfaces and glass reflecting the hall lights. The opening angle looks slightly upward, so the ceiling occupies a large portion of the frame. <Camera1>The view arcs left and downward from the upper display area toward floor level</Camera1>. <Camera2>The view then widens slightly to reveal neighboring machinery, a CASE IH exhibition flag, and a pale suspended banner progressively revealing the requested wording NO ONE WILL OUTWORK</Camera2>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:09.000",
+                    "action_description": "<Action1><|Subject1|> remains parked and stationary on the exhibition floor, with no movement of <|Subject1|>'s wheels, cab, lights, mirrors, or body panels</Action1>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F7_segment_000_0.jpg",
+            "icl_images/F7_segment_000_1.jpg",
+            "icl_images/F7_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 8000,
+          "keyEvents": [
+            {
+              "t": 5750.0,
+              "code": "ArrowRight",
+              "pressed": true
+            },
+            {
+              "t": 5791.666666666667,
+              "code": "ArrowRight",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:09.000",
+            "end_time": "00:17.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the visible scene and composition transition continuously.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "d27ccc9b8e843e84e28369d4287256a0_0_1713",
+        "source_group": "video:d27ccc9b8e843e84e28369d4287256a0",
+        "source_line": 15138,
+        "split": "train",
+        "first_frame_sha256": "0b9ba8815c5cd2d1bfb0cb5256910236072c9aa64508ee53457a15685f6f23de",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "`ArrowRight` — looking right inside a timber cabin"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "insufficient_evidence_fallback",
+        "reason": "A short ArrowRight tap does not support the legacy downward close-up or reveal hidden hoses, chains, and a coupling."
+      }
+    },
+    {
+      "example_id": "F8",
+      "title": "I2V camera control - woman on slackline",
+      "reference_image": "icl_images/F8_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "In real-world-footage style, a woman with long dark curly hair partly tied up, wearing a turquoise tank top with white lettering, dark patterned capri leggings, a pink wristband, and barefoot, is bent over a light blue slackline in a sunny grassy park, gripping it with both hands while stepping her legs over and around the line to straddle it. She then straightens up, releases her left hand, looks ahead, and balances with the line against her hip held by her right hand. The camera tracks laterally in a close side view, keeping a steady medium composition along the slackline as the background lawn and trees drift behind, and a pile of gear and bags near bushes on the right comes into view by the end."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "woman on slackline",
+                "subject_attribute": "A woman with dark curly hair wears a turquoise sleeveless top, dark patterned leggings, and a pink wristband. The upper body and hands are visible near a blue slackline, while the feet are outside the initial crop. The camera films the woman on slackline from an external position, and the woman on slackline is visible in the video. The framing of the video from the camera is independent of the woman on slackline, and does not follow the movement of the woman on slackline."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:05.000",
+                "visual_description_long": "The reference image shows a sunny park lawn with broad areas of bright green grass and darker tree shade. Mature trees stand across the middle and far distance, with dense bushes along the right boundary. A pale-blue slackline runs diagonally from the lower foreground toward the right side, with its far anchoring area initially outside the crop. Small distant figures are scattered over the open lawn. Direct sunlight creates crisp leaf-shaped shadows across the grass. <Camera1>The view shifts gently along the slackline area, progressively exposing more of the right-side bushes and nearby gear while preserving the same park location and close side-on perspective</Camera1>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:02.500",
+                    "action_description": "<Action1><|Subject1|> bends forward over the slackline and grips it with both hands at thigh level while stepping the legs over and around the line</Action1>."
+                  },
+                  {
+                    "start_time": "00:02.500",
+                    "end_time": "00:05.000",
+                    "action_description": "<Action2><|Subject1|> straightens the torso, releases the left hand, and looks ahead while balancing with the line held against <|Subject1|>'s hip by the right hand</Action2>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F8_segment_000_0.jpg",
+            "icl_images/F8_segment_000_1.jpg",
+            "icl_images/F8_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 11000,
+          "keyEvents": [
+            {
+              "t": 666.6666666666666,
+              "code": "ArrowUp",
+              "pressed": true
+            },
+            {
+              "t": 708.3333333333334,
+              "code": "ArrowUp",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:05.000",
+            "end_time": "00:16.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the previously visible leafy branches and pale gaps above the lawn occupy slightly more of the upper scene. The same open grass, shaded ground, and background bushes remain below.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "63f99f915b3049db13bf75b3d17c3531_0_3046",
+        "source_group": "video:63f99f915b3049db13bf75b3d17c3531",
+        "source_line": 7320,
+        "split": "train",
+        "first_frame_sha256": "19e1fb14cfff7857b28b9c4c7a20fde8353578f18cc4ec595ca0542c3eb231a1",
+        "generation_model": "glm-5.3-flashx",
+        "segment_index": 1,
+        "original_example_title": "`ArrowUp` — looking up in a railway concourse"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "qualitative_existing_scene_delta",
+        "reason": "ArrowUp supports only a small upward reveal of branches and bright gaps already at the prior upper edge. The later anchor strap is removed."
+      }
+    },
+    {
+      "example_id": "F9",
+      "title": "I2V camera control - white-flowering tree",
+      "reference_image": "icl_images/F9_reference.jpg",
+      "history": [
+        {
+          "user": {
+            "perspective_view": "third-person observer",
+            "user_prompt": "Generate a real-world-footage shot of the large white-flowering deciduous tree standing at the grassy roadside verge. Keep the tree in place at the verge, its dense clusters of white four-petaled flowers over dark green leaves filling the center of the frame, with the branches swaying subtly in the air. Over the 14 seconds, slowly pan leftward past the nearby peace pole so it exits the right side of the frame, then continue drifting left with a subtle push toward the white blossoms, gradually filling more of the frame with the flowering canopy. Keep the background activity of cars driving through the distant intersection under the bright overcast light."
+          },
+          "assistant": {
+            "perspective_view": "third-person observer",
+            "Style": "real-world footage",
+            "subject_list": [
+              {
+                "subject_id": "<|Subject1|>",
+                "display_name": "white-flowering tree",
+                "subject_attribute": "A dense leafy tree has pale white flower-like bracts with dark green foliage beneath. The canopy fills most of the opening view, with the trunk obscured by foliage. The camera films the white-flowering tree from an external position, and the white-flowering tree is visible in the video. The framing of the video from the camera is independent of the white-flowering tree, and does not follow the movement of the white-flowering tree."
+              }
+            ],
+            "segments": [
+              {
+                "start_time": "00:00.000",
+                "end_time": "00:14.000",
+                "visual_description_long": "The opening image shows a roadside planting area with low reddish-purple and green shrubs along the foreground. A yellow-green strip of grass separates the planting bed from gray pavement and a curved intersection beyond. Another small tree, utility poles, and low distant structures appear across the road. A tall white peace pole stands on the right, partly overlapped by pine branches and small brown cones. Diffuse overcast light keeps the roadside colors soft and evenly lit. Distant cars continue through the intersection as requested. <Camera1>The view pans gently left past the pole so it exits the right edge</Camera1>. <Camera2>The view continues with a modest push toward the planting area while the distant intersection remains visible through the gaps</Camera2>.",
+                "description_change": null,
+                "contained_actions": [
+                  {
+                    "start_time": "00:00.000",
+                    "end_time": "00:14.000",
+                    "action_description": "<Action1><|Subject1|> remains rooted in place at the roadside verge while <|Subject1|>'s branches sway subtly in the air</Action1>."
+                  }
+                ]
+              }
+            ]
+          },
+          "video_frames": [
+            "icl_images/F9_segment_000_0.jpg",
+            "icl_images/F9_segment_000_1.jpg",
+            "icl_images/F9_segment_000_2.jpg"
+          ]
+        }
+      ],
+      "user": {
+        "camera_control": {
+          "durationMs": 15000,
+          "keyEvents": [
+            {
+              "t": 10541.666666666666,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 10583.333333333334,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 10708.333333333334,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 10750.0,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 10875.0,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 10916.666666666666,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 11041.666666666666,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 11083.333333333334,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 11208.333333333334,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 11250.0,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 11375.0,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 11416.666666666666,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 11541.666666666666,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 11583.333333333334,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 11708.333333333334,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 11750.0,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 11875.0,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 11916.666666666666,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 12041.666666666666,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 12083.333333333334,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 12208.333333333334,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 12250.0,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 12375.0,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 12416.666666666666,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 12541.666666666666,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 12583.333333333334,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 12708.333333333334,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 12750.0,
+              "code": "ArrowDown",
+              "pressed": false
+            },
+            {
+              "t": 12875.0,
+              "code": "ArrowDown",
+              "pressed": true
+            },
+            {
+              "t": 12916.666666666666,
+              "code": "ArrowDown",
+              "pressed": false
+            }
+          ]
+        }
+      },
+      "assistant": {
+        "segments": [
+          {
+            "start_time": "00:14.000",
+            "end_time": "00:29.000",
+            "visual_description_long": null,
+            "description_change": "Compared to the previous segment, the established reddish-purple and green ground-cover shrubs occupy more of the lower scene, together with the pale grassy verge. The paved intersection remains farther behind the planting bed under the same diffuse daylight.",
+            "contained_actions": []
+          }
+        ]
+      },
+      "source": {
+        "item_id": "f26bdb919d774c8f4932dfa0b305e9fd_0_1745",
+        "source_group": "video:f26bdb919d774c8f4932dfa0b305e9fd",
+        "source_line": 17344,
+        "split": "train",
+        "first_frame_sha256": "58787ca9471f60eb8686bb17addd37ff99dfb2a019954578b8f8de41b3762e99",
+        "generation_model": "deepseek-flash",
+        "segment_index": 1,
+        "original_example_title": "`ArrowDown` — looking down from a cliffside overlook"
+      },
+      "camera_review": {
+        "status": "reviewed_conservative",
+        "decision": "qualitative_existing_scene_delta",
+        "reason": "Repeated ArrowDown taps support lower coverage of the already observed planting bed. A particular passing SUV is not inferred."
+      }
+    }
+  ]
+}

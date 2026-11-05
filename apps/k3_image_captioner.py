@@ -16,7 +16,7 @@ from apps.reference_image import REFERENCE_SECONDS, REFERENCE_VISIBLE_SECONDS
 
 from apps.kimi_k3_prompt_enhancer import (
     ALLOWED_STYLES, USER_PERSPECTIVES, EnhancedPrompt, PromptEnhancementError,
-    _extract_json, _retime_segment, validate_response,
+    I2V_PROMPT_PROFILE, _extract_json, _retime_segment, validate_response,
 )
 
 
@@ -47,6 +47,36 @@ Leave contained_actions empty; put the visual description in
 visual_description_long. Output English captions and raw JSON only, without
 Markdown fences.
 """
+
+def _reference_image_url(image_path: Path) -> str:
+    with Image.open(image_path) as source:
+        image = source.convert("RGB")
+        image.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=90)
+    return "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def _i2v_user_input(perspective: str) -> dict:
+    perspective = selected_perspective(perspective)
+    return {
+        # The UI uses the internal name; the new I2V wire schema uses the public name.
+        "perspective_view": "third-person" if perspective == "third-person follow" else perspective,
+        "user_prompt": (
+            f"Establish the initial {REFERENCE_SECONDS}-second segment from the reference image. "
+            "Preserve its visible subject appearance and environment. "
+            "No subject action, environment change, or camera motion is requested. "
+            f"Use start_time 00:00.000 and end_time 00:0{REFERENCE_SECONDS}.000."
+        ),
+    }
+
+
+def _i2v_user_message(image_url: str, perspective: str) -> dict:
+    return {"role": "user", "content": [
+        {"type": "text", "text": I2V_PROMPT_PROFILE.first_turn_prompt},
+        {"type": "text", "text": json.dumps(_i2v_user_input(perspective), ensure_ascii=False)},
+        {"type": "image_url", "image_url": {"url": image_url}},
+    ]}
 
 
 class K3ImageCaptioner:
@@ -95,21 +125,18 @@ class K3ImageCaptioner:
             payload.update(max_completion_tokens=4096, response_format={"type": "json_object"}, temperature=1.0, top_p=0.95, stream=False)
         return payload
 
-    def caption(self, image_path: Path, *, fps=24, perspective="third-person follow"):
-        perspective = selected_perspective(perspective)
-        with Image.open(image_path) as source:
-            image = source.convert("RGB")
-            image.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
-            buffer = io.BytesIO()
-            image.save(buffer, format="JPEG", quality=90)
-        image_url = "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
-        messages = [
+    def _messages(self, image_url, perspective):
+        return [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": [
                 {"type": "text", "text": self._user_prompt(perspective)},
                 {"type": "image_url", "image_url": {"url": image_url}},
             ]},
         ]
+
+    def caption(self, image_path: Path, *, fps=24, perspective="third-person follow"):
+        perspective = selected_perspective(perspective)
+        messages = self._messages(_reference_image_url(image_path), perspective)
         payload = self._payload(messages)
         try:
             with self.session.post(self.api_url, headers=self._headers(image_path.stem), json=payload,
@@ -142,7 +169,10 @@ class K3ImageCaptioner:
                     request_id = request_id or data.get("id")
                     raw = data["choices"][0]["message"]["content"]
             parsed = _extract_json(raw)
-            return normalize_caption(parsed, fps=fps, model=self.model, request_id=request_id, perspective=perspective)
+            record = normalize_caption(parsed, fps=fps, model=self.model, request_id=request_id, perspective=perspective)
+            if self.system_prompt == I2V_PROMPT_PROFILE.system_prompt:
+                record.update(prompt_profile=I2V_PROMPT_PROFILE.name, user_message=messages[-1])
+            return record
         except requests.RequestException as exc:
             raise PromptEnhancementError(f"{self.display_name} image captioning connection failed ({type(exc).__name__})") from None
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
@@ -153,20 +183,16 @@ class NomasImageCaptioner(K3ImageCaptioner):
     """Use the local OpenAI-compatible PE endpoint, without K3 credentials."""
 
     display_name = "Nomas-PE"
-    system_prompt = (
-        Path(__file__).resolve().parent / "prompts_i2v" / "online_user_video_rewriter_system_prompt.md"
-    ).read_text(encoding="utf-8").strip()
+    system_prompt = I2V_PROMPT_PROFILE.system_prompt
 
     def _user_prompt(self, perspective):
-        return json.dumps({
-            "perspective_view": perspective,
-            "user_prompt": (
-                f"Establish the initial {REFERENCE_SECONDS}-second segment from the reference image. "
-                "Preserve its visible subject appearance and environment. "
-                "No subject action, environment change, or camera motion is requested. "
-                f"Use start_time 00:00.000 and end_time 00:0{REFERENCE_SECONDS}.000."
-            ),
-        })
+        return json.dumps(_i2v_user_input(perspective))
+
+    def _messages(self, image_url, perspective):
+        return [
+            {"role": "system", "content": self.system_prompt},
+            _i2v_user_message(image_url, perspective),
+        ]
 
     def __init__(self, *, session=None):
         self.api_url = os.environ.get("PE_API_URL", "http://127.0.0.1:30000/v1/chat/completions")
@@ -231,13 +257,26 @@ def normalize_caption(parsed, *, fps=24, model="kimi-k3", request_id=None, persp
     }
 
 
-def caption_to_enhanced(record, *, session_id, fps=24, perspective=None):
+def caption_to_enhanced(record, *, session_id, fps=24, perspective=None, reference_image_path=None):
+    saved_user_message = record.get("user_message")
     record = normalize_caption(record["prompt"], fps=fps, model=record.get("caption_model", "kimi-k3"), request_id=record.get("request_id"), perspective=perspective)
     prompt = json.dumps(record["prompt"], ensure_ascii=False)
     user_message = {"role": "user", "content": json.dumps({
         "perspective_view": record["perspective"], "subject_description": record["subject_description"],
         "environment_description": record["environment_description"],
     }, ensure_ascii=False)}
+    image_url = None
+    if reference_image_path is not None:
+        image_url = _reference_image_url(reference_image_path)
+    elif isinstance(saved_user_message, dict):
+        content = saved_user_message.get("content")
+        if isinstance(content, list):
+            image_url = next(
+                (part["image_url"]["url"] for part in content if part.get("type") == "image_url"),
+                None,
+            )
+    if image_url:
+        user_message = _i2v_user_message(image_url, record["perspective"])
     session = {
         "session_id": session_id, "requested_perspective": record["perspective"],
         "perspective": record["perspective"], "style": record["prompt"]["Style"],
@@ -249,6 +288,7 @@ def caption_to_enhanced(record, *, session_id, fps=24, perspective=None):
         "dit_prompts": [prompt], "messages": [user_message, {"role": "assistant", "content": prompt}],
         "video_url": None, "last_result": None, "result_history": [],
         "branch_revision": 0, "rollback_pending": False, "updated_at": time.time(),
+        **({"prompt_profile": I2V_PROMPT_PROFILE.name} if image_url else {}),
     }
     return EnhancedPrompt(prompt=prompt, num_frames=fps * REFERENCE_SECONDS, segment_boundaries=[0, fps * REFERENCE_SECONDS],
                           session=session, raw_response=prompt, request_id=record.get("request_id"), user_message=user_message)

@@ -37,6 +37,7 @@
 
 ## 🔥 最新动态
 
+- 🤝 **2026 年 11 月 3 日 — 社区应用展示：** [@BennyDaBall_OG](https://x.com/BennyDaBall_OG) 展示使用 LTX-2.5 为 Hy-Nomas 视频生成配套音频 — [观看音频演示](https://x.com/BennyDaBall_OG/status/2117675372024070250)。[@preluluofficial](https://x.com/preluluofficial) 预览基于 Hy-Nomas 构建的交互式微短剧角色扮演体验 — [观看角色扮演演示](https://x.com/preluluofficial/status/2117563133120176449)。详情请见[社区贡献](#-社区贡献)。
 - 🖼️ **2026 年 10 月 31 日 — Demo 支持参考图：** 上传图片初始化世界，再通过文本提示词和相机控制继续探索。欢迎体验[在线演示](https://hy-nomas.hy.tencent.com/demo)，或查看[参考图部署说明](apps/README.md#start-with-a-reference-image)。
 - 🎬 **2026 年 10 月 29 日 — Hy-Nomas vs Genie 4：** 使用 Hy-Nomas 复现 Genie 4 示例，观看[视频对比](https://x.com/TencentHunyuan/status/2115851165904814283)。
 - 📄 **2026 年 10 月 27 日 — 技术报告已在 arXiv 发布：** [arXiv](https://arxiv.org/abs/2610.36729)。
@@ -57,6 +58,8 @@ https://github.com/user-attachments/assets/e2e05b2b-9024-4b0e-9926-6eed05356b76
 
 如果你在项目中开发或使用 Hy-Nomas，欢迎告诉我们。
 
+- **LTX-2.5 视频条件音频生成** — [演示与工作流说明](https://x.com/BennyDaBall_OG/status/2117675372024070250)，由 [@BennyDaBall_OG](https://x.com/BennyDaBall_OG) 提供：无需训练的 ComfyUI 工作流，以已生成的 Hy-Nomas 视频为条件生成音轨，冻结视频潜变量，并将音频合成到原始视频帧上。作者注明使用了 [@t8star_aix](https://x.com/t8star_aix) 基于 [@LatentSpacer](https://x.com/LatentSpacer) 的 ComfyUI-Hy-Nomas 节点包构建的节点。
+- **Prelulu 交互式微短剧** — [角色扮演演示](https://x.com/preluluofficial/status/2117563133120176449)，由 [@preluluofficial](https://x.com/preluluofficial) 提供：预览基于 Hy-Nomas 构建的交互式角色扮演体验，让用户与角色对话，探索不同的故事走向。
 - **Google TPU 演示** — [Mashbox 演示](https://mashbox.gg/world)，由 [@boshjerns](https://x.com/boshjerns) 提供：在 Google TPU 上运行支持键盘控制的 Hy-Nomas 世界生成。[公告](https://x.com/boshjerns/status/2114962446947651907)报告，在 v6e-4 切片（4 颗芯片）上实现实时 720p 生成，每秒视频需要 0.933 秒计算，连续运行 60 秒无延迟帧。
 - **WanGP** — [WanGP](https://github.com/deepbeepmeep/WanGP)，由 [@deepbeepmeep](https://x.com/deepbeepmeep) 提供：v18.81 支持 Hy-Nomas 文本生成世界、键盘导航与相机控制、文本事件控制及可调历史记忆，可保存并继续探索，或将探索过程录制为视频。详见[公告](https://x.com/deepbeepmeep/status/2114503683295662230)与[集成提交](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99)。
 - **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang)，由 [@sgl_project](https://x.com/sgl_project) 提供：Hy-Nomas 支持已合入 `main` 分支，可运行离线视频任务和实时流式会话，详见[集成 PR](https://github.com/sgl-project/sglang/pull/46124)和[安装指南](https://lmsysorg.mintlify.app/cookbook/diffusion/HY-Nomas/HY-Nomas#hw=h200&placement=resident&nodes=1&gpus_per_node=1&topology_mode=auto&tp_size=1&ulysses_degree=1&ring_degree=1)。
