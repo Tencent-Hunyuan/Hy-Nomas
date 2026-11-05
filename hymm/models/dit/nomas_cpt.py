@@ -355,6 +355,7 @@ def causal_attention_with_cache_mp(
     seg_ar_attention_backend: str = "magi",
     sparse_context=None,
     sp_metadata=None,
+    attention_metadata=None,
 ):
     """
     Multi-prompt causal attention with KV cache.
@@ -789,10 +790,9 @@ def causal_attention_with_cache_mp(
         with stage("cache_attention"):
             hidden = flex_masked_attention(q_full, full_k, full_v, q_mask, kv_mask)
     elif attn_mode == "flash3":
-        from .modules.attention.range_attention import note_non_range_call
+        from .modules.attention.range_attention import (
+            note_non_range_call, pad_tokens, unpad_tokens)
         note_non_range_call()
-        from flash_attn.bert_padding import pad_input, unpad_input
-        from einops import rearrange as _rearrange
 
         if kernel_dtype not in (torch.float16, torch.bfloat16):
             raise RuntimeError(
@@ -808,44 +808,31 @@ def causal_attention_with_cache_mp(
                 f"cache_txt={cache_txt}, cache_valid_len={cache_valid_len}"
             )
 
-        H = q_full.shape[2]  # heads
         S_q = q_full.shape[1]
 
-        # Unpad Q
-        q_flat = _rearrange(q_full, "b s h d -> b s (h d)")
-        q_unpad, q_indices, cu_seqlens_q, max_seqlen_q, _ = unpad_input(q_flat, q_mask)
-        q_unpad = _rearrange(q_unpad, "nnz (h d) -> nnz h d", h=H)
-
-        # Unpad K, V
-        k_flat = _rearrange(full_k, "b s h d -> b s (h d)")
-        v_flat = _rearrange(full_v, "b s h d -> b s (h d)")
-        k_unpad, _, cu_seqlens_k, max_seqlen_k, _ = unpad_input(k_flat, kv_mask)
-        v_unpad, _, _, _, _ = unpad_input(v_flat, kv_mask)
-        k_unpad = _rearrange(k_unpad, "nnz (h d) -> nnz h d", h=H)
-        v_unpad = _rearrange(v_unpad, "nnz (h d) -> nnz h d", h=H)
-
+        from .modules.attention.cache_layout import attention_layouts
+        q_layout, k_layout = attention_layouts(
+            q_mask, kv_mask, attention_metadata,
+            same_keys=(cache_valid_len == 0 and cache_txt and
+                       (not update_cache or cache_mask is not None or swa_commit or qvg_append)),
+        )
+        q_indices, cu_seqlens_q, max_seqlen_q = q_layout
+        k_indices, cu_seqlens_k, max_seqlen_k = k_layout
+        q_unpad = unpad_tokens(q_full, q_indices)
+        k_unpad = unpad_tokens(full_k, k_indices)
+        v_unpad = unpad_tokens(full_v, k_indices)
         from flash_attn_interface import flash_attn_varlen_func as _flash_attn_varlen
-
         out_unpad = _flash_attn_varlen(
-            q_unpad,
-            k_unpad,
-            v_unpad,
-            cu_seqlens_q,
-            cu_seqlens_k,
-            max_seqlen_q,
-            max_seqlen_k,
-            causal=False,
-            deterministic=_FLASH_CACHE_DETERMINISTIC,
-        )
-
-        # Re-pad output to [B, S_q, H, D]
-        hidden = pad_input(
-            _rearrange(out_unpad, "nnz h d -> nnz (h d)"),
-            q_indices,
-            B,
-            S_q,
-        )
-        hidden = _rearrange(hidden, "b s (h d) -> b s h d", h=H)
+            q_unpad, k_unpad, v_unpad, cu_seqlens_q, cu_seqlens_k,
+            max_seqlen_q, max_seqlen_k, causal=False,
+            deterministic=_FLASH_CACHE_DETERMINISTIC)
+        if out_unpad.is_cuda:
+            # One coalesced pass that also zero-fills the masked rows.
+            from .modules.attention.token_padding import inverse_positions, pad_tokens_coalesced
+            inverse = inverse_positions(q_indices, B * S_q, attention_metadata)
+            hidden = pad_tokens_coalesced(out_unpad.contiguous(), inverse, B, S_q)
+        else:
+            hidden = pad_tokens(out_unpad, q_indices, B, S_q)
     else:
         raise ValueError(f"Unsupported attn_mode for KV cache: {attn_mode}")
 
@@ -1075,6 +1062,7 @@ class MMDoubleStreamBlock(nn.Module):
         intra_seg_tokens_per_frame: int = 0,
         sparse_context=None,
         sp_metadata=None,
+        attention_metadata=None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass with support for both 2D vec [B, C] and 3D vec [B, num_prompts, C].
@@ -1119,6 +1107,7 @@ class MMDoubleStreamBlock(nn.Module):
                 intra_seg_tokens_per_frame=intra_seg_tokens_per_frame,
                 sparse_context=sparse_context,
                 sp_metadata=sp_metadata,
+                attention_metadata=attention_metadata,
             )
 
         vec_is_per_token = vec.dim() == 3  # [B, L_img, C]
@@ -1334,6 +1323,7 @@ class MMDoubleStreamBlock(nn.Module):
         intra_seg_tokens_per_frame: int = 0,
         sparse_context=None,
         sp_metadata=None,
+        attention_metadata=None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward with KV cache for segment-level autoregressive generation.
@@ -1443,6 +1433,7 @@ class MMDoubleStreamBlock(nn.Module):
             seg_ar_attention_backend=self.seg_ar_attention_backend,
             sparse_context=sparse_context,
             sp_metadata=sp_metadata,
+            attention_metadata=attention_metadata,
         )
 
         if getattr(self, "compile_cache_prepost", False):
@@ -3550,6 +3541,8 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
         # so FSDP2 unshard hooks fire at the block level.  The block's forward()
         # detects kv_cache != None and delegates to forward_with_cache internally.
         # A fresh segment/request must never reuse routes from an earlier rollout.
+        # Current-token unpadding is identical in every block: compute it once per forward.
+        attention_metadata = None if _os.environ.get("HY_DIT_SHARED_UNPAD", "1") == "0" else {}
         if not update_cache and getattr(self, "_sparse_step_index", 0) == 0:
             for cache in kv_cache_list or []:
                 cache.pop("route_reuse", None)
@@ -3577,6 +3570,7 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                     intra_seg_vid_windows=intra_seg_vid_windows,
                     intra_seg_tokens_per_frame=tokens_per_frame,
                     sp_metadata=sp_metadata,
+                    attention_metadata=attention_metadata,
                     sparse_context=(
                         dict(config=self.nomas_sparse_config, grid=(tt, th, tw),
                              time_start=global_frame_counter, layer=index,
