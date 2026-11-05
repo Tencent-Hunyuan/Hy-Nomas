@@ -191,7 +191,7 @@ bash scripts/inference/inference_from_config.sh configs/experiment/inference.yam
   inference.save_path=./outputs/distill
 ```
 
-推理预设使用 **SP=1、TP=8**，将 DiT 的注意力和 MLP 投影按张量切分到八个 rank。并行参数、验证方法及当前限制见 [Tensor Parallel 推理说明](tensor_parallel.md)。
+推理预设使用 **SP=1、TP=8**：DiT 的注意力头（Q/K/V 投影和 KV cache）切分到八个 rank；注意力之后用一次 all-to-all 回到各 rank 的 token 分片，输出投影和 MLP 用完整权重计算。支持 KV cache 的 rollout（`seg_ar`、`chunk_ar`）和未量化的 DiT 权重，不能与 `sp_size > 1` 同时使用。
 
 #### 低显存 GPU 推理
 
