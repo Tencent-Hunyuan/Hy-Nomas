@@ -458,3 +458,37 @@ def test_decoder_inputs_are_contiguous_across_clip_lengths():
             wrapper.decode(torch.zeros(1, 32, frames, 3, 5), return_dict=False)
     assert len(observed) > 1
     assert all(latent_contiguous and noise_contiguous for latent_contiguous, noise_contiguous in observed)
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
+def test_streaming_preview_tail_reuse_is_bitwise_equal(dtype):
+    # Demo-shaped pushes: 10-latent stable pushes, then a preview of the rest of the segment.
+    segments = [36, 27, 27, 18, 18, 27, 18, 18, 18, 18, 27, 18, 13, 31, 9]
+    latent = torch.randn((1, 32, sum(segments), 1, 1), generator=torch.Generator().manual_seed(5))
+    wrapper = _streaming_wrapper().to(dtype)
+    latent = latent.to(dtype)
+    calls = {True: [], False: []}
+    with torch.inference_mode():
+        outputs = {}
+        for reuse in (True, False):
+            session = wrapper.create_streaming_decode_session(to_cpu=True)
+            session.reuse_pending_tail = reuse
+            original = session._decode_windows
+            session._decode_windows = lambda starts, original=original, reuse=reuse: (
+                calls[reuse].append(len(starts)) or original(starts))
+            videos, offset = [], 0
+            for length in segments:
+                for start in range(0, length, 10):
+                    end = min(length, start + 10)
+                    chunk = latent[:, :, offset + start: offset + end]
+                    if end == length:
+                        update = session.push_preview(chunk, pixel_frames=chunk.shape[2] * 4)
+                        videos.append((update.pixel_start, update.video))
+                    else:
+                        videos.append((None, session.push(chunk, pixel_frames=chunk.shape[2] * 4)))
+                offset += length
+            outputs[reuse] = videos
+    for (start_a, a), (start_b, b) in zip(outputs[True], outputs[False]):
+        assert start_a == start_b
+        assert torch.equal(a, b)
+    assert sum(calls[True]) < sum(calls[False])
