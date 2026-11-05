@@ -85,6 +85,18 @@ class BasePipeline(nn.Module):
             load_w8_bf16_transformer, resolve_w8_bf16_checkpoint,
         )
 
+        from hymm.distributed.parallel_states import nccl_info
+        from hymm.distributed.tensor_parallel import (
+            parallelize_transformer, validate_tensor_parallel_config,
+        )
+        validate_tensor_parallel_config(args)
+        tp_size = getattr(args.parallelism, "tp_size", 1)
+        if tp_size != nccl_info.tp_size:
+            raise ValueError("parallelism.tp_size does not match the initialized TP process group")
+        if tp_size > 1:
+            from hymm.utils.parallel import sync_random_states
+            sync_random_states(nccl_info.parallel_dims)
+
         dit_offload = bool(getattr(args.parallelism, "dit_cpu_offload", False))
         dit_device = torch.device("cpu") if dit_offload else device
         quantized = resolve_w8_bf16_checkpoint(args.inference, dit_model_path)
@@ -108,7 +120,7 @@ class BasePipeline(nn.Module):
             self.transformer = load_transformer(
                 args.dit.model_type,
                 dit_model_path,
-                factor_kwargs={"device": dit_device, "dtype": load_dtype},
+                factor_kwargs={"device": torch.device("cpu") if tp_size > 1 else dit_device, "dtype": load_dtype},
                 convert_state_dict_in_out=getattr(args, "convert_state_dict_in_out", False),
                 convert_state_dict_16168_to_16164=getattr(
                     args, "convert_state_dict_16168_to_16164", False
@@ -119,6 +131,9 @@ class BasePipeline(nn.Module):
             if lora_adapter:
                 from hymm.models.lora import load_lora_adapter
                 load_lora_adapter(self.transformer, lora_adapter)
+            if tp_size > 1:
+                parallelize_transformer(self.transformer, nccl_info.tp_group, nccl_info.sp_size)
+                logger.info(f"DiT tensor parallel enabled: rank={nccl_info.rank_within_tpgroup}/{tp_size}")
             self.transformer.to(dtype=target_dtype, device=dit_device)
         # Freeze only this inference instance, after optional LoRA loading.
         # The INT8 path deliberately never applies a blanket floating dtype cast.
@@ -152,7 +167,8 @@ class BasePipeline(nn.Module):
             args=args,
         )
         self.text_encoder.eval().requires_grad_(False)
-        if te_offload and args.parallelism.sp_size == 1:
+        if te_offload and (args.parallelism.sp_size * tp_size == 1
+                           or not getattr(args.parallelism, "shard_text_encoder", False)):
             install_model_cpu_offload(self.text_encoder, device)
         self._maybe_shard_text_encoder()
 
@@ -228,26 +244,28 @@ class BasePipeline(nn.Module):
         if parallelism is None or not getattr(parallelism, "shard_text_encoder", False):
             return
 
-        sp_size = getattr(parallelism, "sp_size", 1)
+        sp_size = getattr(parallelism, "sp_size", 1) * getattr(parallelism, "tp_size", 1)
         if sp_size <= 1:
             logger.warning(
-                "parallelism.shard_text_encoder=true but sp is disabled (sp_size=1); "
+                "parallelism.shard_text_encoder=true but model parallelism is disabled (sp_size * tp_size=1); "
                 "skipping text-encoder sharding."
             )
             return
 
         if self.world_mesh is None:
             if getattr(parallelism, "text_encoder_cpu_offload", False):
-                raise ValueError("Sharded TE CPU offload requires the inference SP device mesh")
+                raise ValueError("Sharded TE CPU offload requires the inference model-parallel device mesh")
             logger.warning(
                 "parallelism.shard_text_encoder=true but no world_mesh was provided; "
                 "skipping text-encoder sharding."
             )
             return
 
-        sp_mesh = self.world_mesh["sp"]
+        from hymm.distributed.parallel_states import nccl_info
+        sp_mesh = (nccl_info.parallel_dims.mp_mesh if getattr(parallelism, "tp_size", 1) > 1
+                   else self.world_mesh["sp"])
         if sp_mesh.size() != sp_size:
-            raise ValueError("Text encoder SP device mesh does not match parallelism.sp_size")
+            raise ValueError("Text encoder mesh does not match sp_size * tp_size")
         cpu_offload = getattr(parallelism, "text_encoder_cpu_offload", False)
         apply_fsdp2_text_encoder(
             self.text_encoder,
@@ -260,7 +278,7 @@ class BasePipeline(nn.Module):
             self.text_encoder._fsdp_cpu_offload_device = self.device
         torch.cuda.empty_cache()
         logger.info(
-            f"Text encoder FSDP sharding enabled: sp_size={sp_size}, "
+            f"Text encoder FSDP sharding enabled: model_parallel_size={sp_size}, "
             f"cpu_offload={cpu_offload}. CPU shards are staged per forward; "
             "encoded features and small buffers keep their own device lifetimes."
         )
@@ -366,14 +384,12 @@ class BasePipeline(nn.Module):
         ):
             import torch.distributed as dist
 
-            from hymm.distributed.parallel_states import nccl_info
             from hymm.models.vae.operator_parallel_decode import (
                 decode_operator_temporal_parallel,
             )
 
-            world_size = int(getattr(nccl_info, "sp_size", 1) or 1)
-            rank = int(getattr(nccl_info, "rank_within_spgroup", 0) or 0)
-            group = getattr(nccl_info, "sp_group", None)
+            from hymm.distributed.parallel_states import get_model_parallel_info
+            group, world_size, rank = get_model_parallel_info()
             if not (dist.is_available() and dist.is_initialized() and world_size > 1):
                 logger.warning(
                     "HY_INFER_PARALLEL_VAE_DECODE=1 but no multi-rank SP group is "

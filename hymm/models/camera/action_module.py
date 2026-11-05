@@ -570,14 +570,7 @@ class ActionModule(nn.Module):
         # "balanced" (first ``rem`` ranks get +1) distribution. Using the
         # balanced formula here silently mis-offsets later ranks whenever
         # total_tokens % sp_size is not 0 or sp_size-1.
-        if get_sequence_parallel_state():
-            sp_size = nccl_info.sp_size
-            sp_rank = nccl_info.rank_within_spgroup
-            total_tokens = tt * S
-            local_start = _torch_chunk_local_start(total_tokens, sp_size, sp_rank)
-        else:
-            local_start = 0
-        local_end = local_start + TS_local
+        local_start, local_end = self._sp_local_window(tt * S, TS_local)
 
         # Cached range tensors — avoids rebuilding (and host→device sync)
         # at every layer. Inputs are step-stable: attn_boundaries_latent
@@ -627,20 +620,28 @@ class ActionModule(nn.Module):
         return torch.stack(outs, dim=0)
 
     def _sp_local_window(self, total_tokens: int, TS_local: int) -> Tuple[int, int]:
-        """Return [local_start, local_end) global token indices for this SP rank.
+        """Return [local_start, local_end) for this SP-then-TP token shard.
 
         ``local_start`` is computed to match ``torch.chunk(img, sp_size, dim=1)``
         (the upstream SP image shard), i.e. split_size=ceil(total/sp_size) with
         the remainder absorbed by the last rank — see ``_torch_chunk_local_start``.
+        TP then splits that SP shard into balanced contiguous token ranges.
         ``local_end`` is anchored to the actual ``TS_local`` this rank received,
         so the window length always equals the real shard size.
         """
+        local_start = 0
+        local_tokens = total_tokens
         if get_sequence_parallel_state():
             sp_size = nccl_info.sp_size
             sp_rank = nccl_info.rank_within_spgroup
             local_start = _torch_chunk_local_start(total_tokens, sp_size, sp_rank)
-        else:
-            local_start = 0
+            local_tokens = min((total_tokens + sp_size - 1) // sp_size,
+                               max(0, total_tokens - local_start))
+        tp_size = getattr(self, "tensor_parallel_size", 1)
+        if tp_size > 1:
+            from hymm.distributed.tensor_parallel import sequence_partition
+            offset, _ = sequence_partition(local_tokens, tp_size, self.tensor_parallel_rank)
+            local_start += offset
         local_end = local_start + TS_local
         return int(local_start), int(local_end)
 
@@ -983,6 +984,10 @@ class ActionModule(nn.Module):
         """
         assert x is not None, "hidden_states is required for action module"
         assert keyboard is not None, "keyboard is required for action module"
+        if x.shape[1] == 0:
+            # Short sequences can leave a TP rank with no query tokens. Camera
+            # attention has no collectives; skip kernels that reject empty Q.
+            return x
 
         hidden_states = x
 
@@ -1085,19 +1090,10 @@ class ActionModule(nn.Module):
         # q layout stays [B, TS_local, H, D]
         freqs_cos, freqs_sin = self._rope_tables_on(q.device)
 
-        # Build per-token global indices for q (SP-aware).
-        if get_sequence_parallel_state():
-            # SP chunks the flattened token dim (not always frame-aligned),
-            # so derive each rank's [local_start, local_end) using the same
-            # torch.chunk partition rule used by the SP image splitter
-            # (split_size=ceil(total/sp_size); see _torch_chunk_local_start).
-            sp_size = nccl_info.sp_size
-            sp_rank = nccl_info.rank_within_spgroup
-            total_tokens = tt * S
-            local_start = _torch_chunk_local_start(total_tokens, sp_size, sp_rank)
-            token_ids = torch.arange(TS, device=q.device) + local_start
-        else:
-            token_ids = torch.arange(TS, device=q.device)
+        # Camera weights remain replicated; its queries follow the SP x TP
+        # residual token range so RoPE and per-chunk visibility stay aligned.
+        local_start, _ = self._sp_local_window(tt * S, TS)
+        token_ids = torch.arange(TS, device=q.device) + local_start
 
         # Map each q token to its temporal frame index for temporal RoPE.
         rope_t_max = max(int(self.freqs_cos.shape[0]) - 1, 0)

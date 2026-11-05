@@ -196,6 +196,7 @@ class InferenceServer:
         device: torch.device,
         rank: int = 0,
         world_size: int = 1,
+        world_mesh=None,
     ):
         self.config = config
         self.device = device
@@ -203,6 +204,7 @@ class InferenceServer:
         self.rollout_type: str = config.inference.rollout_type
         self.rank = rank
         self.world_size = world_size
+        self.world_mesh = world_mesh
 
         self._lock = threading.Lock()
         self._request_counter = 0
@@ -224,12 +226,14 @@ class InferenceServer:
                 args=args,
                 device=self.device,
                 dit_model_path=args.dit_weight,
+                world_mesh=self.world_mesh,
             )
         else:
             self.pipeline = CPTCausalInferencePipeline(
                 args=args,
                 device=self.device,
                 dit_model_path=args.dit_weight,
+                world_mesh=self.world_mesh,
             )
 
         logger.info(f"Pipeline ready  ({time.time() - t0:.1f} s)")
@@ -517,7 +521,8 @@ class InferenceServer:
             "cfg_max_step": cfg_max_step,
             "segment_boundaries": segment_boundaries,
             "rollout_type": self.rollout_type,
-            "sp_size": self.world_size,
+            "sp_size": int(getattr(self.config.parallelism, "sp_size", 1)),
+            "tp_size": int(getattr(self.config.parallelism, "tp_size", 1)),
             "video_path": video_path,
         }
         meta_path = video_path.rsplit(".", 1)[0] + ".json"
@@ -1198,6 +1203,8 @@ Examples
         default=None,
         help="Hugging Face model ID or local model/tokenizer directory",
     )
+    p.add_argument("--sp-size", type=int)
+    p.add_argument("--tp-size", type=int)
     p.add_argument("--gpu", type=int, default=0, help="CUDA device index")
     p.add_argument("--port", type=int, default=7860)
     p.add_argument("--host", type=str, default="0.0.0.0")
@@ -1222,6 +1229,10 @@ def main():
     if args.text_encoder_model:
         overrides["model.text_encoder.model_name"] = args.text_encoder_model
 
+    if args.sp_size is not None:
+        overrides["parallelism.sp_size"] = args.sp_size
+    if args.tp_size is not None:
+        overrides["parallelism.tp_size"] = args.tp_size
     logger.info(f"Experiment : {args.experiment}")
     logger.info(f"Overrides  : {overrides}")
 
@@ -1242,6 +1253,13 @@ def main():
         getattr(cfg.parallelism, "sp_size", 1) if hasattr(cfg, "parallelism") else 1
     )
 
+    tp_size = getattr(cfg.parallelism, "tp_size", 1)
+    from hymm.distributed.tensor_parallel import validate_parallel_sizes, validate_tensor_parallel_config
+    model_parallel_size = validate_parallel_sizes(sp_size, tp_size, world_size)
+    validate_tensor_parallel_config(cfg)
+    if world_size != model_parallel_size:
+        raise ValueError("Gradio hosts one replica: WORLD_SIZE must equal sp_size * tp_size")
+    world_mesh = None
     if world_size > 1:
         import datetime as _dt
         from hymm.distributed.parallel_states import (
@@ -1253,7 +1271,7 @@ def main():
             dp_replicate=1,
             dp_shard=-1,
             sp=sp_size,
-            tp=1,
+            tp=tp_size,
             pp=1,
             world_size=world_size,
         )
@@ -1266,12 +1284,7 @@ def main():
         initialize_sequence_parallel_state_v2(parallel_dims, world_mesh)
         logger.info(
             f"Distributed: rank={rank}/{world_size}, "
-            f"local_rank={local_rank}, sp_size={sp_size}"
-        )
-    elif sp_size > 1:
-        logger.warning(
-            f"Config has sp_size={sp_size} but running single-process. "
-            f"Use: torchrun --nproc_per_node={sp_size} apps/gradio_app.py ..."
+            f"local_rank={local_rank}, sp_size={sp_size}, tp_size={tp_size}"
         )
 
     # ---- device ----
@@ -1282,7 +1295,7 @@ def main():
     logger.info(f"Device     : {device}")
 
     # ---- pipeline ----
-    server = InferenceServer(cfg, device, rank=rank, world_size=world_size)
+    server = InferenceServer(cfg, device, rank=rank, world_size=world_size, world_mesh=world_mesh)
 
     if rank == 0:
         # ---- gradio (rank 0 only) ----

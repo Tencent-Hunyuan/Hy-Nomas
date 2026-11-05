@@ -109,6 +109,154 @@ def compiled_post_attention():
     return torch.compile(post_attention, fullgraph=True, options={"triton.cudagraphs": False})
 
 
+def tp_modulation(vec, img_weight, img_bias, txt_weight, txt_bias):
+    activated = F.silu(vec)
+    return F.linear(activated, img_weight, img_bias), F.linear(activated, txt_weight, txt_bias)
+
+
+def tp_local_norm(img, txt):
+    return (
+        F.layer_norm(img, (img.shape[-1],), eps=1e-6),
+        F.layer_norm(txt, (txt.shape[-1],), eps=1e-6),
+    )
+
+
+def tp_qkv(
+    img, txt, img_shift, img_scale, txt_shift, txt_scale, cos, sin,
+    iqw, iqb, ikw, ikb, ivw, ivb, tqw, tqb, tkw, tkb, tvw, tvb,
+    iqnorm, iknorm, tqnorm, tknorm, heads, eps,
+):
+    head_dim = iqw.shape[0] // heads
+    img = _modulate(img, img_shift, img_scale)
+    txt = _modulate(txt, txt_shift, txt_scale)
+    iq = F.linear(img, iqw, iqb).reshape(img.shape[0], -1, heads, head_dim)
+    ik = F.linear(img, ikw, ikb).reshape(img.shape[0], -1, heads, head_dim)
+    iv = F.linear(img, ivw, ivb).reshape(img.shape[0], -1, heads, head_dim)
+    iq = _rms_norm(iq, iqnorm, eps).to(iv)
+    ik = _rms_norm(ik, iknorm, eps).to(iv)
+    cos = cos.view(1, img.shape[1], 1, head_dim)
+    sin = sin.view(1, img.shape[1], 1, head_dim)
+    iq = (iq.float() * cos + _rotate_half(iq) * sin).to(iv)
+    ik = (ik.float() * cos + _rotate_half(ik) * sin).to(iv)
+    tq = F.linear(txt, tqw, tqb).reshape(txt.shape[0], -1, heads, head_dim)
+    tk = F.linear(txt, tkw, tkb).reshape(txt.shape[0], -1, heads, head_dim)
+    tv = F.linear(txt, tvw, tvb).reshape(txt.shape[0], -1, heads, head_dim)
+    return iq, ik, iv, _rms_norm(tq, tqnorm, eps).to(tv), _rms_norm(tk, tknorm, eps).to(tv), tv
+
+
+def tp_attention_partial(img, txt, img_weight, txt_weight):
+    # Row projection bias is added only after the distributed sum.
+    return F.linear(img, img_weight), F.linear(txt, txt_weight)
+
+
+def tp_residual_norm(img, txt, img_partial, txt_partial, img_bias, txt_bias, img_gate, txt_gate):
+    if img_bias is not None:
+        img_partial = img_partial + img_bias
+    if txt_bias is not None:
+        txt_partial = txt_partial + txt_bias
+    img = img + img_partial * img_gate.unsqueeze(1)
+    txt = txt + txt_partial * txt_gate.unsqueeze(1)
+    img_norm, txt_norm = tp_local_norm(img, txt)
+    return img, txt, img_norm, txt_norm
+
+
+def tp_mlp_partial(
+    img, txt, img_shift, img_scale, txt_shift, txt_scale,
+    img_fc1, img_bias1, img_fc2, txt_fc1, txt_bias1, txt_fc2,
+):
+    img = _modulate(img, img_shift, img_scale)
+    txt = _modulate(txt, txt_shift, txt_scale)
+    img = F.gelu(F.linear(img, img_fc1, img_bias1), approximate="tanh")
+    txt = F.gelu(F.linear(txt, txt_fc1, txt_bias1), approximate="tanh")
+    return F.linear(img, img_fc2), F.linear(txt, txt_fc2)
+
+
+def tp_residual(img, txt, img_partial, txt_partial, img_bias, txt_bias, img_gate, txt_gate):
+    if img_bias is not None:
+        img_partial = img_partial + img_bias
+    if txt_bias is not None:
+        txt_partial = txt_partial + txt_bias
+    return img + img_partial * img_gate.unsqueeze(1), txt + txt_partial * txt_gate.unsqueeze(1)
+
+
+@lru_cache(maxsize=None)
+def compiled_tp_region(name):
+    regions = dict(
+        modulation=tp_modulation, local_norm=tp_local_norm, qkv=tp_qkv,
+        attention_partial=tp_attention_partial, residual_norm=tp_residual_norm,
+        mlp_partial=tp_mlp_partial, residual=tp_residual,
+    )
+    return torch.compile(
+        regions[name], fullgraph=True,
+        options={"triton.cudagraphs": False, "emulate_precision_casts": True},
+    )
+
+
+def tp_pre_attention(block, img, txt, vec, vec_txt, freqs):
+    """Compile local math; keep TP token gathers outside compiled regions."""
+    from hymm.distributed.tensor_parallel import gather_sequence
+    if vec is not vec_txt:
+        # Normal cache inference uses the same timestep for both streams.
+        img_mod = block.img_mod(vec)
+        txt_mod = block.txt_mod(vec_txt)
+    else:
+        img_mod, txt_mod = compiled_tp_region("modulation")(
+            vec, block.img_mod.linear.weight, block.img_mod.linear.bias,
+            block.txt_mod.linear.weight, block.txt_mod.linear.bias,
+        )
+    img_parts, txt_parts = img_mod.chunk(6, -1), txt_mod.chunk(6, -1)
+    img_norm, txt_norm = compiled_tp_region("local_norm")(img, txt)
+    group = block.tensor_parallel_group
+    img_norm = gather_sequence(img_norm, group, block.img_norm1.sequence_length)
+    txt_norm = gather_sequence(txt_norm, group, block.txt_norm1.sequence_length)
+    qkv = compiled_tp_region("qkv")(
+        img_norm, txt_norm, img_parts[0], img_parts[1], txt_parts[0], txt_parts[1],
+        freqs[0], freqs[1],
+        block.img_attn_q.weight, block.img_attn_q.bias,
+        block.img_attn_k.weight, block.img_attn_k.bias,
+        block.img_attn_v.weight, block.img_attn_v.bias,
+        block.txt_attn_q.weight, block.txt_attn_q.bias,
+        block.txt_attn_k.weight, block.txt_attn_k.bias,
+        block.txt_attn_v.weight, block.txt_attn_v.bias,
+        block.img_attn_q_norm.weight, block.img_attn_k_norm.weight,
+        block.txt_attn_q_norm.weight, block.txt_attn_k_norm.weight,
+        block.heads_num, block.img_attn_q_norm.eps,
+    )
+    return (*qkv, *img_parts[2:], *txt_parts[2:])
+
+
+def tp_post_attention(
+    block, img, txt, img_attn, txt_attn,
+    img_gate1, img_shift2, img_scale2, img_gate2,
+    txt_gate1, txt_shift2, txt_scale2, txt_gate2,
+):
+    """Retain both attention and MLP reduce-scatter sums and post-sum biases."""
+    from hymm.distributed.tensor_parallel import gather_sequence, reduce_scatter_sequence
+    group = block.tensor_parallel_group
+    img_partial, txt_partial = compiled_tp_region("attention_partial")(
+        img_attn, txt_attn, block.img_attn_proj.weight, block.txt_attn_proj.weight,
+    )
+    img_partial = reduce_scatter_sequence(img_partial, group)
+    txt_partial = reduce_scatter_sequence(txt_partial, group)
+    img, txt, img_norm, txt_norm = compiled_tp_region("residual_norm")(
+        img, txt, img_partial, txt_partial, block.img_attn_proj.bias, block.txt_attn_proj.bias,
+        img_gate1, txt_gate1,
+    )
+    img_norm = gather_sequence(img_norm, group, block.img_norm2.sequence_length)
+    txt_norm = gather_sequence(txt_norm, group, block.txt_norm2.sequence_length)
+    img_partial, txt_partial = compiled_tp_region("mlp_partial")(
+        img_norm, txt_norm, img_shift2, img_scale2, txt_shift2, txt_scale2,
+        block.img_mlp.fc1.weight, block.img_mlp.fc1.bias, block.img_mlp.fc2.weight,
+        block.txt_mlp.fc1.weight, block.txt_mlp.fc1.bias, block.txt_mlp.fc2.weight,
+    )
+    img_partial = reduce_scatter_sequence(img_partial, group)
+    txt_partial = reduce_scatter_sequence(txt_partial, group)
+    return compiled_tp_region("residual")(
+        img, txt, img_partial, txt_partial, block.img_mlp.fc2.bias, block.txt_mlp.fc2.bias,
+        img_gate2, txt_gate2,
+    )
+
+
 def compilation_snapshot():
     """Copy scalar Dynamo timers without resetting process-wide compiler state."""
     from torch._dynamo.utils import compilation_time_metrics

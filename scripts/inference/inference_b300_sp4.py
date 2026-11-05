@@ -1,5 +1,7 @@
-"""Launch four B300 ranks, warm up, then generate and time GPU-resident video."""
+"""Benchmark GPU-resident video on four B300 ranks (SP4 or TP4; SP4 by default)."""
 import argparse
+import json
+import math
 import os
 import subprocess
 import sys
@@ -9,18 +11,95 @@ from pathlib import Path
 process_start = time.perf_counter()
 root = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("input", type=Path, help="Input JSON containing prompts and segment boundaries")
+parser.add_argument("input", type=Path, help="Pipeline input JSON or original annotation JSON")
 parser.add_argument("--output", type=Path, default=root / "outputs/b300_sp4")
 parser.add_argument("--gpus", default="0,1,2,3", help="Four distinct physical GPU indices")
 parser.add_argument("--segments", type=int, help="Default: all input segments")
+parser.add_argument("--validate-only", action="store_true",
+                    help="Validate and convert input without loading models or launching workers")
+parser.add_argument("--entry-index", type=int, help="Zero-based entry to select from a multi-entry JSON list")
+parser.add_argument("--input-base-dir", type=Path,
+                    help="Original input directory for resolving sidecars after copying the JSON")
+parser.add_argument("--write-input", type=Path,
+                    help="Write a new pipeline JSON and exit without launching workers")
 cli, overrides = parser.parse_known_args()
 input_path, output_dir = cli.input.resolve(), cli.output.resolve()
 if not input_path.is_file():
     parser.error(f"Input JSON does not exist: {input_path}")
 gpus = cli.gpus.split(",")
-if len(gpus) != 4 or len(set(gpus)) != 4 or not all(g.isdigit() for g in gpus):
+if (len(gpus) != 4 or not all(g.isascii() and g.isdigit() for g in gpus)
+        or len({int(g) for g in gpus}) != 4):
     parser.error("--gpus requires four distinct numeric GPU indices")
+# Convert annotations using the regular entry point's prompt shaping, then
+# validate before starting four workers or loading models.
+try:
+    data = json.loads(input_path.read_text())
+except (OSError, ValueError) as exc:
+    parser.error(f"Cannot read input JSON: {exc}")
+sys.path.insert(0, str(root))
+from hymm.utils.b300_input import prepare_b300_input
+try:
+    data = prepare_b300_input(data, input_path, entry_index=cli.entry_index,
+                             overrides=overrides, input_base_dir=cli.input_base_dir)
+except (ValueError, OSError, TypeError, KeyError) as exc:
+    parser.error(str(exc))
+required = {"prompts", "segment_frame_boundaries", "num_frames", "height", "width",
+            "guidance_scale", "num_inference_steps", "seed"}
+optional = {"camera_guidance_scale", "camera_trajectory", "segment_has_camera",
+            "cfg_schedule", "cfg_skip_steps", "trajectory_translation_scale",
+            "trajectory_rotation_scale"}
+if not isinstance(data, dict) or not required <= data.keys():
+    parser.error("Expected pipeline input JSON with keys: " + ", ".join(sorted(required)))
+if data.keys() - required - optional:
+    parser.error("Unsupported input keys: " + ", ".join(sorted(data.keys() - required - optional))
+                 + "; flow_shift and negative_prompt are supplied through Hydra config")
+if not isinstance(data["prompts"], list) or not data["prompts"] or not all(
+        isinstance(prompt, str) and prompt.strip() for prompt in data["prompts"]):
+    parser.error("prompts must be a nonempty list of nonempty strings")
+boundaries = data["segment_frame_boundaries"]
+if (not isinstance(boundaries, list) or len(boundaries) != len(data["prompts"]) + 1
+        or any(type(value) is not int for value in boundaries)
+        or boundaries[0] != 0
+        or any(a >= b for a, b in zip(boundaries, boundaries[1:]))):
+    parser.error("segment_frame_boundaries must start at 0 and increase strictly, with one more entry than prompts")
+for key in ("num_frames", "height", "width", "num_inference_steps"):
+    if type(data[key]) is not int or data[key] <= 0:
+        parser.error(f"{key} must be a positive integer")
+if data["num_frames"] != boundaries[-1]:
+    parser.error("num_frames must match the last segment_frame_boundaries entry")
+if type(data["seed"]) is not int:
+    parser.error("seed must be an integer")
+if type(data["guidance_scale"]) not in (int, float) or not math.isfinite(data["guidance_scale"]):
+    parser.error("guidance_scale must be a finite number")
+if "segment_has_camera" in data and data["segment_has_camera"] is not None:
+    if (not isinstance(data["segment_has_camera"], list)
+            or len(data["segment_has_camera"]) != len(data["prompts"])
+            or any(type(value) is not bool for value in data["segment_has_camera"])):
+        parser.error("segment_has_camera must contain one boolean per prompt")
+segment_count = cli.segments if cli.segments is not None else len(data["prompts"])
+if not 1 <= segment_count <= len(data["prompts"]):
+    parser.error("--segments must be between 1 and the input prompt count")
+data["prompts"] = data["prompts"][:segment_count]
+data["num_frames"] = boundaries[segment_count]
+data["segment_frame_boundaries"] = boundaries[:segment_count + 1]
+if data.get("segment_has_camera") is not None:
+    data["segment_has_camera"] = data["segment_has_camera"][:segment_count]
+if cli.write_input is not None:
+    try:
+        with cli.write_input.open("x", encoding="utf-8") as output:
+            json.dump(data, output, ensure_ascii=False, indent=2)
+            output.write("\n")
+    except OSError as exc:
+        parser.error(f"Cannot create pipeline JSON {cli.write_input}: {exc}")
+    print(f"Wrote pipeline input: {cli.write_input}")
+if cli.validate_only or cli.write_input is not None:
+    print(f"Valid B300 input: {segment_count} segments, {data['num_frames']} frames")
+    raise SystemExit(0)
+
 if "RANK" not in os.environ:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "resolved_input.json").write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     env = os.environ.copy()
     for key in ("PYTHONPATH", "LD_LIBRARY_PATH"):
         env.pop(key, None)
@@ -45,7 +124,6 @@ if "RANK" not in os.environ:
 import contextlib
 import gc
 import datetime
-import json
 
 sys.path.insert(0, str(root))
 sys.argv = [sys.argv[0], "+experiment=inference",
@@ -56,7 +134,7 @@ sys.argv = [sys.argv[0], "+experiment=inference",
     "model.vae.attention_backend=magi", "model.vae.cute_attention=true",
     "model.vae.compile_decoder=true", "model.vae.parallel_mode=window",
     "model.vae.cpu_offload=false", "model.dit.seg_ar_attention_backend=magi",
-    "parallelism.sp_size=4", "parallelism.shard_text_encoder=false",
+    "parallelism.sp_size=4", "parallelism.tp_size=1", "parallelism.shard_text_encoder=false",
     "parallelism.text_encoder_cpu_offload=false", "parallelism.dit_cpu_offload=false",
     "parallelism.dit_cpu_offload_for_decode=false", "inference.torch_compile=true",
     "inference.sliding_window.enabled=true",
@@ -80,17 +158,13 @@ rank = int(os.environ.get("RANK", "0"))
 world_size = int(os.environ.get("WORLD_SIZE", "1"))
 device = torch.device("cuda", int(os.environ.get("LOCAL_RANK", "0")))
 torch.cuda.set_device(device)
-data = json.loads(input_path.read_text())
-segment_count = cli.segments if cli.segments is not None else len(data["prompts"])
-if not 1 <= segment_count <= len(data["prompts"]):
-    raise ValueError("--segments must be between 1 and the input prompt count")
-data["prompts"] = data["prompts"][:segment_count]
-data["num_frames"] = data["segment_frame_boundaries"][segment_count]
-data["segment_frame_boundaries"] = data["segment_frame_boundaries"][:segment_count + 1]
 args = parse_args(mode="inference")
-assert world_size == args.parallelism.sp_size == 4
+if world_size != 4 or (args.parallelism.sp_size, args.parallelism.tp_size) not in ((4, 1), (1, 4)):
+    raise ValueError("B300 entry point requires four ranks and (sp_size, tp_size) of (4, 1) or (1, 4)")
 dist.init_process_group("nccl", timeout=datetime.timedelta(minutes=30))
-dims = ParallelDims(dp_replicate=1, dp_shard=-1, sp=world_size, tp=1, pp=1, world_size=world_size)
+dims = ParallelDims(dp_replicate=1, dp_shard=-1,
+                    sp=args.parallelism.sp_size, tp=args.parallelism.tp_size,
+                    pp=1, world_size=world_size)
 world_mesh = dims.build_mesh(device_type="cuda")
 initialize_sequence_parallel_state_v2(dims, world_mesh)
 assert not args.vae.cpu_offload
@@ -100,7 +174,9 @@ assert not args.parallelism.dit_cpu_offload_for_decode
 assert args.vae.attention_backend == "magi" and args.vae.deepgemm_fp8
 assert not args.vae.cutlass_fp8
 assert args.dit.seg_ar_attention_backend == "magi"
-assert args.inference.torch_compile and args.vae.compile_decoder and args.vae.cute_attention
+# SP and TP compile local arithmetic; TP collectives stay outside the graphs.
+assert args.inference.torch_compile
+assert args.vae.compile_decoder and args.vae.cute_attention
 assert os.environ.get("HY_KV_ARCHIVE_DEVICE") == "cuda"
 output_dir.mkdir(parents=True, exist_ok=True)
 load_start = time.perf_counter()
@@ -138,6 +214,24 @@ class TopLevelMetrics(InferenceMetrics):
                 yield
 
 
+@contextlib.contextmanager
+def measured_segment_profile(pipeline, rank, enabled):
+    """Attach the existing segment hook only to the post-warmup request."""
+    original = pipeline.transformer.forward_with_cache
+    profiler = None
+    if enabled:
+        from hymm.utils.torch_profile_windows import install
+        profiler = install(pipeline, rank)
+    try:
+        yield profiler
+    finally:
+        if profiler is not None:
+            try:
+                profiler.finalize()
+            finally:
+                pipeline.transformer.forward_with_cache = original
+
+
 results = []
 for index in range(2):
     # Drop unreachable request-local KV graphs before allocating another history.
@@ -153,24 +247,26 @@ for index in range(2):
     dist.barrier()
     metrics = TopLevelMetrics(device, detailed=True, jsonl=run_dir / f"stages.rank{rank}.jsonl")
     request_start = time.perf_counter()
-    with offline_sample_mode(True), metrics:
-        output = pipeline.inference(
-            **data, flow_shift=args.inference.infer_flow_shift_video,
-            negative_prompt=args.inference.neg_prompt,
-        )
-        if os.environ.get("HY_KV_ARCHIVE_DEVICE", "cpu") == "cuda":
-            if pipeline.kv_cache is not None:
-                raise RuntimeError("Cannot release history of a persistent request")
-            from hymm.models.dit.modules.uniform_history_cache import release_gpu_request_history
-            release_gpu_request_history()
-        torch.cuda.synchronize()
-        dist.barrier()
+    with measured_segment_profile(pipeline, rank, enabled=index == 1) as profiler:
+        with offline_sample_mode(True), metrics:
+            output = pipeline.inference(
+                **data, flow_shift=args.inference.infer_flow_shift_video,
+                negative_prompt=args.inference.neg_prompt,
+            )
+            if os.environ.get("HY_KV_ARCHIVE_DEVICE", "cpu") == "cuda":
+                if pipeline.kv_cache is not None:
+                    raise RuntimeError("Cannot release history of a persistent request")
+                from hymm.models.dit.modules.uniform_history_cache import release_gpu_request_history
+                release_gpu_request_history()
+            torch.cuda.synchronize()
+            dist.barrier()
     summary = metrics.summary()
     rank_summaries = [None] * world_size
     dist.all_gather_object(rank_summaries, summary)
     compile_info = compilation_delta(before)
     residency_info = residency()
     local_info = dict(rank=rank, compilation=compile_info, residency=residency_info,
+                      torch_profile_enabled=profiler is not None,
                       gpu_kv_audit=getattr(pipeline, "_last_kv_optimization_audit", {}))
     rank_info = [None] * world_size
     dist.all_gather_object(rank_info, local_info)
@@ -206,6 +302,7 @@ for index in range(2):
     result = {
         "run": index,
         "warmup": index == 0,
+        "torch_profile_enabled": any(info["torch_profile_enabled"] for info in rank_info),
         "prompt_to_gpu_video_seconds": summary["total_seconds"],
         "request_to_mp4_seconds": request_seconds if index == 1 else None,
         "gpu_output_shape": gpu_output_shape,
@@ -234,7 +331,8 @@ for index in range(2):
         "vae_attention_backend": args.vae.attention_backend,
         "vae_gemm_backend": "deepgemm",
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
-        "sp_size": world_size,
+        "sp_size": args.parallelism.sp_size,
+        "tp_size": args.parallelism.tp_size,
         "initial_residency_bytes": initial_residency,
         "fast_history": os.environ.get("HY_KV_FAST_HISTORY", "0") == "1",
         "kv_archive_device": os.environ.get("HY_KV_ARCHIVE_DEVICE", "cpu"),
@@ -242,10 +340,12 @@ for index in range(2):
         "input_path": str(input_path),
         "segment_frame_boundaries": data["segment_frame_boundaries"],
         "runs": results,
-        "notes": "Run0 full requested-segments warmup (no MP4); run1 measured same-process request, fresh KV history. All model weights resident on GPU, output and VAE blend stay GPU. Full-clip VAE decode after all DiT segments. Prompt-to-GPU-video includes text encode, noise preparation, DiT, cache logic and VAE/postprocess, excludes startup, validation, D2H conversion and video export. Existing disk caches retained. DiT compile covers cache pre/post, not entire DiT.",
+        "profiling_note": "When HY_PROFILE_DIR is set, only run1 is traced. Timings include profiling overhead; request-to-MP4 also includes final trace export. Use B300_PROFILE=0 in the shell launcher for unprofiled timing.",
+        "notes": "Run0 full requested-segments warmup (no MP4); run1 measured same-process request, fresh KV history. All model weights resident on GPU, output and VAE blend stay GPU. Full-clip VAE decode after all DiT segments. Prompt-to-GPU-video includes text encode, noise preparation, DiT, cache logic and VAE/postprocess, excludes startup, validation, D2H conversion and video export. Existing disk caches retained. SP4 compiles DiT cache pre/post; TP4 compiles local regions around explicit gathers and reduce-scatters.",
     }, indent=2))
     print(json.dumps({k:v for k,v in result.items()
                       if k not in {"stage_rows", "rank_info"}}, indent=2), flush=True)
     del frames
     dist.barrier()
 dist.destroy_process_group()
+
