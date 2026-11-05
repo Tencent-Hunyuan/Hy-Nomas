@@ -1088,8 +1088,64 @@ class GenerationService:
         "_interactive_segment_latent_lengths",
     )
 
+    _PIXELUMM_SNAPSHOT_FIELDS = (
+        "buffer", "available_latent_frames", "available_pixel_frames",
+        "next_window_start", "pending", "pending_pixel_start", "committed",
+        "committed_raw_pixel_frames", "committed_pixel_frames",
+        "push_latent_frames", "push_pixel_frames", "push_stable_pixel_frames",
+        "finished", "final_segment",
+    )
+
+    def _require_single_gpu_session_state(self) -> None:
+        if int(getattr(self, "world_size", 1)) != 1:
+            raise RuntimeError(
+                "session snapshot/restore currently supports a single-GPU "
+                "worker; multi-rank restore requires collective coordination"
+            )
+
+    def _snapshot_pixelumm_state(self) -> Optional[Dict[str, Any]]:
+        session = getattr(self.pipeline, "_interactive_pixelumm_decode_session", None)
+        if session is None:
+            return None
+        state = {
+            name: getattr(session, name)
+            for name in self._PIXELUMM_SNAPSHOT_FIELDS
+            if hasattr(session, name)
+        }
+        state["streaming_metadata"] = getattr(
+            self.pipeline, "_last_pixelumm_streaming_metadata", None,
+        )
+        return state
+
+    def _restore_pixelumm_state(self, state: Optional[Dict[str, Any]]) -> None:
+        if state is None:
+            self.pipeline._interactive_pixelumm_decode_session = None
+            self.pipeline._last_pixelumm_streaming_metadata = None
+            return
+        session = self.pipeline.vae.create_streaming_decode_session(
+            to_cpu=True, retain_history=False,
+        )
+        for name in self._PIXELUMM_SNAPSHOT_FIELDS:
+            if name not in state:
+                continue
+            value = state[name]
+            if name == "committed" and isinstance(value, list):
+                value = [
+                    (int(start), tensor.cpu() if torch.is_tensor(tensor) else tensor)
+                    for start, tensor in value
+                ]
+            setattr(session, name, value)
+        # buffer/pending may have been saved on either device; normalize them
+        # exactly as the decoder does around a real decode phase.
+        session._move_decode_state(self.device)
+        self.pipeline._interactive_pixelumm_decode_session = session
+        self.pipeline._last_pixelumm_streaming_metadata = state.get(
+            "streaming_metadata",
+        )
+
     def snapshot_session(self, session_id: str, path: str) -> Dict[str, Any]:
         """Persist the KV cache and interactive state of the active session."""
+        self._require_single_gpu_session_state()
         if self.rank != 0:
             raise RuntimeError("session snapshot may only be initiated on rank 0")
         with self._lock:
@@ -1107,29 +1163,54 @@ class GenerationService:
                 "noise_seed": getattr(self.pipeline, "_interactive_noise_seed", None),
                 "noise_rng_states": list(getattr(
                     self.pipeline, "_interactive_segment_noise_rng_states", []) or []),
+                "pixelumm": self._snapshot_pixelumm_state(),
             }
-            torch.save(state, path)
+            # Write atomically so an interrupted snapshot cannot replace a
+            # previously valid file with a truncated one.
+            tmp_path = f"{path}.tmp"
+            try:
+                torch.save(state, tmp_path)
+                os.replace(tmp_path, path)
+            finally:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
             return {"session_id": session_id, "path": path,
                     "bytes": os.path.getsize(path)}
 
     def restore_session(self, session_id: str, path: str) -> Dict[str, Any]:
         """Restore a previously saved interactive session (world switching)."""
+        self._require_single_gpu_session_state()
         if self.rank != 0:
             raise RuntimeError("session restore may only be initiated on rank 0")
         with self._lock:
             if not os.path.isfile(path):
                 raise ValueError("session snapshot not found")
-            self._reset_pipeline_state()
-            # Snapshot files are written by this worker; weights_only=False is
-            # required because the payload includes RNG states and metadata.
+            # Load and validate fully before touching the live session so a
+            # corrupt snapshot cannot destroy the current world.
             state = torch.load(path, map_location="cpu", weights_only=False)
+            if not isinstance(state, dict):
+                raise ValueError("invalid session snapshot")
+            if str(state.get("session_id") or "") != session_id:
+                raise ValueError("session snapshot belongs to a different session")
             kv = state.get("kv_cache")
-            if kv is not None:
-                for cache in kv:
-                    for key in ("k", "v", "k_scale", "v_scale"):
-                        if key in cache and torch.is_tensor(cache[key]):
-                            cache[key] = cache[key].to(self.device)
+            if kv is None:
+                raise ValueError("session snapshot has no KV cache")
             masks = state.get("cache_mask_list")
+            if masks is not None and len(masks) != len(kv):
+                raise ValueError("session snapshot KV cache and masks disagree")
+            if state.get("pixelumm") is not None and not hasattr(
+                getattr(self.pipeline, "vae", None),
+                "create_streaming_decode_session",
+            ):
+                raise ValueError(
+                    "session snapshot contains PixelUMM state but the pipeline "
+                    "cannot restore a streaming decoder",
+                )
+            self._reset_pipeline_state()
+            for cache in kv:
+                for key in ("k", "v", "k_scale", "v_scale"):
+                    if key in cache and torch.is_tensor(cache[key]):
+                        cache[key] = cache[key].to(self.device)
             if masks is not None:
                 restored = []
                 for tensor in masks:
@@ -1163,6 +1244,7 @@ class GenerationService:
                     item = item.detach().to("cpu", torch.uint8).contiguous()
                 rng_states.append(item)
             self.pipeline._interactive_segment_noise_rng_states = rng_states
+            self._restore_pixelumm_state(state.get("pixelumm"))
             self._active_session_id = str(session_id)
             return {"session_id": session_id, "restored": True,
                     "cache_valid_len": int(getattr(self.pipeline, "cache_valid_len", 0) or 0)}

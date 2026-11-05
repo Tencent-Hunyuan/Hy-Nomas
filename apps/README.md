@@ -269,6 +269,16 @@ The GPU worker exposes the interactive session lifecycle over HTTP:
   snapshot on the same worker and continue generation from it. Restoring resets
   the current pipeline state first.
 
+Snapshots include the PixelUMM streaming decode session (latent buffer, pending
+tail, window counters, and push history) so a resumed session continues the same
+stable-prefix decoder timeline instead of starting a fresh one.
+
+Snapshot/restore currently require ``world_size == 1``; restoring multiple ranks
+needs collective coordination (like rollback) because non-zero ranks keep their
+own KV and PixelUMM state. Snapshots are written atomically (``*.tmp`` + rename)
+and fully loaded/validated before the live session is reset, so a corrupt file
+leaves the current world untouched.
+
 Snapshots are written with `torch.save` and contain tensors and RNG state, so
 only restore files produced by the same worker; treat them as trusted local
 files. A snapshot can only be taken for the session that is currently active on
