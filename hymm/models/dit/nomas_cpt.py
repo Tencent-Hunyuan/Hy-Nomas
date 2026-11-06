@@ -57,9 +57,7 @@ from .modules.attention import (
     postprocess_dynamic_ring_attention,
 )
 from .modules.modulate_layers import ModulateDiT, modulate, apply_gate
-from .modules.nomas_compile_prepost import (
-    compiled_pre_attention, compiled_post_attention, tp_pre_attention, tp_post_attention,
-)
+from .modules.nomas_compile_prepost import compiled_pre_attention, compiled_post_attention
 from .modules.int8_stored_bf16_linear import Int8StoredBF16Linear, linear_weight
 from .modules.uniform_history_cache import ARCHIVED_HISTORY_SAMPLINGS, HISTORY_SAMPLINGS
 from .modules.posemb_layers import (
@@ -75,10 +73,6 @@ from .moe.hunyuan_moe import MoeConfig, HunYuanMoE
 from hymm.distributed.parallel_states import get_sequence_parallel_state, nccl_info
 from hymm.distributed.communications import (
     all_gather, all_to_all_4D, all_to_all_qkv, prepare_sp_communication,
-)
-from hymm.distributed.tensor_parallel import (
-    gather_sequence, local_modulation_gate, shard_transformer_streams,
-    SequenceParallelLayerNorm, ColumnParallelLinear, RowParallelLinear,
 )
 
 try:
@@ -355,6 +349,7 @@ def causal_attention_with_cache_mp(
     seg_ar_attention_backend: str = "magi",
     sparse_context=None,
     sp_metadata=None,
+    attention_metadata=None,
 ):
     """
     Multi-prompt causal attention with KV cache.
@@ -789,10 +784,9 @@ def causal_attention_with_cache_mp(
         with stage("cache_attention"):
             hidden = flex_masked_attention(q_full, full_k, full_v, q_mask, kv_mask)
     elif attn_mode == "flash3":
-        from .modules.attention.range_attention import note_non_range_call
+        from .modules.attention.range_attention import (
+            note_non_range_call, pad_tokens, unpad_tokens)
         note_non_range_call()
-        from flash_attn.bert_padding import pad_input, unpad_input
-        from einops import rearrange as _rearrange
 
         if kernel_dtype not in (torch.float16, torch.bfloat16):
             raise RuntimeError(
@@ -808,44 +802,31 @@ def causal_attention_with_cache_mp(
                 f"cache_txt={cache_txt}, cache_valid_len={cache_valid_len}"
             )
 
-        H = q_full.shape[2]  # heads
         S_q = q_full.shape[1]
 
-        # Unpad Q
-        q_flat = _rearrange(q_full, "b s h d -> b s (h d)")
-        q_unpad, q_indices, cu_seqlens_q, max_seqlen_q, _ = unpad_input(q_flat, q_mask)
-        q_unpad = _rearrange(q_unpad, "nnz (h d) -> nnz h d", h=H)
-
-        # Unpad K, V
-        k_flat = _rearrange(full_k, "b s h d -> b s (h d)")
-        v_flat = _rearrange(full_v, "b s h d -> b s (h d)")
-        k_unpad, _, cu_seqlens_k, max_seqlen_k, _ = unpad_input(k_flat, kv_mask)
-        v_unpad, _, _, _, _ = unpad_input(v_flat, kv_mask)
-        k_unpad = _rearrange(k_unpad, "nnz (h d) -> nnz h d", h=H)
-        v_unpad = _rearrange(v_unpad, "nnz (h d) -> nnz h d", h=H)
-
+        from .modules.attention.cache_layout import attention_layouts
+        q_layout, k_layout = attention_layouts(
+            q_mask, kv_mask, attention_metadata,
+            same_keys=(cache_valid_len == 0 and cache_txt and
+                       (not update_cache or cache_mask is not None or swa_commit or qvg_append)),
+        )
+        q_indices, cu_seqlens_q, max_seqlen_q = q_layout
+        k_indices, cu_seqlens_k, max_seqlen_k = k_layout
+        q_unpad = unpad_tokens(q_full, q_indices)
+        k_unpad = unpad_tokens(full_k, k_indices)
+        v_unpad = unpad_tokens(full_v, k_indices)
         from flash_attn_interface import flash_attn_varlen_func as _flash_attn_varlen
-
         out_unpad = _flash_attn_varlen(
-            q_unpad,
-            k_unpad,
-            v_unpad,
-            cu_seqlens_q,
-            cu_seqlens_k,
-            max_seqlen_q,
-            max_seqlen_k,
-            causal=False,
-            deterministic=_FLASH_CACHE_DETERMINISTIC,
-        )
-
-        # Re-pad output to [B, S_q, H, D]
-        hidden = pad_input(
-            _rearrange(out_unpad, "nnz h d -> nnz (h d)"),
-            q_indices,
-            B,
-            S_q,
-        )
-        hidden = _rearrange(hidden, "b s (h d) -> b s h d", h=H)
+            q_unpad, k_unpad, v_unpad, cu_seqlens_q, cu_seqlens_k,
+            max_seqlen_q, max_seqlen_k, causal=False,
+            deterministic=_FLASH_CACHE_DETERMINISTIC)
+        if out_unpad.is_cuda:
+            # One coalesced pass that also zero-fills the masked rows.
+            from .modules.attention.token_padding import inverse_positions, pad_tokens_coalesced
+            inverse = inverse_positions(q_indices, B * S_q, attention_metadata)
+            hidden = pad_tokens_coalesced(out_unpad.contiguous(), inverse, B, S_q)
+        else:
+            hidden = pad_tokens(out_unpad, q_indices, B, S_q)
     else:
         raise ValueError(f"Unsupported attn_mode for KV cache: {attn_mode}")
 
@@ -1075,6 +1056,7 @@ class MMDoubleStreamBlock(nn.Module):
         intra_seg_tokens_per_frame: int = 0,
         sparse_context=None,
         sp_metadata=None,
+        attention_metadata=None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass with support for both 2D vec [B, C] and 3D vec [B, num_prompts, C].
@@ -1119,6 +1101,7 @@ class MMDoubleStreamBlock(nn.Module):
                 intra_seg_tokens_per_frame=intra_seg_tokens_per_frame,
                 sparse_context=sparse_context,
                 sp_metadata=sp_metadata,
+                attention_metadata=attention_metadata,
             )
 
         vec_is_per_token = vec.dim() == 3  # [B, L_img, C]
@@ -1255,13 +1238,6 @@ class MMDoubleStreamBlock(nn.Module):
             attn[:, img_q.shape[1] :].contiguous(),
         )
 
-        # Norms gather shifts/scales' full token layout, while residual gates
-        # follow the sequence-sharded outputs of the row projections.
-        img_mod1_gate = local_modulation_gate(self, img_mod1_gate)
-        img_mod2_gate = local_modulation_gate(self, img_mod2_gate)
-        txt_mod1_gate = local_modulation_gate(self, txt_mod1_gate)
-        txt_mod2_gate = local_modulation_gate(self, txt_mod2_gate)
-
         if vec_is_per_token:
             # Per-token modulation: gate/shift/scale are 3D [B, L, C].
             # Do NOT use modulate()/apply_gate() — they unsqueeze(1), which would
@@ -1283,8 +1259,7 @@ class MMDoubleStreamBlock(nn.Module):
 
         def _run_txt_mlp(_input):
             _fixed_m = int(_os.environ.get("HY_TEXT_MLP_FC2_FIXED_M", "0") or 0)
-            if _fixed_m <= 0 or getattr(self, "tensor_parallel_size", 1) > 1:
-                # TP reduce-scatter partitions the complete text sequence once.
+            if _fixed_m <= 0:
                 return self.txt_mlp(_input)
             _fc1 = self.txt_mlp.fc1(_input)
             _act = self.txt_mlp.act(_fc1)
@@ -1334,6 +1309,7 @@ class MMDoubleStreamBlock(nn.Module):
         intra_seg_tokens_per_frame: int = 0,
         sparse_context=None,
         sp_metadata=None,
+        attention_metadata=None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward with KV cache for segment-level autoregressive generation.
@@ -1358,7 +1334,7 @@ class MMDoubleStreamBlock(nn.Module):
             if not isinstance(freqs_cis, tuple) or len(freqs_cis) != 2:
                 raise ValueError("torch_compile requires tuple cos/sin RoPE")
             if not all(
-                isinstance(norm, (nn.LayerNorm, SequenceParallelLayerNorm))
+                isinstance(norm, nn.LayerNorm)
                 and norm.weight is None and norm.bias is None
                 and norm.eps == 1e-6
                 for norm in (self.img_norm1, self.img_norm2, self.txt_norm1, self.txt_norm2)
@@ -1374,31 +1350,24 @@ class MMDoubleStreamBlock(nn.Module):
                 self.txt_attn_q_norm, self.txt_attn_k_norm,
             )):
                 raise ValueError("torch_compile requires affine QK RMSNorm")
-            if getattr(self, "tensor_parallel_size", 1) > 1:
-                (img_q, img_k, img_v, txt_q, txt_k, txt_v,
-                 img_mod1_gate, img_mod2_shift, img_mod2_scale, img_mod2_gate,
-                 txt_mod1_gate, txt_mod2_shift, txt_mod2_scale, txt_mod2_gate) = (
-                    tp_pre_attention(self, img, txt, vec, vec_txt, freqs_cis)
+            (img_q, img_k, img_v, txt_q, txt_k, txt_v,
+             img_mod1_gate, img_mod2_shift, img_mod2_scale, img_mod2_gate,
+             txt_mod1_gate, txt_mod2_shift, txt_mod2_scale, txt_mod2_gate) = (
+                compiled_pre_attention()(
+                    img, txt, vec, vec_txt, freqs_cis[0], freqs_cis[1],
+                    linear_weight(self.img_mod.linear), self.img_mod.linear.bias,
+                    linear_weight(self.txt_mod.linear), self.txt_mod.linear.bias,
+                    linear_weight(self.img_attn_q), self.img_attn_q.bias,
+                    linear_weight(self.img_attn_k), self.img_attn_k.bias,
+                    linear_weight(self.img_attn_v), self.img_attn_v.bias,
+                    linear_weight(self.txt_attn_q), self.txt_attn_q.bias,
+                    linear_weight(self.txt_attn_k), self.txt_attn_k.bias,
+                    linear_weight(self.txt_attn_v), self.txt_attn_v.bias,
+                    self.img_attn_q_norm.weight, self.img_attn_k_norm.weight,
+                    self.txt_attn_q_norm.weight, self.txt_attn_k_norm.weight,
+                    self.heads_num, self.img_attn_q_norm.eps,
                 )
-            else:
-                (img_q, img_k, img_v, txt_q, txt_k, txt_v,
-                 img_mod1_gate, img_mod2_shift, img_mod2_scale, img_mod2_gate,
-                 txt_mod1_gate, txt_mod2_shift, txt_mod2_scale, txt_mod2_gate) = (
-                    compiled_pre_attention()(
-                        img, txt, vec, vec_txt, freqs_cis[0], freqs_cis[1],
-                        linear_weight(self.img_mod.linear), self.img_mod.linear.bias,
-                        linear_weight(self.txt_mod.linear), self.txt_mod.linear.bias,
-                        linear_weight(self.img_attn_q), self.img_attn_q.bias,
-                        linear_weight(self.img_attn_k), self.img_attn_k.bias,
-                        linear_weight(self.img_attn_v), self.img_attn_v.bias,
-                        linear_weight(self.txt_attn_q), self.txt_attn_q.bias,
-                        linear_weight(self.txt_attn_k), self.txt_attn_k.bias,
-                        linear_weight(self.txt_attn_v), self.txt_attn_v.bias,
-                        self.img_attn_q_norm.weight, self.img_attn_k_norm.weight,
-                        self.txt_attn_q_norm.weight, self.txt_attn_k_norm.weight,
-                        self.heads_num, self.img_attn_q_norm.eps,
-                    )
-                )
+            )
         else:
             (img_mod1_shift, img_mod1_scale, img_mod1_gate,
              img_mod2_shift, img_mod2_scale, img_mod2_gate) = self.img_mod(vec).chunk(6, dim=-1)
@@ -1443,6 +1412,7 @@ class MMDoubleStreamBlock(nn.Module):
             seg_ar_attention_backend=self.seg_ar_attention_backend,
             sparse_context=sparse_context,
             sp_metadata=sp_metadata,
+            attention_metadata=attention_metadata,
         )
 
         if getattr(self, "compile_cache_prepost", False):
@@ -1451,31 +1421,24 @@ class MMDoubleStreamBlock(nn.Module):
                 and isinstance(mlp.act, nn.GELU)
                 and mlp.act.approximate == "tanh"
                 and isinstance(mlp.norm, nn.Identity)
-                and isinstance(mlp.fc1, (nn.Linear, Int8StoredBF16Linear, ColumnParallelLinear))
-                and isinstance(mlp.fc2, (nn.Linear, Int8StoredBF16Linear, RowParallelLinear))
+                and isinstance(mlp.fc1, (nn.Linear, Int8StoredBF16Linear))
+                and isinstance(mlp.fc2, (nn.Linear, Int8StoredBF16Linear))
                 and mlp.drop1.p == 0
                 and mlp.drop2.p == 0
                 for mlp in (self.img_mlp, self.txt_mlp)
             ):
                 raise ValueError("torch_compile requires tanh GELU MLP blocks")
-            if getattr(self, "tensor_parallel_size", 1) > 1:
-                img, txt = tp_post_attention(
-                    self, img, txt, img_attn, txt_attn,
-                    img_mod1_gate, img_mod2_shift, img_mod2_scale, img_mod2_gate,
-                    txt_mod1_gate, txt_mod2_shift, txt_mod2_scale, txt_mod2_gate,
-                )
-            else:
-                img, txt = compiled_post_attention()(
-                    img, txt, img_attn, txt_attn,
-                    img_mod1_gate, img_mod2_shift, img_mod2_scale, img_mod2_gate,
-                    txt_mod1_gate, txt_mod2_shift, txt_mod2_scale, txt_mod2_gate,
-                    linear_weight(self.img_attn_proj), self.img_attn_proj.bias,
-                    linear_weight(self.txt_attn_proj), self.txt_attn_proj.bias,
-                    linear_weight(self.img_mlp.fc1), self.img_mlp.fc1.bias,
-                    linear_weight(self.img_mlp.fc2), self.img_mlp.fc2.bias,
-                    linear_weight(self.txt_mlp.fc1), self.txt_mlp.fc1.bias,
-                    linear_weight(self.txt_mlp.fc2), self.txt_mlp.fc2.bias,
-                )
+            img, txt = compiled_post_attention()(
+                img, txt, img_attn, txt_attn,
+                img_mod1_gate, img_mod2_shift, img_mod2_scale, img_mod2_gate,
+                txt_mod1_gate, txt_mod2_shift, txt_mod2_scale, txt_mod2_gate,
+                linear_weight(self.img_attn_proj), self.img_attn_proj.bias,
+                linear_weight(self.txt_attn_proj), self.txt_attn_proj.bias,
+                linear_weight(self.img_mlp.fc1), self.img_mlp.fc1.bias,
+                linear_weight(self.img_mlp.fc2), self.img_mlp.fc2.bias,
+                linear_weight(self.txt_mlp.fc1), self.txt_mlp.fc1.bias,
+                linear_weight(self.txt_mlp.fc2), self.txt_mlp.fc2.bias,
+            )
         else:
             img = img + apply_gate(self.img_attn_proj(img_attn), gate=img_mod1_gate)
             img = img + apply_gate(
@@ -1634,7 +1597,7 @@ class MMSingleStreamBlock(nn.Module):
             output = self.mlp(x_mod, attn)
             self.loss_moe = self.mlp.get_moe_loss()
 
-        return x + apply_gate(output, gate=local_modulation_gate(self, mod_gate))
+        return x + apply_gate(output, gate=mod_gate)
 
 
 class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
@@ -3188,10 +3151,6 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                     )
                 vec_txt = torch.chunk(vec_txt, sp_size, dim=1)[sp_rank].contiguous()
 
-        # TP residuals stay sequence-sharded across all DiT blocks. Their
-        # LayerNorms all-gather before QKV/MLP; masks and RoPE remain full here.
-        img, txt = shard_transformer_streams(self, img, txt)
-
         # --------------------- Pass through DiT double blocks ------------------------
         # Discriminator feature hooks: collect post-block hidden states at the
         # requested layer indices (additive; only when out_contexts=True).
@@ -3283,11 +3242,7 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
             # Discriminator hook: capture the (post-block, post-camera) hidden
             # state for this layer. img is [B, L, hidden_size].
             if _hook_set is not None and index in _hook_set:
-                contexts[str(index)] = (
-                    gather_sequence(img, self.tensor_parallel_group,
-                                    self.final_layer.norm_final.sequence_length)
-                    if getattr(self, "tensor_parallel_size", 1) > 1 else img
-                )
+                contexts[str(index)] = img
 
         # Discriminator path: return the collected per-layer features before the
         # final layer / unpatchify (mirrors Wan22 out_contexts short-circuit).
@@ -3523,19 +3478,14 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                 f"Unsupported text_projection: {self.text_projection}"
             )
 
-        # Keep original text length for cache/token bookkeeping; TP residual
-        # shards may be shorter than one token or empty on some ranks.
         cache_text_length = txt.shape[1]
         sp_metadata = None
         if get_sequence_parallel_state():
             with _prof("dit/sp_metadata"):
-                # QKV norms restore the pre-TP local SP sequence. Exchange
-                # geometry here, before either TP residual sharding or layers.
-                local_heads = self.heads_num // getattr(self, "tensor_parallel_size", 1)
+                # Exchange SP geometry once, before the layer loop.
                 sp_metadata = prepare_sp_communication(
-                    img.shape[1], local_heads, img.device, nccl_info.sp_group,
+                    img.shape[1], self.heads_num, img.device, nccl_info.sp_group,
                 )
-        img, txt = shard_transformer_streams(self, img, txt)
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
 
         # Use flash3 attention for KV cache mode.
@@ -3550,6 +3500,8 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
         # so FSDP2 unshard hooks fire at the block level.  The block's forward()
         # detects kv_cache != None and delegates to forward_with_cache internally.
         # A fresh segment/request must never reuse routes from an earlier rollout.
+        # Current-token unpadding is identical in every block: compute it once per forward.
+        attention_metadata = None if _os.environ.get("HY_DIT_SHARED_UNPAD", "1") == "0" else {}
         if not update_cache and getattr(self, "_sparse_step_index", 0) == 0:
             for cache in kv_cache_list or []:
                 cache.pop("route_reuse", None)
@@ -3577,6 +3529,7 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                     intra_seg_vid_windows=intra_seg_vid_windows,
                     intra_seg_tokens_per_frame=tokens_per_frame,
                     sp_metadata=sp_metadata,
+                    attention_metadata=attention_metadata,
                     sparse_context=(
                         dict(config=self.nomas_sparse_config, grid=(tt, th, tw),
                              time_start=global_frame_counter, layer=index,
@@ -3610,9 +3563,8 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                         rope_time_offset=camera_rope_time_offset,
                     )
 
-        tp_enabled = getattr(self, "tensor_parallel_size", 1) > 1
-        # Preserve the TP1 path: gather SP tokens before the output layer.
-        if get_sequence_parallel_state() and not tp_enabled:
+        # Gather sequence back before final layer
+        if get_sequence_parallel_state():
             if nccl_info.use_dynamic_ring_attention:
                 img = postprocess_dynamic_ring_attention(img)
             else:
@@ -3621,14 +3573,7 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                     sizes=sp_metadata.sequence_lengths,
                 )
 
-        # With TP, final LayerNorm normalizes local tokens and gathers them
-        # before the output projection; restore the SP dimension afterwards.
         img = self.final_layer(img, vec, tokens_per_frame=tokens_per_frame)
-        if get_sequence_parallel_state() and tp_enabled:
-            img = all_gather(
-                img, dim=1, group=nccl_info.sp_group,
-                sizes=sp_metadata.sequence_lengths,
-            )
         img = self.unpatchify(img, tt, th, tw)
 
         # Calculate tokens added to cache

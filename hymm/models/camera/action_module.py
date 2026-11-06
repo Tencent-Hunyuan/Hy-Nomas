@@ -620,28 +620,19 @@ class ActionModule(nn.Module):
         return torch.stack(outs, dim=0)
 
     def _sp_local_window(self, total_tokens: int, TS_local: int) -> Tuple[int, int]:
-        """Return [local_start, local_end) for this SP-then-TP token shard.
+        """Return [local_start, local_end) global token indices for this SP rank.
 
         ``local_start`` is computed to match ``torch.chunk(img, sp_size, dim=1)``
         (the upstream SP image shard), i.e. split_size=ceil(total/sp_size) with
         the remainder absorbed by the last rank — see ``_torch_chunk_local_start``.
-        TP then splits that SP shard into balanced contiguous token ranges.
         ``local_end`` is anchored to the actual ``TS_local`` this rank received,
         so the window length always equals the real shard size.
         """
         local_start = 0
-        local_tokens = total_tokens
         if get_sequence_parallel_state():
             sp_size = nccl_info.sp_size
             sp_rank = nccl_info.rank_within_spgroup
             local_start = _torch_chunk_local_start(total_tokens, sp_size, sp_rank)
-            local_tokens = min((total_tokens + sp_size - 1) // sp_size,
-                               max(0, total_tokens - local_start))
-        tp_size = getattr(self, "tensor_parallel_size", 1)
-        if tp_size > 1:
-            from hymm.distributed.tensor_parallel import sequence_partition
-            offset, _ = sequence_partition(local_tokens, tp_size, self.tensor_parallel_rank)
-            local_start += offset
         local_end = local_start + TS_local
         return int(local_start), int(local_end)
 
@@ -985,8 +976,8 @@ class ActionModule(nn.Module):
         assert x is not None, "hidden_states is required for action module"
         assert keyboard is not None, "keyboard is required for action module"
         if x.shape[1] == 0:
-            # Short sequences can leave a TP rank with no query tokens. Camera
-            # attention has no collectives; skip kernels that reject empty Q.
+            # A short sequence can leave a sequence shard empty. Camera attention
+            # has no collectives; skip kernels that reject empty Q.
             return x
 
         hidden_states = x

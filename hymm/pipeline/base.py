@@ -86,9 +86,7 @@ class BasePipeline(nn.Module):
         )
 
         from hymm.distributed.parallel_states import nccl_info
-        from hymm.distributed.tensor_parallel import (
-            parallelize_transformer, validate_tensor_parallel_config,
-        )
+        from hymm.distributed.tensor_parallel import validate_tensor_parallel_config
         validate_tensor_parallel_config(args)
         tp_size = getattr(args.parallelism, "tp_size", 1)
         if tp_size != nccl_info.tp_size:
@@ -120,7 +118,7 @@ class BasePipeline(nn.Module):
             self.transformer = load_transformer(
                 args.dit.model_type,
                 dit_model_path,
-                factor_kwargs={"device": torch.device("cpu") if tp_size > 1 else dit_device, "dtype": load_dtype},
+                factor_kwargs={"device": dit_device, "dtype": load_dtype},
                 convert_state_dict_in_out=getattr(args, "convert_state_dict_in_out", False),
                 convert_state_dict_16168_to_16164=getattr(
                     args, "convert_state_dict_16168_to_16164", False
@@ -131,10 +129,11 @@ class BasePipeline(nn.Module):
             if lora_adapter:
                 from hymm.models.lora import load_lora_adapter
                 load_lora_adapter(self.transformer, lora_adapter)
-            if tp_size > 1:
-                parallelize_transformer(self.transformer, nccl_info.tp_group, nccl_info.sp_size)
-                logger.info(f"DiT tensor parallel enabled: rank={nccl_info.rank_within_tpgroup}/{tp_size}")
             self.transformer.to(dtype=target_dtype, device=dit_device)
+        if tp_size > 1:
+            from hymm.models.dit.modules.tensor_parallel import apply_dit_tensor_parallel
+            apply_dit_tensor_parallel(self.transformer, nccl_info.tp_group)
+            logger.info(f"DiT tensor parallel enabled: rank={nccl_info.rank_within_tpgroup}/{tp_size}")
         # Freeze only this inference instance, after optional LoRA loading.
         # The INT8 path deliberately never applies a blanket floating dtype cast.
         self.transformer.eval().requires_grad_(False)

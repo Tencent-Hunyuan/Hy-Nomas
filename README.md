@@ -191,7 +191,7 @@ bash scripts/inference/inference_from_config.sh configs/experiment/inference.yam
   inference.save_path=./outputs/distill
 ```
 
-The inference preset uses **SP=1, TP=8**. Tensor parallelism shards dense DiT attention and MLP projections across eight ranks. See [tensor-parallel inference](tensor_parallel.md) for topology overrides, tests and current limitations.
+The inference preset uses **SP=1, TP=8**. Tensor parallelism shards the DiT attention heads (Q/K/V projections and the KV cache) across eight ranks; after attention, one all-to-all returns each rank to its token shard, where the output projection and MLP run with whole weights. It supports the KV-cache rollouts (`seg_ar`, `chunk_ar`) with unquantized DiT weights and cannot be combined with `sp_size > 1`.
 
 #### Inference with Low-Mem GPU
 

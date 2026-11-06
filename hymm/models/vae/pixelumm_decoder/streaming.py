@@ -131,6 +131,10 @@ class WindowStreamingDecodeSession:
     returned pixels and retained output history still follow ``to_cpu``.
     """
 
+    # Provisional previews blend only not-yet-decoded tail windows onto ``pending``
+    # (bitwise identical to re-decoding from the stable boundary; False keeps the old path).
+    reuse_pending_tail = True
+
     def __init__(
         self,
         model,
@@ -352,6 +356,39 @@ class WindowStreamingDecodeSession:
             len(starts) - 1,
         )
         selected_starts = starts[first_index:]
+        # Windows before ``next_window_start`` are already blended into ``pending``, and windows
+        # before ``selected_starts`` end before ``raw_start``. Blending only the new tail windows
+        # onto ``pending`` is therefore the same left-to-right merge as re-decoding every selected
+        # window, without decoding the reused ones a second time.
+        new_starts = [
+            start for start in selected_starts
+            if start >= self.next_window_start or start % self.stride
+        ]
+        if (
+            self.reuse_pending_tail
+            and new_starts
+            and len(new_starts) < len(selected_starts)
+            and self.next_window_start > 0
+            and new_starts[0] < regular_decoded_latent_end
+        ):
+            decoded = self._decode_windows(new_starts)
+            if not self._is_output_rank():
+                return None
+            assert decoded is not None and self.pending is not None
+            merged = _merge_overlapping(
+                [self.pending, decoded],
+                [0, new_starts[0] * self.temporal_ratio - self.pending_pixel_start],
+                dim=2,
+            )
+            local_start = raw_start - self.pending_pixel_start
+            local_end = raw_end - self.pending_pixel_start
+            if not 0 <= local_start <= local_end <= merged.shape[2]:
+                raise RuntimeError(
+                    "PixelUMM tail preview does not cover the requested raw range: "
+                    f"pending_start={self.pending_pixel_start}, "
+                    f"requested=[{raw_start}, {raw_end}), merged_frames={merged.shape[2]}"
+                )
+            return merged[:, :, local_start:local_end].contiguous()
         decoded = self._decode_windows(selected_starts)
         if not self._is_output_rank():
             return None

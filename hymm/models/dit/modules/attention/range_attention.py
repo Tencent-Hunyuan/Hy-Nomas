@@ -38,6 +38,25 @@ def note_non_range_call():
     _STATS["flash3_non_range/" + _PHASE] += 1
 
 
+def unpad_positions(mask):
+    """Valid-token positions of a [B, S] mask, for ``unpad_tokens``, and their cu_seqlens."""
+    lengths = mask.sum(dim=-1, dtype=torch.int32)
+    cu_seqlens = torch.cat([lengths.new_zeros(1), lengths.cumsum(0, dtype=torch.int32)])
+    return mask.flatten().nonzero().flatten(), cu_seqlens
+
+
+def unpad_tokens(x, positions):
+    """[B, S, H, D] to [nnz, H, D], as flash_attn's unpad_input without its per-element index."""
+    return x.flatten(0, 1).index_select(0, positions)
+
+
+def pad_tokens(x, positions, batch, length):
+    """Inverse of ``unpad_tokens``; padding rows are zero."""
+    out = x.new_zeros((batch * length, *x.shape[1:]))
+    out[positions] = x
+    return out.reshape(batch, length, *x.shape[1:])
+
+
 @lru_cache(maxsize=1)
 def compiled_flex():
     from torch.nn.attention.flex_attention import flex_attention

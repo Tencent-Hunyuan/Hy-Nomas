@@ -19,7 +19,7 @@ tp_size=8), sequentially on one eight-GPU machine. Stops on failure.
 Use b300_sp4 (SP=4, TP=1) or b300_tp4 (SP=1, TP=4) on four B300 GPUs.
 Both use scripts/inference/inference_b300_sp4.py for one full warmup
 followed by one measured request. SP4 and TP4 keep DiT/VAE torch_compile enabled;
-TP4 retains explicit all-gather/reduce-scatter between compiled local regions.
+TP4 shards Q/K/V heads; attention outputs return to token shards with one all-to-all.
 
 Required environment variables (no defaults):
   DIT_WEIGHT            DiT checkpoint (local file).
