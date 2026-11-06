@@ -1078,6 +1078,178 @@ class GenerationService:
             f"{time.perf_counter() - started:.3f}s"
         )
 
+    @property
+    def active_session_id(self) -> Optional[str]:
+        return self._active_session_id
+
+    _SNAPSHOT_ATTRS = (
+        "cache_valid_len", "global_frame_counter", "segment_token_lengths",
+        "_interactive_cached_action_tails", "_interactive_cached_seg_video_ranges",
+        "_interactive_segment_count", "_interactive_segment_cache_tokens",
+        "_interactive_segment_latent_lengths",
+    )
+
+    _PIXELUMM_SNAPSHOT_FIELDS = (
+        "buffer", "available_latent_frames", "available_pixel_frames",
+        "next_window_start", "pending", "pending_pixel_start", "committed",
+        "committed_raw_pixel_frames", "committed_pixel_frames",
+        "push_latent_frames", "push_pixel_frames", "push_stable_pixel_frames",
+        "finished", "final_segment",
+    )
+
+    def _require_single_gpu_session_state(self) -> None:
+        if int(getattr(self, "world_size", 1)) != 1:
+            raise RuntimeError(
+                "session snapshot/restore currently supports a single-GPU "
+                "worker; multi-rank restore requires collective coordination"
+            )
+
+    def _snapshot_pixelumm_state(self) -> Optional[Dict[str, Any]]:
+        session = getattr(self.pipeline, "_interactive_pixelumm_decode_session", None)
+        if session is None:
+            return None
+        state = {
+            name: getattr(session, name)
+            for name in self._PIXELUMM_SNAPSHOT_FIELDS
+            if hasattr(session, name)
+        }
+        state["streaming_metadata"] = getattr(
+            self.pipeline, "_last_pixelumm_streaming_metadata", None,
+        )
+        return state
+
+    def _restore_pixelumm_state(self, state: Optional[Dict[str, Any]]) -> None:
+        if state is None:
+            self.pipeline._interactive_pixelumm_decode_session = None
+            self.pipeline._last_pixelumm_streaming_metadata = None
+            return
+        session = self.pipeline.vae.create_streaming_decode_session(
+            to_cpu=True, retain_history=False,
+        )
+        for name in self._PIXELUMM_SNAPSHOT_FIELDS:
+            if name not in state:
+                continue
+            value = state[name]
+            if name == "committed" and isinstance(value, list):
+                value = [
+                    (int(start), tensor.cpu() if torch.is_tensor(tensor) else tensor)
+                    for start, tensor in value
+                ]
+            setattr(session, name, value)
+        # buffer/pending may have been saved on either device; normalize them
+        # exactly as the decoder does around a real decode phase.
+        session._move_decode_state(self.device)
+        self.pipeline._interactive_pixelumm_decode_session = session
+        self.pipeline._last_pixelumm_streaming_metadata = state.get(
+            "streaming_metadata",
+        )
+
+    def snapshot_session(self, session_id: str, path: str) -> Dict[str, Any]:
+        """Persist the KV cache and interactive state of the active session."""
+        self._require_single_gpu_session_state()
+        if self.rank != 0:
+            raise RuntimeError("session snapshot may only be initiated on rank 0")
+        with self._lock:
+            if self._active_session_id != session_id:
+                raise ValueError("requested session is not active on this worker")
+            gen = getattr(self.pipeline, "_interactive_noise_generator", None)
+            state = {
+                "session_id": session_id,
+                "kv_cache": getattr(self.pipeline, "kv_cache", None),
+                "cache_mask_list": getattr(self.pipeline, "cache_mask_list", None),
+                "attrs": {a: getattr(self.pipeline, a, None)
+                          for a in self._SNAPSHOT_ATTRS},
+                "noise_bank": getattr(self.pipeline, "_interactive_noise_bank", None),
+                "noise_gen_state": gen.get_state() if gen is not None else None,
+                "noise_seed": getattr(self.pipeline, "_interactive_noise_seed", None),
+                "noise_rng_states": list(getattr(
+                    self.pipeline, "_interactive_segment_noise_rng_states", []) or []),
+                "pixelumm": self._snapshot_pixelumm_state(),
+            }
+            # Write atomically so an interrupted snapshot cannot replace a
+            # previously valid file with a truncated one.
+            tmp_path = f"{path}.tmp"
+            try:
+                torch.save(state, tmp_path)
+                os.replace(tmp_path, path)
+            finally:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            return {"session_id": session_id, "path": path,
+                    "bytes": os.path.getsize(path)}
+
+    def restore_session(self, session_id: str, path: str) -> Dict[str, Any]:
+        """Restore a previously saved interactive session (world switching)."""
+        self._require_single_gpu_session_state()
+        if self.rank != 0:
+            raise RuntimeError("session restore may only be initiated on rank 0")
+        with self._lock:
+            if not os.path.isfile(path):
+                raise ValueError("session snapshot not found")
+            # Load and validate fully before touching the live session so a
+            # corrupt snapshot cannot destroy the current world.
+            state = torch.load(path, map_location="cpu", weights_only=False)
+            if not isinstance(state, dict):
+                raise ValueError("invalid session snapshot")
+            if str(state.get("session_id") or "") != session_id:
+                raise ValueError("session snapshot belongs to a different session")
+            kv = state.get("kv_cache")
+            if kv is None:
+                raise ValueError("session snapshot has no KV cache")
+            masks = state.get("cache_mask_list")
+            if masks is not None and len(masks) != len(kv):
+                raise ValueError("session snapshot KV cache and masks disagree")
+            if state.get("pixelumm") is not None and not hasattr(
+                getattr(self.pipeline, "vae", None),
+                "create_streaming_decode_session",
+            ):
+                raise ValueError(
+                    "session snapshot contains PixelUMM state but the pipeline "
+                    "cannot restore a streaming decoder",
+                )
+            self._reset_pipeline_state()
+            for cache in kv:
+                for key in ("k", "v", "k_scale", "v_scale"):
+                    if key in cache and torch.is_tensor(cache[key]):
+                        cache[key] = cache[key].to(self.device)
+            if masks is not None:
+                restored = []
+                for tensor in masks:
+                    if torch.is_tensor(tensor):
+                        tensor = tensor.to(self.device)
+                        if not hasattr(tensor, "_action_tail_ranges"):
+                            tensor._action_tail_ranges = []
+                    restored.append(tensor)
+                masks = restored
+            self.pipeline.kv_cache = kv
+            self.pipeline.cache_mask_list = masks
+            for attr, value in (state.get("attrs") or {}).items():
+                setattr(self.pipeline, attr, value)
+            noise_bank = state.get("noise_bank")
+            if noise_bank is not None and torch.is_tensor(noise_bank):
+                noise_bank = noise_bank.to(self.device)
+            self.pipeline._interactive_noise_bank = noise_bank
+            gen_state = state.get("noise_gen_state")
+            if gen_state is not None:
+                if torch.is_tensor(gen_state):
+                    gen_state = gen_state.detach().to("cpu", torch.uint8).contiguous()
+                generator = torch.Generator(device="cpu")
+                generator.set_state(gen_state)
+                self.pipeline._interactive_noise_generator = generator
+            else:
+                self.pipeline._interactive_noise_generator = None
+            self.pipeline._interactive_noise_seed = state.get("noise_seed")
+            rng_states = []
+            for item in (state.get("noise_rng_states") or []):
+                if torch.is_tensor(item):
+                    item = item.detach().to("cpu", torch.uint8).contiguous()
+                rng_states.append(item)
+            self.pipeline._interactive_segment_noise_rng_states = rng_states
+            self._restore_pixelumm_state(state.get("pixelumm"))
+            self._active_session_id = str(session_id)
+            return {"session_id": session_id, "restored": True,
+                    "cache_valid_len": int(getattr(self.pipeline, "cache_valid_len", 0) or 0)}
+
     def rollback_session(self, session_id: str) -> Dict[str, Any]:
         """Collectively remove the latest interactive segment from all ranks."""
         if self.rank != 0:
@@ -2911,6 +3083,56 @@ def create_app(
     @app.get("/v1/config")
     def get_config() -> Dict[str, Any]:
         return service.public_config()
+
+    @app.post("/v1/rollback")
+    async def rollback(payload: Dict[str, Any]) -> Dict[str, Any]:
+        # Expose the existing session rollback primitive: remove the latest
+        # interactive segment and restore the matching KV state.
+        session_id = str((payload or {}).get("session_id") or "").strip()
+        if not session_id:
+            raise HTTPException(status_code=400, detail="session_id is required")
+        try:
+            return service.rollback_session(session_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.exception("rollback request failed")
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.get("/v1/session/state")
+    def session_state() -> Dict[str, Any]:
+        return {
+            "active_session": service.active_session_id,
+            "cache_valid_len": int(getattr(service.pipeline, "cache_valid_len", 0) or 0),
+        }
+
+    @app.post("/v1/session/snapshot")
+    async def snapshot_session(payload: Dict[str, Any]) -> Dict[str, Any]:
+        session_id = str((payload or {}).get("session_id") or "").strip()
+        path = str((payload or {}).get("path") or "").strip()
+        if not session_id or not path:
+            raise HTTPException(status_code=400, detail="session_id and path are required")
+        try:
+            return service.snapshot_session(session_id, path)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.exception("session snapshot failed")
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.post("/v1/session/restore")
+    async def restore_session(payload: Dict[str, Any]) -> Dict[str, Any]:
+        session_id = str((payload or {}).get("session_id") or "").strip()
+        path = str((payload or {}).get("path") or "").strip()
+        if not session_id or not path:
+            raise HTTPException(status_code=400, detail="session_id and path are required")
+        try:
+            return service.restore_session(session_id, path)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.exception("session restore failed")
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     @app.post("/v1/generate")
     async def generate(request: GenerateRequest) -> Dict[str, Any]:
