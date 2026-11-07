@@ -58,6 +58,7 @@ https://github.com/user-attachments/assets/e2e05b2b-9024-4b0e-9926-6eed05356b76
 
 如果你在项目中开发或使用 Hy-Nomas，欢迎告诉我们。
 
+- **Windflow** — [Hy-Nomas 托管 API](https://windflow.online/models/hy-nomas)，由 [@Windflowlabs](https://x.com/Windflowlabs) 提供：以托管流式 API 的形式运行 Hy-Nomas，按秒计费，无需自备 GPU。用一段文本打开世界；按住 WASD/方向键移动和转动视角，文本事件改变接下来发生的事，两者都从下一个两秒片段起生效。视频为 832 × 480，通过 WebRTC 或 WebSocket 推流。内测期间需申请开通。
 - **LTX-2.5 视频条件音频生成** — [演示与工作流说明](https://x.com/BennyDaBall_OG/status/2117675372024070250)，由 [@BennyDaBall_OG](https://x.com/BennyDaBall_OG) 提供：无需训练的 ComfyUI 工作流，以已生成的 Hy-Nomas 视频为条件生成音轨，冻结视频潜变量，并将音频合成到原始视频帧上。作者注明使用了 [@t8star_aix](https://x.com/t8star_aix) 基于 [@LatentSpacer](https://x.com/LatentSpacer) 的 ComfyUI-Hy-Nomas 节点包构建的节点。
 - **Prelulu 交互式微短剧** — [角色扮演演示](https://x.com/preluluofficial/status/2117563133120176449)，由 [@preluluofficial](https://x.com/preluluofficial) 提供：预览基于 Hy-Nomas 构建的交互式角色扮演体验，让用户与角色对话，探索不同的故事走向。
 - **Google TPU 演示** — [Mashbox 演示](https://mashbox.gg/world)，由 [@boshjerns](https://x.com/boshjerns) 提供：在 Google TPU 上运行支持键盘控制的 Hy-Nomas 世界生成。[公告](https://x.com/boshjerns/status/2114962446947651907)报告，在 v6e-4 切片（4 颗芯片）上实现实时 720p 生成，每秒视频需要 0.933 秒计算，连续运行 60 秒无延迟帧。
