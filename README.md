@@ -43,11 +43,11 @@ On CameraBench, temporal aggregation of frame-level predictions achieves **88.68
 <tr>
 <th rowspan="2">Model</th>
 <th rowspan="2">Params</th>
+<th rowspan="2">Overall</th>
 <th colspan="6">Translation (Dolly / Pedestal / Truck)</th>
 <th colspan="2">Zooming</th>
 <th colspan="6">Rotation (Pan / Tilt / Roll)</th>
 <th rowspan="2">Static</th>
-<th rowspan="2">Overall</th>
 </tr>
 <tr>
 <th>In</th>
@@ -70,6 +70,7 @@ On CameraBench, temporal aggregation of frame-level predictions achieves **88.68
 <tr>
 <td><strong>Hy-Nomas IDM</strong></td>
 <td align="center">0.474B</td>
+<td align="center"><strong>88.68</strong></td>
 <td align="center">95.46</td>
 <td align="center">80.48</td>
 <td align="center">70.49</td>
@@ -85,51 +86,51 @@ On CameraBench, temporal aggregation of frame-level predictions achieves **88.68
 <td align="center">95.95</td>
 <td align="center">95.77</td>
 <td align="center">88.84</td>
-<td align="center"><strong>88.68</strong></td>
 </tr>
 <tr>
 <td><a href="https://3dagentworld.github.io/CameraVLM/">CameraVLM</a></td>
 <td align="center">9B</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
 <td align="center">88.20</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
 </tr>
 <tr>
 <td><a href="https://arxiv.org/html/2610.17242v1#S4">GPT-6 Astra (high)</a></td>
 <td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
-<td align="center">—</td>
 <td align="center">82.50</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
 </tr>
 <tr>
 <td><a href="https://linzhiqiu.github.io/papers/camerabench/">Qwen2.5-VL-72B (SFT)</a></td>
 <td align="center">72B</td>
+<td align="center">62.8</td>
 <td align="center">86.8</td>
 <td align="center">41.3</td>
 <td align="center">30.5</td>
@@ -145,11 +146,11 @@ On CameraBench, temporal aggregation of frame-level predictions achieves **88.68
 <td align="center">35.0</td>
 <td align="center">43.8</td>
 <td align="center">76.6</td>
-<td align="center">62.8</td>
 </tr>
 <tr>
 <td><a href="https://linzhiqiu.github.io/papers/camerabench/">Qwen2.5-VL-7B (SFT)</a></td>
 <td align="center">7B</td>
+<td align="center">60.0</td>
 <td align="center">83.9</td>
 <td align="center">38.6</td>
 <td align="center">27.8</td>
@@ -165,11 +166,11 @@ On CameraBench, temporal aggregation of frame-level predictions achieves **88.68
 <td align="center">32.3</td>
 <td align="center">41.0</td>
 <td align="center">73.6</td>
-<td align="center">60.0</td>
 </tr>
 <tr>
 <td><a href="https://linzhiqiu.github.io/papers/camerabench/">MegaSAM</a></td>
 <td align="center">—</td>
+<td align="center">58.2</td>
 <td align="center">87.0</td>
 <td align="center">58.3</td>
 <td align="center">43.0</td>
@@ -185,11 +186,11 @@ On CameraBench, temporal aggregation of frame-level predictions achieves **88.68
 <td align="center">67.4</td>
 <td align="center">76.9</td>
 <td align="center">60.1</td>
-<td align="center">58.2</td>
 </tr>
 <tr>
 <td><a href="https://linzhiqiu.github.io/papers/camerabench/">CUT3R</a></td>
 <td align="center">—</td>
+<td align="center">50.9</td>
 <td align="center">88.0</td>
 <td align="center">65.5</td>
 <td align="center">38.7</td>
@@ -205,11 +206,11 @@ On CameraBench, temporal aggregation of frame-level predictions achieves **88.68
 <td align="center">60.7</td>
 <td align="center">66.2</td>
 <td align="center">37.6</td>
-<td align="center">50.9</td>
 </tr>
 <tr>
 <td><a href="https://linzhiqiu.github.io/papers/camerabench/">MASt3R</a></td>
 <td align="center">0.689B</td>
+<td align="center">49.5</td>
 <td align="center">65.4</td>
 <td align="center">34.3</td>
 <td align="center">35.1</td>
@@ -225,7 +226,6 @@ On CameraBench, temporal aggregation of frame-level predictions achieves **88.68
 <td align="center">50.4</td>
 <td align="center">53.5</td>
 <td align="center">45.6</td>
-<td align="center">49.5</td>
 </tr>
 </tbody>
 </table>

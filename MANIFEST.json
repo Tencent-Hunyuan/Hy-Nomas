@@ -14,12 +14,12 @@
     {
       "path": "README.md",
       "bytes": 27443,
-      "sha256": "809db658928008edf9a9f1aa6ace1727072a56046f4533eabff4e82e1ca5c806"
+      "sha256": "21478ed3126b041243105f39fbbb300062eab8ab8b54c37a8832211a035e40b3"
     },
     {
       "path": "README_CN.md",
       "bytes": 25967,
-      "sha256": "b7c7d185a24c20d233fda41b41e8b229d4f6a6a1f155a33cebf57e2c9c7f1c46"
+      "sha256": "d7829e3bcd7a159aaf22d085a04d6cde63ae98899bcd5cb3b8dcd6853b40b517"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
