@@ -18,6 +18,7 @@
 - [Reproducing Metrics](#reproducing-metrics)
 - [Package Layout](#package-layout)
 - [Acknowledgements](#acknowledgements)
+- [Citation](#citation)
 
 ## Model Overview
 
@@ -537,12 +538,12 @@ An odd frame dimension is padded by one pixel for H.264 compatibility.
 <tr>
 <td width="50%">
 
-![](assets/case_01_hud.mp4)
+https://github.com/user-attachments/assets/7ca29e6e-ba03-4a29-8d43-e5baad75ed95
 
 </td>
 <td width="50%">
 
-![](assets/case_02_hud.mp4)
+https://github.com/user-attachments/assets/6bd41a84-4669-4a96-bd8d-2f82886523f2
 
 </td>
 </tr>
@@ -550,12 +551,12 @@ An odd frame dimension is padded by one pixel for H.264 compatibility.
 <tr>
 <td width="50%">
 
-![](assets/case_03_hud.mp4)
+https://github.com/user-attachments/assets/70bc84e1-8d63-4f94-ab0d-94be54967cee
 
 </td>
 <td width="50%">
 
-![](assets/case_04_hud.mp4)
+https://github.com/user-attachments/assets/7edf6c02-4ee7-4b43-8ae6-911687afe797
 
 </td>
 </tr>
@@ -563,12 +564,12 @@ An odd frame dimension is padded by one pixel for H.264 compatibility.
 <tr>
 <td width="50%">
 
-![](assets/case_05_hud.mp4)
+https://github.com/user-attachments/assets/bc08f78c-c4f8-4b44-9a90-09f0b6cfdb51
 
 </td>
 <td width="50%">
 
-![](assets/case_06_hud.mp4)
+https://github.com/user-attachments/assets/058724b2-c65c-41d4-b618-84895b2ca2aa
 
 </td>
 </tr>
@@ -703,3 +704,18 @@ tools/verify_package.py     Package checksum verification
 ## Acknowledgements
 
 This package uses the [OpenAI VPT](https://github.com/openai/Video-Pre-Training) runtime. Its MIT license is preserved in `vendor/video-pre-training/LICENSE`. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and distribution notes.
+
+We also thank the [CameraVLM](https://3dagentworld.github.io/CameraVLM/) team for their valuable contributions to the community.
+
+## Citation
+
+If you find Hy-Nomas useful in your research, please cite our technical report:
+
+```bibtex
+@article{chen2026hy,
+  title={Hy-Nomas: Towards Free-form Interactive World Generation},
+  author={Chen, Qiaoling and Cheng, Jiaxiang and Deng, Xueqing and Hang, Tiankai and Hou, Ji and Li, Jiaqi and Liu, Yifan and Lu, Tao and Tang, Junshu and Tang, Yu and others},
+  journal={arXiv preprint arXiv:2610.36729},
+  year={2026}
+}
+```

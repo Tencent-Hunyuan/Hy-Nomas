@@ -18,6 +18,7 @@
 - [指标复现](#指标复现)
 - [目录结构](#目录结构)
 - [致谢](#致谢)
+- [引用](#引用)
 
 ## 模型概览
 
@@ -531,12 +532,12 @@ SHAKE 的默认激活条件为概率 **>= 0.7**，可通过 `--shake-threshold` 
 <tr>
 <td width="50%">
 
-![](assets/case_01_hud.mp4)
+https://github.com/user-attachments/assets/7ca29e6e-ba03-4a29-8d43-e5baad75ed95
 
 </td>
 <td width="50%">
 
-![](assets/case_02_hud.mp4)
+https://github.com/user-attachments/assets/6bd41a84-4669-4a96-bd8d-2f82886523f2
 
 </td>
 </tr>
@@ -544,12 +545,12 @@ SHAKE 的默认激活条件为概率 **>= 0.7**，可通过 `--shake-threshold` 
 <tr>
 <td width="50%">
 
-![](assets/case_03_hud.mp4)
+https://github.com/user-attachments/assets/70bc84e1-8d63-4f94-ab0d-94be54967cee
 
 </td>
 <td width="50%">
 
-![](assets/case_04_hud.mp4)
+https://github.com/user-attachments/assets/7edf6c02-4ee7-4b43-8ae6-911687afe797
 
 </td>
 </tr>
@@ -557,12 +558,12 @@ SHAKE 的默认激活条件为概率 **>= 0.7**，可通过 `--shake-threshold` 
 <tr>
 <td width="50%">
 
-![](assets/case_05_hud.mp4)
+https://github.com/user-attachments/assets/bc08f78c-c4f8-4b44-9a90-09f0b6cfdb51
 
 </td>
 <td width="50%">
 
-![](assets/case_06_hud.mp4)
+https://github.com/user-attachments/assets/058724b2-c65c-41d4-b618-84895b2ca2aa
 
 </td>
 </tr>
@@ -697,3 +698,18 @@ tools/verify_package.py     包文件校验
 ## 致谢
 
 本包使用 [OpenAI VPT](https://github.com/openai/Video-Pre-Training) 运行代码，其 MIT 许可证保留于 `vendor/video-pre-training/LICENSE`。来源归属及分发说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+同时感谢 [CameraVLM](https://3dagentworld.github.io/CameraVLM/) 团队为社区作出的宝贵贡献。
+
+## 引用
+
+如果 Hy-Nomas 对您的研究有所帮助，请引用我们的技术报告：
+
+```bibtex
+@article{chen2026hy,
+  title={Hy-Nomas: Towards Free-form Interactive World Generation},
+  author={Chen, Qiaoling and Cheng, Jiaxiang and Deng, Xueqing and Hang, Tiankai and Hou, Ji and Li, Jiaqi and Liu, Yifan and Lu, Tao and Tang, Junshu and Tang, Yu and others},
+  journal={arXiv preprint arXiv:2610.36729},
+  year={2026}
+}
+```
