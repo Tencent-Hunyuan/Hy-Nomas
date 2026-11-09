@@ -1,3 +1,0 @@
--r requirements.txt
-evo==1.38.1
-scipy>=1.10

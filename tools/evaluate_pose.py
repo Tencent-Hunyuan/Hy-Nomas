@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Evaluate IDM camera trajectories on ScanNet, TUM-dynamic, and Sintel.
 
-Install requirements-eval.txt and use the data prepared by MonST3R:
+Install requirements.txt and use the data prepared by MonST3R:
 https://github.com/Junyi42/monst3r/blob/main/data/evaluation_script.md
 Expected files below --data-root:
   scannetv2/<sequence>/color_90/*.jpg, pose_90.txt

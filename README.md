@@ -470,7 +470,7 @@ For standalone use, the environment can be reduced to this package's `requiremen
 python -m pip install -r requirements.txt
 ```
 
-Only the five direct dependencies above are required; the action-space type definitions used by VPT are bundled. For `--hud`, also make FFmpeg available on `PATH`.
+The dependency file includes both inference and evaluation dependencies; the action-space type definitions used by VPT are bundled. For `--hud`, also make FFmpeg available on `PATH`.
 
 Keep `weights/`, `idm/`, and `vendor/` alongside `infer.py`. Paths are resolved relative to the package, so it can be moved without editing the code. Model weights occupy approximately 1.9 GB. They are configured for Git LFS; a source-only checkout must also obtain the corresponding LFS files.
 
@@ -670,7 +670,7 @@ The head weights are stored in `weights/clip_head.json`; final predictions are `
 Prepare the datasets with the [MonST3R data scripts](https://github.com/Junyi42/monst3r/blob/main/data/evaluation_script.md). `--data-root` points to the directory containing `scannetv2/`, `tum/`, and `sintel/`.
 
 ```bash
-python -m pip install -r requirements-eval.txt
+python -m pip install -r requirements.txt
 
 # Predict trajectories and evaluate all three datasets
 python tools/evaluate_pose.py --data-root /path/to/data \
@@ -692,9 +692,7 @@ idm/                        Model loading, sampling, and score mapping
 weights/                    Backbone, clip-level head weights, and metadata
 vendor/video-pre-training/  VPT runtime and license
 assets/                     Example videos, predictions, and HUD outputs
-requirements.txt            Runtime dependencies
-requirements-eval.txt       Optional pose evaluation dependencies
-tests/                      Output, sampling, HUD, and trajectory tests
+requirements.txt            Inference and evaluation dependencies
 tools/apply_clip_head.py     Apply the clip-level head to saved predictions
 tools/evaluate_camerabench.py CameraBench AP / mAP evaluation
 tools/evaluate_pose.py      ScanNet, TUM-dynamic, and Sintel evaluation

@@ -470,7 +470,7 @@ Hy-Nomas IDM 将预测的平移速度与角速度积分为相机轨迹，采用 
 python -m pip install -r requirements.txt
 ```
 
-仅需上述五项直接依赖；VPT 所需的动作空间类型定义已随包提供。使用 `--hud` 时，还需将 FFmpeg 加入 `PATH`。
+依赖文件统一包含推理与评测依赖；VPT 所需的动作空间类型定义已随包提供。使用 `--hud` 时，还需将 FFmpeg 加入 `PATH`。
 
 将 `weights/`、`idm/` 和 `vendor/` 与 `infer.py` 放在同一目录下。程序相对于包目录解析路径，整体移动后无需修改代码。权重约 1.9 GB，已配置 Git LFS；仅克隆源码时，还需要获取对应的 LFS 文件。
 
@@ -664,7 +664,7 @@ Head 权重为 `weights/clip_head.json`，最终预测为 `0.7 × 时间聚合�
 按 [MonST3R 数据准备脚本](https://github.com/Junyi42/monst3r/blob/main/data/evaluation_script.md)准备数据。`--data-root` 指向包含 `scannetv2/`、`tum/`、`sintel/` 的目录。
 
 ```bash
-python -m pip install -r requirements-eval.txt
+python -m pip install -r requirements.txt
 
 # 三个数据集：预测轨迹并计算指标
 python tools/evaluate_pose.py --data-root /path/to/data \
@@ -686,9 +686,7 @@ idm/                        模型加载、视频采样与分数映射
 weights/                    主模型、clip-level head 权重与元数据
 vendor/video-pre-training/  VPT 运行代码及许可证
 assets/                     示例视频、预测结果与 HUD 视频
-requirements.txt            运行依赖
-requirements-eval.txt       可选的位姿评测依赖
-tests/                      输出、采样、HUD 与轨迹测试
+requirements.txt            推理与评测依赖
 tools/apply_clip_head.py     对已有预测应用 clip-level head
 tools/evaluate_camerabench.py CameraBench AP / mAP 评测
 tools/evaluate_pose.py      ScanNet、TUM-dynamic 与 Sintel 评测

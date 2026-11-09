@@ -13,13 +13,13 @@
     },
     {
       "path": "README.md",
-      "bytes": 27443,
-      "sha256": "21478ed3126b041243105f39fbbb300062eab8ab8b54c37a8832211a035e40b3"
+      "bytes": 27336,
+      "sha256": "798b107f059c59ed240d7cdd8445c1de7067327a6c80c28980f09b310e0e94c1"
     },
     {
       "path": "README_CN.md",
-      "bytes": 25967,
-      "sha256": "d7829e3bcd7a159aaf22d085a04d6cde63ae98899bcd5cb3b8dcd6853b40b517"
+      "bytes": 25864,
+      "sha256": "6747ef4c3fd3e7cff7d5b3da5cebbbf6ea934fc7333c3010905c54789e7526c3"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
@@ -162,49 +162,9 @@
       "sha256": "55166a40cc68e960c6e1d99c49a0f9621b97f3437ee05aa306065e37ac5d6570"
     },
     {
-      "path": "requirements-eval.txt",
-      "bytes": 44,
-      "sha256": "4a1d3bbf448ff42ce65dd5b59a8dc8ca4c6c79ef2c70f6899f3a803b21fafb3f"
-    },
-    {
       "path": "requirements.txt",
-      "bytes": 88,
-      "sha256": "ac4119bf554a1c5c1199afdc190befe4f1107622dd5dadab37a953d46a5be021"
-    },
-    {
-      "path": "tests/test_camerabench_evaluation.py",
-      "bytes": 748,
-      "sha256": "f60c4bb8c0bbb3eccd4f6d2091703d99dabb2fb26891b809c18804358878e374"
-    },
-    {
-      "path": "tests/test_clip_head.py",
-      "bytes": 2638,
-      "sha256": "eb549734b26da0a001fe2cd2f78124fa2287aae46896e7755fea21bf746d5680"
-    },
-    {
-      "path": "tests/test_contract.py",
-      "bytes": 1374,
-      "sha256": "deda23545ee1eb216251aa458e99e936b24321becab6ede4f6498e98e286457b"
-    },
-    {
-      "path": "tests/test_hud.py",
-      "bytes": 3461,
-      "sha256": "7b8b6123fe3bcaf3fc7dc8ac6fe4bef4b3ef683800acf733c56d8d51755131e0"
-    },
-    {
-      "path": "tests/test_pose_evaluation.py",
-      "bytes": 3233,
-      "sha256": "39e63004daf78225564344ab3140c8b250de28eb2bb74254066e0a0d2daf6996"
-    },
-    {
-      "path": "tests/test_sampling.py",
-      "bytes": 1540,
-      "sha256": "f6ba7e60103f8b28f61f3768f36b74c827249c0713135f14599942db29b18bab"
-    },
-    {
-      "path": "tests/test_trajectory.py",
-      "bytes": 2586,
-      "sha256": "a1d5384918aaa4ff23f7e155402a25e4e4d5778cc0284062570da174085f830c"
+      "bytes": 112,
+      "sha256": "1547a04ed25ba803e7c0c409e51977952427a887806eef9bb5ea7101d16b4a3f"
     },
     {
       "path": "tools/apply_clip_head.py",
@@ -218,8 +178,8 @@
     },
     {
       "path": "tools/evaluate_pose.py",
-      "bytes": 16678,
-      "sha256": "58ca9ce084a0d873b8ba644afafa2e44e4f5392ff9d87440104cd3ccb5f38de1"
+      "bytes": 16673,
+      "sha256": "dd42054cdd160c3c4b1bf9725c73d43085eb692bdca4bb4da3d734ba0c4db0e9"
     },
     {
       "path": "tools/set_video_urls.py",

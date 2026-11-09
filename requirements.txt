@@ -3,3 +3,5 @@ numpy>=1.24,<2.3
 decord==0.6.0
 attrs>=23.1
 opencv-python-headless>=4.8,<4.13
+evo==1.38.1
+scipy>=1.10
