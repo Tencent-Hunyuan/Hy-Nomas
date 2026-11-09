@@ -3,12 +3,11 @@
 
 Usage: python tools/set_video_urls.py --urls /path/to/video_urls.json
 The JSON maps case_01 through case_06 to their actual GitHub attachment URLs.
-This command verifies the uploaded MP4 resources, edits the local READMEs,
-and refreshes their manifest entries. It does not upload or publish anything.
+This command verifies the uploaded MP4 resources and edits the local READMEs.
+It does not upload or publish anything.
 Use --check to reject a README that still points at local videos or file links.
 """
 import argparse
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -87,12 +86,6 @@ def main():
         updates[name] = before + block + after
     for name, text in updates.items():
         (ROOT / name).write_text(text)
-    manifest = json.loads((ROOT / 'MANIFEST.json').read_text())
-    for entry in manifest['files']:
-        if entry['path'] in updates:
-            data = (ROOT / entry['path']).read_bytes()
-            entry.update(bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
-    (ROOT / 'MANIFEST.json').write_text(json.dumps(manifest, indent=2) + '\n')
     validate_readmes()
     print('Both README tables now use inline GitHub video attachments.')
 

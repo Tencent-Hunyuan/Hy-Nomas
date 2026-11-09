@@ -17,6 +17,7 @@
 - [Inputs and Outputs](#inputs-and-outputs)
 - [Reproducing Metrics](#reproducing-metrics)
 - [Package Layout](#package-layout)
+- [License](#license)
 - [Acknowledgements](#acknowledgements)
 - [Citation](#citation)
 
@@ -687,6 +688,7 @@ For a single dataset, use `--datasets scannet`, `--datasets tum`, or `--datasets
 
 ```text
 README.md / README_CN.md    English / Chinese documentation
+LICENSE                    Project license and third-party notices
 infer.py                    Command-line entry point
 idm/                        Model loading, sampling, and score mapping
 weights/                    Backbone, clip-level head weights, and metadata
@@ -696,12 +698,22 @@ requirements.txt            Inference and evaluation dependencies
 tools/apply_clip_head.py     Apply the clip-level head to saved predictions
 tools/evaluate_camerabench.py CameraBench AP / mAP evaluation
 tools/evaluate_pose.py      ScanNet, TUM-dynamic, and Sintel evaluation
-tools/verify_package.py     Package checksum verification
 ```
+
+## License
+
+This project uses the same [LICENSE](LICENSE) as the Hy-Nomas main branch: Apache-2.0 for the released project code and model weights, with third-party components retaining their original license terms.
+
+The IDM package also bundles the following third-party code:
+
+- [OpenAI VPT](https://github.com/openai/Video-Pre-Training): `vendor/video-pre-training/lib`, except `gym3_types.py`, contains derived runtime code. Copyright (c) 2022 OpenAI; licensed under MIT. The original license is preserved in [vendor/video-pre-training/LICENSE](vendor/video-pre-training/LICENSE).
+- [OpenAI gym3](https://github.com/openai/gym3): `vendor/video-pre-training/lib/gym3_types.py` contains bundled type definitions. Copyright (c) 2020 OpenAI; licensed under MIT. The original license is preserved in [vendor/gym3/LICENSE](vendor/gym3/LICENSE). Its integer-product helper uses Python's `math.prod`; no gym3 installation is required.
+
+CameraBench videos and labels are not included in this package.
 
 ## Acknowledgements
 
-This package uses the [OpenAI VPT](https://github.com/openai/Video-Pre-Training) runtime. Its MIT license is preserved in `vendor/video-pre-training/LICENSE`. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and distribution notes.
+We thank [OpenAI VPT](https://github.com/openai/Video-Pre-Training) and [gym3](https://github.com/openai/gym3) for the runtime code and type definitions used in this package.
 
 We also thank the [CameraVLM](https://3dagentworld.github.io/CameraVLM/) team for their valuable contributions to the community.
 

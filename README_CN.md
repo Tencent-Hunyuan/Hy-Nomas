@@ -17,6 +17,7 @@
 - [输入与输出](#输入与输出)
 - [指标复现](#指标复现)
 - [目录结构](#目录结构)
+- [许可证](#许可证)
 - [致谢](#致谢)
 - [引用](#引用)
 
@@ -681,6 +682,7 @@ python tools/evaluate_pose.py --data-root /path/to/data \
 
 ```text
 README.md / README_CN.md    英文／中文说明
+LICENSE                    项目许可证与第三方许可说明
 infer.py                    命令行入口
 idm/                        模型加载、视频采样与分数映射
 weights/                    主模型、clip-level head 权重与元数据
@@ -690,12 +692,22 @@ requirements.txt            推理与评测依赖
 tools/apply_clip_head.py     对已有预测应用 clip-level head
 tools/evaluate_camerabench.py CameraBench AP / mAP 评测
 tools/evaluate_pose.py      ScanNet、TUM-dynamic 与 Sintel 评测
-tools/verify_package.py     包文件校验
 ```
+
+## 许可证
+
+本项目沿用 Hy-Nomas 主分支的 [LICENSE](LICENSE)：发布的项目代码和模型权重采用 Apache-2.0，第三方组件保留各自原始许可证条款。
+
+IDM 包还包含以下第三方代码：
+
+- [OpenAI VPT](https://github.com/openai/Video-Pre-Training)：`vendor/video-pre-training/lib`（不含 `gym3_types.py`）包含基于 VPT 的运行代码，版权归属为 Copyright (c) 2022 OpenAI，采用 MIT 许可证。原始许可证保留于 [vendor/video-pre-training/LICENSE](vendor/video-pre-training/LICENSE)。
+- [OpenAI gym3](https://github.com/openai/gym3)：`vendor/video-pre-training/lib/gym3_types.py` 包含随包提供的类型定义，版权归属为 Copyright (c) 2020 OpenAI，采用 MIT 许可证。原始许可证保留于 [vendor/gym3/LICENSE](vendor/gym3/LICENSE)。其中整数乘积辅助函数使用 Python 的 `math.prod`，无需安装 gym3。
+
+本包不包含 CameraBench 视频和标注。
 
 ## 致谢
 
-本包使用 [OpenAI VPT](https://github.com/openai/Video-Pre-Training) 运行代码，其 MIT 许可证保留于 `vendor/video-pre-training/LICENSE`。来源归属及分发说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+感谢 [OpenAI VPT](https://github.com/openai/Video-Pre-Training) 和 [gym3](https://github.com/openai/gym3) 为本包提供运行代码和类型定义。
 
 同时感谢 [CameraVLM](https://3dagentworld.github.io/CameraVLM/) 团队为社区作出的宝贵贡献。
 
