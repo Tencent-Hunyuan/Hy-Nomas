@@ -1,473 +1,699 @@
 <p align="left">
-    <a href="README.md">English</a>&nbsp;｜&nbsp;中文
-</p>
-<br>
-
-<p align="center">
-    <img src="assets/logo-zh.png" alt="Hy-Nomas" width="400"/> <br>
+  <a href="README.md">English</a>&nbsp;｜&nbsp;中文
 </p>
 
-<h1 align="center">
-    Hy-Nomas: Towards Free-Form Interactive <br> World Generation
-</h1>
+<h1 align="center">Hy-Nomas IDM</h1>
 
-**Hy-Nomas** 是一个通过多轮文本与相机控制的自由形式交互式世界生成模型。采用低显存推理配置可在单张 RTX 4090 上运行，支持下游任务 LoRA 微调，并提供交互式 Web Demo。
+**Hy-Nomas IDM** 用于从视频中识别相机运动。模型采用 VPT 视觉骨干，输出时序动作概率、变焦概率、速度预测、主体运动质量评分（`motion_score`），以及 clip-level 相机运动预测。本包提供模型权重和独立推理 API，便于在 [Hy-Nomas](https://github.com/Tencent-Hunyuan/Hy-Nomas) 中使用。
 
-<div align="center" style="line-height: 1;">
-
-[![许可证](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
-&nbsp;&nbsp;
-<a href="https://huggingface.co/tencent/Hy-Nomas" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Hy--Nomas-ffc107?color=ffc107&logoColor=white" alt="Hy-Nomas"></a>
-&nbsp;&nbsp;
-<a href="https://huggingface.co/datasets/tencent/Hy-Nomas-Bench" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Hy--Nomas--Bench-ffc107?color=ffc107&logoColor=white" alt="Hy-Nomas-Bench"></a>
-&nbsp;&nbsp;
-<a href="https://x.com/TencentHunyuan/status/2113676827114053892" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Hy-black.svg?logo=x" height="22" alt="Hy on X"></a>
-
-</div>
-
-<p align="center">
-    🖥️&nbsp;<a href="https://hy-nomas.hy.tencent.com/demo"><b>交互式演示</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    🌐&nbsp;<a href="https://hy-nomas.hy.tencent.com/"><b>项目网站</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    📄&nbsp;<a href="https://arxiv.org/abs/2610.36729"><b>技术报告</b></a>
-</p>
-
-<p align="center">
-    👏 加入我们的 <a href="./assets/wechat.png" target="_blank">微信社区</a>
-</p>
-
-## 🔥 最新动态
-
-- 🤝 **2026 年 11 月 3 日 — 社区应用展示：** [@BennyDaBall_OG](https://x.com/BennyDaBall_OG) 展示使用 LTX-2.5 为 Hy-Nomas 视频生成配套音频 — [观看音频演示](https://x.com/BennyDaBall_OG/status/2117675372024070250)。[@preluluofficial](https://x.com/preluluofficial) 预览基于 Hy-Nomas 构建的交互式微短剧角色扮演体验 — [观看角色扮演演示](https://x.com/preluluofficial/status/2117563133120176449)。详情请见[社区贡献](#-社区贡献)。
-- 🖼️ **2026 年 10 月 31 日 — Demo 支持参考图：** 上传图片初始化世界，再通过文本提示词和相机控制继续探索。欢迎体验[在线演示](https://hy-nomas.hy.tencent.com/demo)，或查看[参考图部署说明](apps/README.md#start-with-a-reference-image)。
-- 🎬 **2026 年 10 月 29 日 — Hy-Nomas vs Genie 4：** 使用 Hy-Nomas 复现 Genie 4 示例，观看[视频对比](https://x.com/TencentHunyuan/status/2115851165904814283)。
-- 📄 **2026 年 10 月 27 日 — 技术报告已在 arXiv 发布：** [arXiv](https://arxiv.org/abs/2610.36729)。
-- 🤝 **2026 年 10 月 26 日 — 社区集成：** Hy-Nomas 已支持 [SGLang](https://github.com/sgl-project/sglang/pull/46124)、[ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas) 和 [Reactor Runtime](reactor/README.md)，详情请见[社区贡献](#-社区贡献)。
-- 📄 **2026 年 10 月 26 日 — 技术报告：** 更新 [Hy-Nomas 技术报告](https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf)。
-- 🌍 **2026 年 10 月 25 日 — WanGP 支持：** [@deepbeepmeep](https://x.com/deepbeepmeep) 在 [WanGP v18.81](https://github.com/deepbeepmeep/WanGP) 中加入 Hy-Nomas 世界生成，支持键盘探索和文本事件控制。详见[公告](https://x.com/deepbeepmeep/status/2114503683295662230)与[集成提交](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99)。
-- 🛠️ **2026 年 10 月 23 日 — Diffusers 推理：** 新增 [Diffusers 推理示例](#使用-diffusers-推理)。
-- 🎮 **2026 年 10 月 21 日 — 交互式演示：** 在[在线演示](https://hy-nomas.hy.tencent.com/demo)中体验多轮文本和相机控制，也可参考[部署指南](apps/README.md)自行运行。
-- 🚀 **2026 年 10 月 21 日 — 首次代码发布：** 训练与推理代码包含 [LoRA 微调](#lora-微调)和[单 GPU 推理](#低显存-gpu-推理)。下载[模型权重](https://huggingface.co/tencent/Hy-Nomas)即可开始探索。
-
-## 🎥 演示
-
-https://github.com/user-attachments/assets/e2e05b2b-9024-4b0e-9926-6eed05356b76
-
-[观看原始分辨率视频](https://hy-nomas.hy.tencent.com/gallery/hy_nomas_promo.mp4)
-
-## 🧩 社区贡献
-
-如果你在项目中开发或使用 Hy-Nomas，欢迎告诉我们。
-
-- **LTX-2.5 视频条件音频生成** — [演示与工作流说明](https://x.com/BennyDaBall_OG/status/2117675372024070250)，由 [@BennyDaBall_OG](https://x.com/BennyDaBall_OG) 提供：无需训练的 ComfyUI 工作流，以已生成的 Hy-Nomas 视频为条件生成音轨，冻结视频潜变量，并将音频合成到原始视频帧上。作者注明使用了 [@t8star_aix](https://x.com/t8star_aix) 基于 [@LatentSpacer](https://x.com/LatentSpacer) 的 ComfyUI-Hy-Nomas 节点包构建的节点。
-- **Prelulu 交互式微短剧** — [角色扮演演示](https://x.com/preluluofficial/status/2117563133120176449)，由 [@preluluofficial](https://x.com/preluluofficial) 提供：预览基于 Hy-Nomas 构建的交互式角色扮演体验，让用户与角色对话，探索不同的故事走向。
-- **Google TPU 演示** — [Mashbox 演示](https://mashbox.gg/world)，由 [@boshjerns](https://x.com/boshjerns) 提供：在 Google TPU 上运行支持键盘控制的 Hy-Nomas 世界生成。[公告](https://x.com/boshjerns/status/2114962446947651907)报告，在 v6e-4 切片（4 颗芯片）上实现实时 720p 生成，每秒视频需要 0.933 秒计算，连续运行 60 秒无延迟帧。
-- **WanGP** — [WanGP](https://github.com/deepbeepmeep/WanGP)，由 [@deepbeepmeep](https://x.com/deepbeepmeep) 提供：v18.81 支持 Hy-Nomas 文本生成世界、键盘导航与相机控制、文本事件控制及可调历史记忆，可保存并继续探索，或将探索过程录制为视频。详见[公告](https://x.com/deepbeepmeep/status/2114503683295662230)与[集成提交](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99)。
-- **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang)，由 [@sgl_project](https://x.com/sgl_project) 提供：Hy-Nomas 支持已合入 `main` 分支，可运行离线视频任务和实时流式会话，详见[集成 PR](https://github.com/sgl-project/sglang/pull/46124)和[安装指南](https://lmsysorg.mintlify.app/cookbook/diffusion/HY-Nomas/HY-Nomas#hw=h200&placement=resident&nodes=1&gpus_per_node=1&topology_mode=auto&tp_size=1&ulysses_degree=1&ring_degree=1)。
-- **ComfyUI** — [ComfyUI-Hy-Nomas](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas)，由 [@LatentSpacer](https://x.com/LatentSpacer) 提供：支持视频片段串联生成和交互式 WASD 相机控制。
-- **Reactor Runtime** — [Hy-Nomas 集成指南](reactor/README.md)，由 [@Rising0321](https://github.com/Rising0321) 贡献：提供流式服务和浏览器演示，支持实时更新提示词、WASD/方向键相机控制，以及上传相机轨迹，同时保留世界历史。详见[集成 PR](https://github.com/Tencent-Hunyuan/Hy-Nomas/pull/3)。
-
-感谢各位贡献者基于 Hy-Nomas 构建社区集成！
-
-正在使用 Hy-Nomas 构建项目？欢迎分享社区项目、工具集成、教程和 LoRA 适配器。你可以[提交 Issue](https://github.com/Tencent-Hunyuan/Hy-Nomas/issues)，或通过 Pull Request 将项目添加到本节。 参与本仓库开发请参阅[贡献指南](CONTRIBUTING.md)。
-
----
+**即将发布：采用相同架构、面向游戏场景的专用 IDM。**
 
 ## 目录
 
-- [🔥 最新动态](#-最新动态)
-- [🎥 演示](#-演示)
-- [🧩 社区贡献](#-社区贡献)
-- [模型介绍](#模型介绍)
-- [核心特性](#核心特性)
-- [使用指南](#使用指南)
-  - [环境配置](#环境配置)
-  - [模型资源](#模型资源)
-  - [推理](#推理)
-    - [使用源码推理](#使用源码推理)
-    - [低显存 GPU 推理](#低显存-gpu-推理)
-    - [使用 Diffusers 推理](#使用-diffusers-推理)
-    - [使用 SGLang 推理](#使用-sglang-推理)
-  - [交互式演示](#交互式演示)
-    - [Reactor Runtime](#reactor-runtime)
-    - [Web Demo](#web-demo)
-- [LoRA 微调](#lora-微调)
-  - [SFT 数据准备](#sft-数据准备)
-  - [离线序列打包](#离线序列打包)
-  - [训练与合并](#训练与合并)
-- [贡献指南](CONTRIBUTING.md)
-- [安全问题报告](SECURITY.md)
-- [许可证](#许可证)
+- [模型概览](#模型概览)
+- [相机位姿估计](#相机位姿估计)
+- [环境配置](#环境配置)
+- [推理](#推理)
+- [输入与输出](#输入与输出)
+- [指标复现](#指标复现)
+- [目录结构](#目录结构)
 - [致谢](#致谢)
-- [引用](#引用)
-- [联系我们](#联系我们)
 
----
+## 模型概览
 
-## 模型介绍
+| 属性 | 说明 |
+|---|---|
+| 骨干网络 | VPT |
+| 参数量 | 约 0.474B（473,986,521） |
+| 输入 | 144 帧 RGB 图像，96 × 128 像素（高 × 宽） |
+| 时序输出 | 每窗口 24 个时间桶，每桶 0.25 秒 |
+| 预测内容 | 每桶 18 维动作概率、2 维变焦概率、6 维速度值 |
+| Motion Score | 通过已训练的回归头预测画面中主体的运动质量（`motion_score`） |
+| Clip-level 预测 | 整个输入视频的 15 类相机运动预测（`clip_camera_motion`） |
+| Clip-level head | 15 个线性分类器，每类 13 维特征，共 210 个参数；融合权重 0.3 |
+| 模型文件 | `weights/idm.pt`、`weights/idm.json` 与 `weights/clip_head.json` |
 
-**Hy-Nomas** 是一个自由形式交互式视频世界生成模型，支持自由形式的多轮文本提示词控制或相机控制。本仓库提供训练、推理、交互式演示和数据标注代码。
+在 CameraBench 上，基于 frame-level 预测的时间聚合达到 **88.68% mAP**；冻结模型后，在 CameraBench 训练集上训练轻量 clip-level head，与原始预测融合后达到 **89.19% mAP**。两项均为 clip-level 宏平均 mAP，采用整段视频均匀采样，覆盖 969 条视频、15 个类别、7,679 个已知标签。本包提供两种方案，分别使用 `--sampling uniform` 和 `--sampling uniform --clip-head` 启用。
 
-## 核心特性
+### CameraBench 子项结果
 
-- **分段生成：** 通过片段级提示词或相机控制信号，自回归地逐段生成世界，并维护贯穿整个生成过程的 KV 缓存以保持一致性。
-- **自由形式提示词控制：** 使用任意类型的自由形式用户提示词控制世界生成，创造想象中的物体、风格、场景和动作。
-- **相机控制：** 将相机轨迹与文本提示词一起作为生成条件。
-- **蒸馏推理：** 推理使用 8 步去噪，并采用经过微调的 PixelUMM 解码器，对 32 通道 DCAE-V 潜变量进行解码。
-- **交互式演示：** Web 界面支持多轮生成，并在片段边界进行解码。
-- **微调与数据准备：** 使用自定义视频数据集进行 LoRA 微调，并通过我们的标注流程从本地视频准备训练数据。
+<table>
+<thead>
+<tr>
+<th rowspan="2">模型</th>
+<th rowspan="2">参数量</th>
+<th colspan="6">平移（Dolly / Pedestal / Truck）</th>
+<th colspan="2">变焦</th>
+<th colspan="6">旋转（Pan / Tilt / Roll）</th>
+<th rowspan="2">静止</th>
+<th rowspan="2">总体</th>
+</tr>
+<tr>
+<th>前进</th>
+<th>后退</th>
+<th>上移</th>
+<th>下移</th>
+<th>右移</th>
+<th>左移</th>
+<th>拉近</th>
+<th>拉远</th>
+<th>右转</th>
+<th>左转</th>
+<th>上仰</th>
+<th>下俯</th>
+<th>顺时针</th>
+<th>逆时针</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hy-Nomas IDM</strong></td>
+<td align="center">0.474B</td>
+<td align="center">95.46</td>
+<td align="center">80.48</td>
+<td align="center">70.49</td>
+<td align="center">84.60</td>
+<td align="center">88.54</td>
+<td align="center">92.75</td>
+<td align="center">80.10</td>
+<td align="center">87.21</td>
+<td align="center">94.77</td>
+<td align="center">97.20</td>
+<td align="center">92.12</td>
+<td align="center">85.84</td>
+<td align="center">95.95</td>
+<td align="center">95.77</td>
+<td align="center">88.84</td>
+<td align="center"><strong>88.68</strong></td>
+</tr>
+<tr>
+<td><a href="https://3dagentworld.github.io/CameraVLM/">CameraVLM</a></td>
+<td align="center">9B</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">88.20</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/html/2610.17242v1#S4">GPT-6 Astra (high)</a></td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">82.50</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">Qwen2.5-VL-72B (SFT)</a></td>
+<td align="center">72B</td>
+<td align="center">86.8</td>
+<td align="center">41.3</td>
+<td align="center">30.5</td>
+<td align="center">50.6</td>
+<td align="center">70.7</td>
+<td align="center">52.6</td>
+<td align="center">57.1</td>
+<td align="center">78.5</td>
+<td align="center">81.9</td>
+<td align="center">86.6</td>
+<td align="center">79.1</td>
+<td align="center">70.4</td>
+<td align="center">35.0</td>
+<td align="center">43.8</td>
+<td align="center">76.6</td>
+<td align="center">62.8</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">Qwen2.5-VL-7B (SFT)</a></td>
+<td align="center">7B</td>
+<td align="center">83.9</td>
+<td align="center">38.6</td>
+<td align="center">27.8</td>
+<td align="center">47.8</td>
+<td align="center">67.9</td>
+<td align="center">50.0</td>
+<td align="center">54.5</td>
+<td align="center">75.8</td>
+<td align="center">79.2</td>
+<td align="center">83.8</td>
+<td align="center">76.3</td>
+<td align="center">67.6</td>
+<td align="center">32.3</td>
+<td align="center">41.0</td>
+<td align="center">73.6</td>
+<td align="center">60.0</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">MegaSAM</a></td>
+<td align="center">—</td>
+<td align="center">87.0</td>
+<td align="center">58.3</td>
+<td align="center">43.0</td>
+<td align="center">48.4</td>
+<td align="center">59.1</td>
+<td align="center">58.0</td>
+<td align="center">11.1</td>
+<td align="center">10.2</td>
+<td align="center">77.9</td>
+<td align="center">82.4</td>
+<td align="center">75.6</td>
+<td align="center">57.7</td>
+<td align="center">67.4</td>
+<td align="center">76.9</td>
+<td align="center">60.1</td>
+<td align="center">58.2</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">CUT3R</a></td>
+<td align="center">—</td>
+<td align="center">88.0</td>
+<td align="center">65.5</td>
+<td align="center">38.7</td>
+<td align="center">54.6</td>
+<td align="center">42.5</td>
+<td align="center">36.5</td>
+<td align="center">15.9</td>
+<td align="center">21.3</td>
+<td align="center">59.1</td>
+<td align="center">65.0</td>
+<td align="center">65.0</td>
+<td align="center">47.5</td>
+<td align="center">60.7</td>
+<td align="center">66.2</td>
+<td align="center">37.6</td>
+<td align="center">50.9</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">MASt3R</a></td>
+<td align="center">0.689B</td>
+<td align="center">65.4</td>
+<td align="center">34.3</td>
+<td align="center">35.1</td>
+<td align="center">59.6</td>
+<td align="center">43.7</td>
+<td align="center">38.1</td>
+<td align="center">42.2</td>
+<td align="center">46.6</td>
+<td align="center">66.6</td>
+<td align="center">58.0</td>
+<td align="center">63.2</td>
+<td align="center">40.3</td>
+<td align="center">50.4</td>
+<td align="center">53.5</td>
+<td align="center">45.6</td>
+<td align="center">49.5</td>
+</tr>
+</tbody>
+</table>
 
-## 使用指南
+对照数据来源：[CameraBench 官方榜单](https://sy77777en.github.io/CameraBench/leaderboard/table.html)、[CameraVLM 论文表 1](https://arxiv.org/html/2610.17242v1#S4)。
 
-### 环境配置
+### 相机位姿估计
 
-请选择以下两种环境配置方式之一。**强烈推荐使用预打包 Docker 镜像**，其中已配套准备 Python 环境、PyTorch 和所需的 CUDA 注意力内核。
+Hy-Nomas IDM 将预测的平移速度与角速度积分为相机轨迹，采用 6 秒窗口推理。ATE 与平移 RPE 的单位为米，旋转 RPE 的单位为度；均越低越好，粗体分别标出离线与流式分组内各列的最低值。
 
-#### 方式一：使用预打包 Docker 镜像（推荐）
+<!-- BEGIN CAMERA POSE RESULTS -->
+<table>
+<thead>
+<tr>
+<th rowspan="2">模型</th>
+<th colspan="3">ScanNet</th>
+<th colspan="3">TUM RGB-D (dynamic)</th>
+<th colspan="3">Sintel</th>
+</tr>
+<tr>
+<th>ATE (m) ↓</th>
+<th>RPE<sub>t</sub> (m) ↓</th>
+<th>RPE<sub>r</sub> (°) ↓</th>
+<th>ATE (m) ↓</th>
+<th>RPE<sub>t</sub> (m) ↓</th>
+<th>RPE<sub>r</sub> (°) ↓</th>
+<th>ATE (m) ↓</th>
+<th>RPE<sub>t</sub> (m) ↓</th>
+<th>RPE<sub>r</sub> (°) ↓</th>
+</tr>
+</thead>
+<tbody>
+<tr><th colspan="10" align="left">离线方法</th></tr>
+<tr>
+<td>DUSt3R-GA</td>
+<td align="center">0.081</td>
+<td align="center">0.028</td>
+<td align="center">0.784</td>
+<td align="center">0.083</td>
+<td align="center">0.017</td>
+<td align="center">3.567</td>
+<td align="center">0.417</td>
+<td align="center">0.250</td>
+<td align="center">5.796</td>
+</tr>
+<tr>
+<td>MASt3R-GA</td>
+<td align="center">0.078</td>
+<td align="center">0.020</td>
+<td align="center">0.475</td>
+<td align="center">0.038</td>
+<td align="center">0.012</td>
+<td align="center">0.448</td>
+<td align="center">0.185</td>
+<td align="center">0.060</td>
+<td align="center">1.496</td>
+</tr>
+<tr>
+<td>MonST3R-GA</td>
+<td align="center">0.077</td>
+<td align="center">0.018</td>
+<td align="center">0.529</td>
+<td align="center">0.098</td>
+<td align="center">0.019</td>
+<td align="center">0.935</td>
+<td align="center">0.111</td>
+<td align="center">0.044</td>
+<td align="center">0.869</td>
+</tr>
+<tr>
+<td>Fast3R</td>
+<td align="center">0.155</td>
+<td align="center">0.123</td>
+<td align="center">3.491</td>
+<td align="center">0.090</td>
+<td align="center">0.101</td>
+<td align="center">1.425</td>
+<td align="center">0.371</td>
+<td align="center">0.298</td>
+<td align="center">13.750</td>
+</tr>
+<tr>
+<td>FLARE</td>
+<td align="center">0.064</td>
+<td align="center">0.023</td>
+<td align="center">0.971</td>
+<td align="center">0.026</td>
+<td align="center">0.013</td>
+<td align="center">0.475</td>
+<td align="center">0.207</td>
+<td align="center">0.090</td>
+<td align="center">3.015</td>
+</tr>
+<tr>
+<td>VGGT</td>
+<td align="center">0.035</td>
+<td align="center">0.015</td>
+<td align="center">0.380</td>
+<td align="center"><strong>0.009</strong></td>
+<td align="center"><strong>0.008</strong></td>
+<td align="center">0.350</td>
+<td align="center">0.172</td>
+<td align="center">0.061</td>
+<td align="center">0.470</td>
+</tr>
+<tr>
+<td>π³</td>
+<td align="center"><strong>0.031</strong></td>
+<td align="center"><strong>0.013</strong></td>
+<td align="center"><strong>0.347</strong></td>
+<td align="center">0.014</td>
+<td align="center">0.009</td>
+<td align="center"><strong>0.312</strong></td>
+<td align="center"><strong>0.074</strong></td>
+<td align="center"><strong>0.040</strong></td>
+<td align="center"><strong>0.282</strong></td>
+</tr>
+<tr>
+<td>MapAnything</td>
+<td align="center">0.052</td>
+<td align="center">0.025</td>
+<td align="center">0.720</td>
+<td align="center">0.029</td>
+<td align="center">0.023</td>
+<td align="center">0.370</td>
+<td align="center">0.226</td>
+<td align="center">0.077</td>
+<td align="center">0.640</td>
+</tr>
+<tr><th colspan="10" align="left">流式方法</th></tr>
+<tr>
+<td>StreamVGGT</td>
+<td align="center">0.127</td>
+<td align="center">0.041</td>
+<td align="center">1.880</td>
+<td align="center">0.062</td>
+<td align="center">0.030</td>
+<td align="center">0.690</td>
+<td align="center">0.273</td>
+<td align="center">0.109</td>
+<td align="center">0.850</td>
+</tr>
+<tr>
+<td>CUT3R</td>
+<td align="center">0.096</td>
+<td align="center"><strong>0.022</strong></td>
+<td align="center"><strong>0.590</strong></td>
+<td align="center"><strong>0.045</strong></td>
+<td align="center">0.015</td>
+<td align="center"><strong>0.440</strong></td>
+<td align="center">0.215</td>
+<td align="center">0.070</td>
+<td align="center">0.630</td>
+</tr>
+<tr>
+<td>Point3R</td>
+<td align="center">0.097</td>
+<td align="center">0.035</td>
+<td align="center">2.791</td>
+<td align="center">0.058</td>
+<td align="center">0.031</td>
+<td align="center">0.758</td>
+<td align="center">0.442</td>
+<td align="center">0.154</td>
+<td align="center">1.897</td>
+</tr>
+<tr>
+<td>Spann3R</td>
+<td align="center">0.096</td>
+<td align="center">0.023</td>
+<td align="center">0.661</td>
+<td align="center">0.056</td>
+<td align="center">0.021</td>
+<td align="center">0.591</td>
+<td align="center">0.329</td>
+<td align="center">0.110</td>
+<td align="center">4.471</td>
+</tr>
+<tr>
+<td>G2VLM</td>
+<td align="center">0.148</td>
+<td align="center">0.048</td>
+<td align="center">1.220</td>
+<td align="center">0.129</td>
+<td align="center">0.044</td>
+<td align="center">0.700</td>
+<td align="center">0.301</td>
+<td align="center">0.135</td>
+<td align="center">1.450</td>
+</tr>
+<tr>
+<td>Cambrian-P</td>
+<td align="center"><strong>0.078</strong></td>
+<td align="center">0.023</td>
+<td align="center">0.880</td>
+<td align="center">0.046</td>
+<td align="center">0.020</td>
+<td align="center">0.580</td>
+<td align="center">0.239</td>
+<td align="center">0.081</td>
+<td align="center">2.440</td>
+</tr>
+<tr>
+<td>CameraVLM</td>
+<td align="center">0.124</td>
+<td align="center">0.044</td>
+<td align="center">2.177</td>
+<td align="center">0.049</td>
+<td align="center">0.022</td>
+<td align="center">1.440</td>
+<td align="center">0.148</td>
+<td align="center">0.064</td>
+<td align="center">1.420</td>
+</tr>
+<tr>
+<td><strong>Hy-Nomas IDM</strong></td>
+<td align="center">0.1673</td>
+<td align="center">0.0236</td>
+<td align="center">0.9824</td>
+<td align="center">0.1110</td>
+<td align="center"><strong>0.0126</strong></td>
+<td align="center">0.9550</td>
+<td align="center"><strong>0.0923</strong></td>
+<td align="center"><strong>0.0393</strong></td>
+<td align="center"><strong>0.5149</strong></td>
+</tr>
+</tbody>
+</table>
+<!-- END CAMERA POSE RESULTS -->
 
-请准备 Linux 主机、兼容的 NVIDIA 驱动、Docker 和 NVIDIA Container Toolkit。在仓库根目录执行：
+对照方法的数值及离线／流式分组引自 [CameraVLM 论文表 2](https://arxiv.org/html/2610.17242v1#S4.T2)。Hy-Nomas IDM 的数值为发布权重通过速度积分得到的实测结果。
+
+评测采用公开的 [MonST3R / Cambrian-P 协议](https://github.com/cambrian-mllm/cambrian-p#pose-estimation-performance)。
+
+## 环境配置
+
+本算子兼容 [Hy-Nomas 的运行环境](https://github.com/Tencent-Hunyuan/Hy-Nomas#environment-setup)，可直接复用其中的 Python、PyTorch 和 CUDA。
+
+单独使用时，环境可简化为本包的 `requirements.txt`：推荐 Linux、Python 3.10–3.13，以及支持 BF16 的 NVIDIA GPU；先安装与 CUDA 环境匹配的 PyTorch（>=2.3），再安装以下依赖。已有 Hy-Nomas 环境也执行同一命令以补齐依赖：
 
 ```bash
-export HY_NOMAS_IMAGE="hynomasoss/hynomasoss:cu130"
-
-docker pull "$HY_NOMAS_IMAGE"
-docker run --rm -it --gpus all --ipc=host --network=host \
-  -v "$PWD:/workspace/Hy-Nomas" \
-  -w /workspace/Hy-Nomas \
-  "$HY_NOMAS_IMAGE" bash
+python -m pip install -r requirements.txt
 ```
 
-后续命令均在容器内执行，直接使用镜像预装的 Python 环境。将模型资源放在挂载的仓库目录中，或额外挂载模型目录；下方启动命令应填写容器内可见的模型路径。
+仅需上述五项直接依赖；VPT 所需的动作空间类型定义已随包提供。使用 `--hud` 时，还需将 FFmpeg 加入 `PATH`。
 
-#### 方式二：手动安装
+将 `weights/`、`idm/` 和 `vendor/` 与 `infer.py` 放在同一目录下。程序相对于包目录解析路径，整体移动后无需修改代码。权重约 1.9 GB，已配置 Git LFS；仅克隆源码时，还需要获取对应的 LFS 文件。
 
-请准备 Linux、Python 3.12+、uv、兼容的 NVIDIA 驱动、CUDA 13.0 Toolkit（`nvcc`）和 C++ 编译器。在仓库根目录执行：
+## 推理
+
+### 命令行
+
+在本包目录下执行：
 
 ```bash
-uv sync --extra all
-source .venv/bin/activate
+# 单个视频
+python infer.py --video /path/to/input.mp4 --output outputs/input.json
+
+# 目录直接包含的所有 MP4 视频
+python infer.py --video /path/to/videos --output outputs/videos.json
+
+# 指定权重与设备
+python infer.py --video /path/to/input.mp4 --output outputs/input.json \
+  --weights weights/idm.pt --device cuda:0 --precision bf16
+
+# 启用 clip-level head
+python infer.py --video /path/to/input.mp4 --output outputs/input_clip.json \
+  --sampling uniform --clip-head
+
+# CPU 推理
+python infer.py --video /path/to/input.mp4 --output outputs/cpu.json \
+  --device cpu --precision fp32
 ```
 
-`all` 依赖组包含 PyTorch 2.10.0（CUDA 13.0）、FlashAttention 2、FlashAttention 3 和 MagiAttention。`pyproject.toml` 已配置 PyTorch CUDA 包源、FA3 官方源码地址，并为注意力内核关闭构建隔离，使其可以使用环境中的 PyTorch 进行编译。内核编译可能需要一些时间。
+默认采用 `--sampling windows`，按 24 fps 处理连续的 6 秒窗口，使用 CUDA BF16 autocast，模型权重保持 FP32。目录输入按文件名排序；每处理完一个视频，原子更新 JSON 输出，同名文件会被覆盖。输入无效或权重不兼容时会报错。CPU 推理可能较慢；FP32、不同硬件或依赖版本可能产生数值差异。
 
-### 模型资源
+### 预测结果 HUD
 
-模型仓库包含 DiT 生成模型、LoRA 适配器、视频自编码器与解码器，以及用于在线提示词增强的 Nomas-PE。
-
-从 Hugging Face 下载 `tencent/Hy-Nomas` 的全部模型权重，保留仓库目录结构：
+增加 `--hud` 参数，一次推理同时输出预测 JSON 和叠加预测结果的 MP4：
 
 ```bash
-export Hy_Nomas_Model_Path=/path/to/Hy-Nomas
-hf download tencent/Hy-Nomas --local-dir "${Hy_Nomas_Model_Path}"
+python infer.py --video assets/case_01.mp4 --output outputs/case_01.json --hud --shake-threshold 0.7
 ```
 
-只需将 `Hy_Nomas_Model_Path` 设置为实际下载目录一次。后续命令会复用已设置的值；新终端未设置时默认使用 `/path/to/Hy-Nomas`。点击下方模型名称，即可在 Hugging Face 上查看其文件。
+该命令生成 `outputs/case_01.json` 和 `outputs/case_01_hud.mp4`。目录输入会为
+每个视频生成一份 HUD 视频，与 JSON 放在同一目录。需要安装 FFmpeg 并将
+`ffmpeg` 加入 `PATH`；OpenCV 已包含在 Python 依赖中。
 
-| 类别 | 模型资源 | 用途 |
-|:---|:---|:---|
-| DiT | **[基础自回归 DiT（FP32）](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/base_ar)** | 未蒸馏检查点，用于 segment forcing LoRA 微调。 |
-| DiT | **[蒸馏 DiT（FP32）](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/distilled)** | 用于 4/6/8 步快速推理和交互式演示的检查点，也作为合并微调后 LoRA 适配器的基础模型。 |
-| DiT | **[量化蒸馏 DiT（INT8）](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/distilled_int8)** | 量化检查点，用于低显存推理，包括单 GPU 部署。 |
-| DiT | **[Cinematic LoRA](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/lora_weights/cinematic)** | 使用电影感数据训练的 LoRA 适配器，可合并到蒸馏 DiT 中，以提升生成世界的视觉质量。 |
-| DiT | **[Robotics LoRA](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/lora_weights/dual_arm_robotics)** | 使用 [RealSource-World](https://huggingface.co/datasets/RealmanRobot/RealSource-World) 真实机械臂数据集训练的 LoRA 适配器，可合并到蒸馏 DiT 中，以增强生成世界的机器人仿真能力。 |
-| VAE | **[DCAE-V](https://huggingface.co/tencent/Hy-Nomas/tree/main/VAE/DCAE-V)** | 视频自编码器，用于将训练视频编码为潜变量，并对潜变量进行解码。 |
-| VAE | **[微调版 PixelUMM 解码器](https://huggingface.co/tencent/Hy-Nomas/tree/main/VAE/PixelUMM_FT)** | 用于将生成的 DCAE-V 潜变量解码为视频帧的解码器。 |
-| VAE | **[量化版 PixelUMM 解码器（FP8）](https://huggingface.co/tencent/Hy-Nomas/tree/main/VAE/PixelUMM_FT_FP8)** | 使用 FP8 权重的解码器，用于降低显存占用并加速解码。 |
-| PE | **[Nomas-PE](https://huggingface.co/tencent/Hy-Nomas/tree/main/PE)** | 交互式演示使用的在线提示词增强模型，将用户指令转换为结构化的生成提示词。 |
+HUD 显示动作按键、八方向鼠标指示、变焦和模型原生速度值。
+SHAKE 的默认激活条件为概率 **>= 0.7**，可通过 `--shake-threshold` 同时调整 JSON 判定和 HUD 高亮。
+`--rotation-threshold 0.5` 控制旋转方向的互斥判定及 HUD 高亮，`--hud-threshold 0.5` 控制其他按键和变焦的高亮。原始概率和视频分数保持不变。
+默认 HUD 每 0.25 秒更新一次，SHAKE 按钮同时显示预测概率。
+旋转圆盘的上下左右扇区各占 20°（中心 ±10°），斜向扇区各占 70°（中心 ±35°）。
+仅激活概率最高且达到旋转阈值的一个方向；未达阈值时全部熄灭，概率并列时取通道顺序中第一个方向。
+输出为 H.264 MP4，使用源分辨率和平均帧率，有音轨时保留音频（AAC）。
+可变帧率输入会按平均帧率输出恒定帧率视频；奇数边长补一个像素以兼容 H.264。
 
-### 推理
+### 示例
 
-#### 使用源码推理
+<!-- BEGIN CASE VIDEOS -->
 
-在仓库根目录使用 `configs/experiment/inference.yaml` 启动，覆盖模型路径、提示词文件和输出目录：
+<table>
+<tr><th>Case 01</th><th>Case 02</th></tr>
+<tr>
+<td width="50%">
 
-```bash
-export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
+![](assets/case_01_hud.mp4)
 
-bash scripts/inference/inference_from_config.sh configs/experiment/inference.yaml \
-  --sp-size 1 --tp-size 8 \
-  dit_weight="${Hy_Nomas_Model_Path}/DiT/distilled/diffusion_pytorch_model_ema_0_995.safetensors" \
-  model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/PixelUMM_FT/diffusion_pytorch_model.safetensors" \
-  inference.prompt=/path/to/prompts.json \
-  inference.save_path=./outputs/distill
-```
+</td>
+<td width="50%">
 
-推理预设使用 **SP=1、TP=8**：DiT 的注意力头（Q/K/V 投影和 KV cache）切分到八个 rank；注意力之后用一次 all-to-all 回到各 rank 的 token 分片，输出投影和 MLP 用完整权重计算。支持 KV cache 的 rollout（`seg_ar`、`chunk_ar`）和未量化的 DiT 权重，不能与 `sp_size > 1` 同时使用。
+![](assets/case_02_hud.mp4)
 
-#### 低显存 GPU 推理
+</td>
+</tr>
+<tr><th>Case 03</th><th>Case 04</th></tr>
+<tr>
+<td width="50%">
 
-使用 `configs/experiment/single_gpu_low_mem_inference.yaml`，**Hy-Nomas 支持 NVIDIA GeForce RTX 4090 单卡推理**。该配置通过以下优化降低显存占用：
+![](assets/case_03_hud.mp4)
 
-- **INT8 DiT 权重与 KV cache：** 使用 INT8 存储权重及缓存的 Key/Value，DiT 线性层和注意力仍使用 BF16 计算。
-- **滑动窗口历史：** 限制保留的历史上下文，避免 KV cache 随生成片段持续增长。
-- **CPU offload：** 文本编码器、DiT 和 VAE 仅在各自处理阶段移入 GPU，完成后移回 CPU。
-- **单卡计算内核：** DiT 使用 FlexAttention，解码使用 CUTLASS FP8，并关闭序列并行（`sp_size=1`）。
+</td>
+<td width="50%">
 
-请使用兼容的 INT8 DiT 检查点和 FP8 解码器检查点。在 `nvidia-smi` 仅能看到一张 GPU 的主机或容器中执行：
+![](assets/case_04_hud.mp4)
 
-```bash
-export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
+</td>
+</tr>
+<tr><th>Case 05</th><th>Case 06</th></tr>
+<tr>
+<td width="50%">
 
-bash scripts/inference/inference_from_config.sh configs/experiment/single_gpu_low_mem_inference.yaml \
-  dit_weight="${Hy_Nomas_Model_Path}/DiT/distilled_int8/diffusion_pytorch_model_ema_0_995_int8.safetensors" \
-  model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/PixelUMM_FT_FP8/diffusion_pytorch_model_fp8.safetensors" \
-  inference.prompt=/path/to/prompts.json \
-  inference.save_path=./outputs/single_gpu
-```
+![](assets/case_05_hud.mp4)
 
-CPU offload 需要足够的系统内存来存放模型，并会增加 CPU–GPU 数据传输开销。峰值显存占用取决于分辨率和片段长度。
+</td>
+<td width="50%">
 
-#### 使用 Diffusers 推理
+![](assets/case_06_hud.mp4)
 
-升级 diffusers 以使用 `HyNomasModularPipeline`。
+</td>
+</tr>
+</table>
 
-```bash
-pip install -e "diffusers[hy-nomas] @ git+https://github.com/jiaxiangc/diffusers.git@hy-nomas"
-```
+<!-- END CASE VIDEOS -->
 
-Hy-Nomas 支持多轮交互生成。以下示例生成两个各 5 秒的视频片段。
+### Python API
+
+将本包目录加入 Python 模块搜索路径后：
 
 ```python
-import json
+from idm.runtime import load_model, infer_video
 
-import torch
-from diffusers import HyNomasModularPipeline
-from diffusers.utils import export_to_video
-
-pipe = HyNomasModularPipeline.from_pretrained("tencent/Hy-Nomas-Diffusers")
-pipe.load_components(dtype=torch.bfloat16)
-pipe.to(device="cuda", dtype=torch.bfloat16)
-# Use the FlashAttention and MagiAttention kernels installed with Hy-Nomas.
-pipe.transformer.enable_reference_attention(text_backend="flash_varlen", deterministic=True)
-
-prompts = [
-    {
-        "Style": "Cinematic fantasy", "perspective_view": "Third-person view",
-        "subject_list": [{
-            "subject_id": "fox", "display_name": "a small orange fox",
-            "subject_attribute": "Orange fur, white chest, and a fluffy tail.",
-        }],
-        "segments": [{
-            "visual_description_long": (
-                "A small orange fox stands on a stone path in a luminous forest. "
-                "Blue fireflies drift between the trees."
-            ),
-            "contained_actions": [{
-                "start_time": "00:00.000", "end_time": "00:05.000",
-                "action_description": "The fox walks slowly along the path.",
-            }],
-        }],
-    },
-    {
-        "segments": [{
-            "description_change": "Glowing blue flowers open beside the path as the fox continues forward.",
-            "contained_actions": [{
-                "start_time": "00:00.000", "end_time": "00:05.000",
-                "action_description": "The fox passes the flowers and looks around.",
-            }],
-        }],
-    },
-]
-
-videos = pipe(
-    prompt=[json.dumps(prompt) for prompt in prompts],
-    height=704,
-    width=1280,
-    num_frames=240,
-    segment_latent_lengths=[30, 30],
-    fps=24,
-    num_inference_steps=4,
-    generator=torch.Generator("cpu").manual_seed(42),
-    output="videos",
-)
-export_to_video(videos[0], "hy_nomas_video.mp4", fps=24, quality=None)
+model, metadata = load_model(device="cuda:0")
+result = infer_video(model, "/path/to/input.mp4", shake_threshold=0.7, rotation_threshold=0.5)
+print(result["clip_camera_motion"])
 ```
 
-#### 使用 SGLang 推理
-
-[SGLang Diffusion](https://github.com/sgl-project/sglang) 支持以离线视频任务和实时会话两种方式部署 Hy-Nomas，实时会话可以逐个接收片段。它可以直接加载 `tencent/Hy-Nomas`：首次启动时会下载蒸馏版 DiT、PixelUMM 解码器和文本编码器，并在本地缓存组装好的推理流水线。
-
-SGLang 提供以下推理优化：
-
-- **并行：** DiT 支持 Ulysses 序列并行和张量并行，PixelUMM 解码窗口分布到多张 GPU 上并行处理。
-- **显存：** DiT 逐层 offload，按需从主机内存加载 Transformer 块。
-- **注意力：** 在 Hopper GPU 上，片段注意力使用 FlashAttention-3，速度约为 FlexAttention 的 2 倍；其他 GPU 回退到 FlexAttention。
-- **算子融合：** 融合了调制、QK 归一化与 RoPE、SwiGLU 等逐元素算子，结果与未融合路径逐位一致。
-
-可以使用 SGLang 的 Docker 镜像（推荐），也可以从源码安装。Hy-Nomas 支持尚未包含在正式发布版中：请使用每天从 `main` 构建的 nightly 镜像 `lmsysorg/sglang:dev`，待正式版包含 Hy-Nomas 后再改用 `lmsysorg/sglang:latest`。
-
-```bash
-docker run --rm -it --gpus all --ipc=host --network=host \
-  -v "$HOME/.cache:/root/.cache" \
-  lmsysorg/sglang:dev bash
-```
-
-挂载 `~/.cache` 可以在不同容器之间复用已下载的权重和组装好的推理流水线。如需从源码安装：
-
-```bash
-git clone https://github.com/sgl-project/sglang.git
-cd sglang
-pip install uv
-uv venv --python 3.12
-source .venv/bin/activate
-uv pip install -e "python[diffusion]" --prerelease=allow
-```
-
-在容器或源码环境中，于单卡上启动服务，或在双卡上使用序列并行启动：
-
-```bash
-sglang serve --model-path tencent/Hy-Nomas --num-gpus 1 --port 30000
-# sglang serve --model-path tencent/Hy-Nomas --num-gpus 2 --sp-degree 2 --port 30000
-```
-
-每个请求列出若干片段，每个片段包含帧数和结构化描述。以下示例将上方 Diffusers 示例中的 `prompts` 作为两个 120 帧的片段发送：
+使用 clip-level head：
 
 ```python
-import json
-import time
+from idm.clip_head import ClipHead
 
-import requests
-
-base = "http://127.0.0.1:30000"
-captions = [json.dumps(prompt) for prompt in prompts]
-job = requests.post(f"{base}/v1/videos", json={
-    "prompt": captions[0],
-    "prompt_format": "json",
-    "segments": [{"frames": 120, "caption": caption} for caption in captions],
-    "num_frames": 240,
-    "height": 704,
-    "width": 1280,
-    "fps": 24,
-    "num_inference_steps": 8,
-    "guidance_scale": 1.0,
-    "seed": 42,
-}).json()
-while job["status"] not in ("completed", "failed"):
-    time.sleep(2)
-    job = requests.get(f"{base}/v1/videos/{job['id']}").json()
-assert job["status"] == "completed", job
-with open("hy_nomas_sglang.mp4", "wb") as f:
-    f.write(requests.get(f"{base}/v1/videos/{job['id']}/content").content)
+head = ClipHead()  # 默认读取 weights/clip_head.json
+result = head.apply(infer_video(model, "/path/to/input.mp4", sampling="uniform"))
+print(result["clip_camera_motion"])
 ```
 
-同一个服务还在 `/v1/realtime_video/generate` 提供实时 WebSocket 会话：每个片段到达后立即生成，解码出的帧会以流式返回。实时协议、相机控制、逐层 offload 和 KV cache 预算等内容请参阅 [SGLang Hy-Nomas 指南](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas)。
+## 输入与输出
 
-### 交互式演示
+默认将视频划分为连续的 **6 秒窗口，按 24 fps 采样**。Decord 将图像解码为 96 × 128 像素 RGB，不做裁剪；每六帧特征输出一个 0.25 秒时间桶。最后不足 6 秒的窗口重复末帧补齐，仅返回实际视频时长内的桶。
 
-#### Reactor Runtime
+视频级评测可显式使用 `--sampling uniform`：按 `rint(linspace(0, frame_count - 1, 144))` 在整段视频均匀取 144 帧，整段输出 24 个桶，时间间隔随视频时长变化。Python API 对应 `infer_video(..., sampling="uniform")`。
 
-[Reactor 集成指南](reactor/README.md)提供流式服务和浏览器演示，支持实时更新提示词、WASD/方向键相机控制，以及上传相机轨迹，同时保留世界历史。已测试的配置使用八张 B200 GPU、Docker 和 NVIDIA Container Toolkit、[Reactor CLI](https://docs.reactor.inc/deploy/platform/installation)及 Node.js 22。
+平移速度使用模型原生尺度和相机自身坐标，角速度的训练目标单位为度/秒；这些回归输出不代表经过标定的物理测量。`sampling` 保留采样帧索引，窗口模式还记录窗口边界和每个时间桶的起始时刻。
 
-在仓库根目录运行：
+`clip_camera_motion` 汇总整个输入视频中所有有效窗口的相机运动预测；`window_motion_scores` 则分别记录每个窗口的主体运动质量评分。
+
+JSON 输出包含 `model` 元数据与 `samples` 列表。窗口模式的 N 为 `ceil(视频秒数 × 4)`，整段均匀模式的 N 为 24：
+
+| 字段 | 形状／含义 |
+|---|---|
+| `motion_prob` | N × 18 动作概率，顺序见 `model.label_names` |
+| `zoom_prob` | N × 2 概率：拉近、拉远 |
+| `velocity6` | N × 6：右、下、前、右转、下俯、顺时针滚转 |
+| `motion_score` | 画面中主体的运动质量评分；窗口模式按有效时长加权汇总 |
+| `window_motion_scores` | 各窗口的主体运动质量评分（窗口模式） |
+| `shake_prob` | 来自动作头第 15 通道的 N 个值（索引从 0 开始） |
+| `shake_active` | N 个布尔值：`shake_prob >= shake_threshold` |
+| `shake_threshold` | SHAKE 判定阈值，默认 0.7 |
+| `rotation_sector` | N 个互斥方向编号：0 右、1 右上、2 上、3 左上、4 左、5 左下、6 下、7 右下；-1 表示未激活 |
+| `rotation_threshold` | 旋转判定阈值，默认 0.5 |
+| `clip_camera_motion` | 整个输入视频的 15 类相机运动预测；启用 head 时为融合结果 |
+| `clip_camera_motion_base` | 启用 head 时保留的原始时间聚合预测 |
+| `clip_camera_motion_head` | 启用 head 时的独立分类器预测 |
+| `clip_head` | 启用 head 时的权重校验值与融合参数 |
+| `sampling` | 源视频 FPS、帧数、时长和采样帧索引 |
+
+18 维动作通道依次为 `w`、`a`、`s`、`d`；八个鼠标方向（右、右上、上、左上、左、左下、下、右下）；`special`、`up`、`down`、`shake`、`roll_clockwise`、`roll_counterclockwise`。
+
+动作和变焦 logits 先转换为概率，再进行聚合。Pan 和 Tilt 在各自方向组内取最大概率，斜向可同时支持两者；运动和变焦取时间最大值。Static 先逐桶计算 `1 - max(运动方向、变焦、抖动)`，再取时间最小值，`special` 通道不作为静止分数。这些连续分数用于排序与分析，默认时间聚合不应用速度融合或时序平滑。`shake_active` 和 `rotation_sector` 是单独的阈值判定，不改变连续分数。旋转仅选择概率最高且达到阈值的方向，并列时取通道顺序中第一个方向；JSON 与 HUD 使用同一判定。
+
+## 指标复现
+
+配置环境后，在包目录中执行以下命令。
+
+### CameraBench：AP / mAP
+
+准备[基准视频](https://huggingface.co/datasets/syCen/Videos4CameraBench/tree/1ec8d55f8c380abbb6ea7087e64778f0ca76a68f)及[官方 15 类标注](https://github.com/linzhiqiu/t2v_metrics/tree/6ecb74f92028f42c7e64546d3a71e98c8c73068f/camerabench/data/binary_classification)。以下命令复现发布权重对应的 **88.68% mAP** 方案：
 
 ```bash
-cd reactor
-reactor build
-reactor run --gpus '"device=0,1,2,3,4,5,6,7"' --shm-size 8g --port 8080
+python infer.py --video /path/to/CameraBench/videos --sampling uniform \
+  --precision bf16 --output outputs/camerabench_predictions.json
+python tools/evaluate_camerabench.py \
+  --predictions outputs/camerabench_predictions.json \
+  --labels /path/to/t2v_metrics/camerabench/data/binary_classification \
+  --output outputs/camerabench_metrics.json
 ```
 
-等待 `curl -fsS http://localhost:8080/health` 返回 `available`。在另一终端中，从仓库根目录运行：
+子项 AP 和宏平均 mAP 保存至 `outputs/camerabench_metrics.json`；已有预测时只运行第二条命令。
+
+**89.19% mAP：** 对上述预测应用已提供的 clip-level head，然后评分，无需重复运行视频模型：
 
 ```bash
-cd reactor/demo
-npm ci
-npm run dev -- --port 5173
+python tools/apply_clip_head.py --predictions outputs/camerabench_predictions.json \
+  --output outputs/camerabench_clip_predictions.json
+python tools/evaluate_camerabench.py \
+  --predictions outputs/camerabench_clip_predictions.json \
+  --labels /path/to/t2v_metrics/camerabench/data/binary_classification \
+  --output outputs/camerabench_clip_metrics.json
 ```
 
-打开 **http://localhost:5173**，将 Runtime endpoint 设为 **http://localhost:8080**，点击 **Connect**，输入提示词后点击 **Start world**。点击视频后可使用 WASD 和方向键探索。**Update prompt** 可更新后续片段而无需重启。远程 GPU 部署请参阅 [SSH 与 WebRTC 指南](reactor/README.md#remote-servers-and-ssh)。
+Head 权重为 `weights/clip_head.json`，最终预测为 `0.7 × 时间聚合预测 + 0.3 × head 预测`。也可在首次推理时使用 `--sampling uniform --clip-head` 直接输出融合结果。
 
-#### Web Demo
+### ScanNet / TUM-dynamic / Sintel：ATE / RPE
 
-访问[在线交互式演示](https://hy-nomas.hy.tencent.com/demo)，体验 Hy-Nomas。
-
-请参阅[演示部署指南](apps/README.md)，了解如何启动 Web 网关和 GPU 工作进程、配置模型资源，以及在单机或多机上运行。演示默认使用 `configs/experiment/inference.yaml`。
-
-## LoRA 微调
-
-### SFT 数据准备
-
-使用 [captioning-harness](captioning_harness/README.md) 从本地视频准备训练数据。该流程对每个片段进行标注，使用 DCAE-V 编码视频帧，并将结果打包为用于 SFT 的 Arrow 或 Parquet 文件。有关部署 K3 服务、运行标注与打包、附加归一化相机轨迹的详细说明，请参阅该指南。
-
-### 离线序列打包
-
-从已编码的训练文件生成 packing plan，在仓库根目录执行：
+按 [MonST3R 数据准备脚本](https://github.com/Junyi42/monst3r/blob/main/data/evaluation_script.md)准备数据。`--data-root` 指向包含 `scannetv2/`、`tum/`、`sintel/` 的目录。
 
 ```bash
-python scripts/data_processing/build_sft_packing_plan.py \
-  --input /path/to/train.arrow \
-  --output /path/to/train_packing.json \
-  --max-seq-len 360000 \
-  --num-groups 16 \
-  --seed 42
+python -m pip install -r requirements-eval.txt
+
+# 三个数据集：预测轨迹并计算指标
+python tools/evaluate_pose.py --data-root /path/to/data \
+  --datasets scannet tum sintel --methods velocity_only --output outputs/pose
+
+# 复用已有预测，仅重算指标
+python tools/evaluate_pose.py --data-root /path/to/data \
+  --metrics-only --predictions-root outputs/pose --output outputs/pose_metrics
 ```
 
-示例生成 16 组，对应 DP16 × SP8（128 张 GPU）。组数应为数据并行度的整数倍、不超过样本数，且在 `--max-seq-len` 限制下有足够容量。训练时使用相同的训练文件及行顺序，并通过 `dataset.token_packing_sorted_groups_path` 传入生成的 JSON。详情见[序列打包说明](captioning_harness/README.md#offline-sequence-packing)。
+单独评测时使用 `--datasets scannet`、`--datasets tum` 或 `--datasets sintel`；分类＋速度对照使用 `--methods classification_velocity`。各数据集指标保存在 `outputs/pose/<dataset>/report.json`，表格对应字段为 `summary.velocity_only.full_eligible_set_mean`。
 
-### 训练与合并
+## 目录结构
 
-LoRA 微调以**未蒸馏检查点**为基础，使用 segment forcing 训练流程。训练完成后，将学到的 LoRA 权重合并到对应的**蒸馏后检查点**，生成新的合并检查点用于推理。
-
-![LoRA 微调流程：在未蒸馏检查点上训练，将 LoRA 权重合并到蒸馏后检查点。](assets/lora-finetuning.svg)
-
-`configs/experiment/sft.yaml` 已启用 LoRA：rank/alpha 为 256，dropout 为 0，使用 Muon 优化器、恒定学习率 `1e-4`，训练 2,000 步。仅训练 LoRA 参数。
-
-```bash
-export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
-
-bash scripts/train/train_from_config.sh configs/experiment/sft.yaml \
-  dit_weight="${Hy_Nomas_Model_Path}/DiT/base_ar/diffusion_pytorch_model_fp32.safetensors" \
-  model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/DCAE-V/dc-ae-v-1.0-f32t4c32-bf16.pt" \
-  dataset.data_file=/path/to/train.arrow \
-  dataset.token_packing_sorted_groups_path=/path/to/train_packing.json \
-  output_dir=./outputs/segment_lora
+```text
+README.md / README_CN.md    英文／中文说明
+infer.py                    命令行入口
+idm/                        模型加载、视频采样与分数映射
+weights/                    主模型、clip-level head 权重与元数据
+vendor/video-pre-training/  VPT 运行代码及许可证
+assets/                     示例视频、预测结果与 HUD 视频
+requirements.txt            运行依赖
+requirements-eval.txt       可选的位姿评测依赖
+tests/                      输出、采样、HUD 与轨迹测试
+tools/apply_clip_head.py     对已有预测应用 clip-level head
+tools/evaluate_camerabench.py CameraBench AP / mAP 评测
+tools/evaluate_pose.py      ScanNet、TUM-dynamic 与 Sintel 评测
+tools/verify_package.py     包文件校验
 ```
-
-训练配置使用 SP8；128 张 GPU 对应 DP16 × SP8。请根据硬件设置启动规模，并为相应的数据并行度生成 packing plan。
-
-先导出保存的 LoRA 检查点，再将其合并到架构和参数形状匹配的蒸馏后检查点：
-
-```bash
-export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
-
-python -m scripts.train.export_lora_checkpoint \
-  ./outputs/segment_lora/checkpoints/global_step-2000 \
-  ./outputs/segment_lora/adapter
-
-python -m scripts.train.merge_lora \
-  --base "${Hy_Nomas_Model_Path}/DiT/distilled/diffusion_pytorch_model_ema_0_995.safetensors" \
-  --adapter ./outputs/segment_lora/adapter \
-  --output ./outputs/merged_model.safetensors
-```
-
-在[推理命令](#推理)中设置 `dit_weight=./outputs/merged_model.safetensors` 即可使用合并后的模型。
-
-## 许可证
-
-本项目采用 [Apache License 2.0](LICENSE) 许可证。
 
 ## 致谢
 
-感谢 [Gemma 4](https://deepmind.google/models/gemma/gemma-4/)、[Qwen3.8](https://qwen.ai/blog?id=qwen3.8)、[Kimi-K3](https://github.com/MoonshotAI/Kimi-K3)、[DCAE-V](https://github.com/dc-ai-projects/DC-Gen) 和 [MagiAttention](https://github.com/SandAI-org/MagiAttention) 团队为社区作出的宝贵贡献，以及为本项目提供支持的模型、研究成果和工具。
-
-
-## 引用
-
-如果 Hy-Nomas 对您的研究有所帮助，请引用我们的技术报告：
-
-```bibtex
-@article{chen2026hy,
-  title={Hy-Nomas: Towards Free-form Interactive World Generation},
-  author={Chen, Qiaoling and Cheng, Jiaxiang and Deng, Xueqing and Hang, Tiankai and Hou, Ji and Li, Jiaqi and Liu, Yifan and Lu, Tao and Tang, Junshu and Tang, Yu and others},
-  journal={arXiv preprint arXiv:2610.36729},
-  year={2026}
-}
-```
-
-## 联系我们
-
-如有问题、非安全相关的缺陷报告或建议，请在本仓库提交 issue，或通过邮箱 [hy_nomas@tencent.com](mailto:hy_nomas@tencent.com) 联系我们。贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)；疑似安全漏洞请按照 [SECURITY.md](SECURITY.md) 私下报告。
-
----
-
-<p align="center">
-    <i>Hy-Nomas · 自由形式交互式世界生成。</i>
-</p>
+本包使用 [OpenAI VPT](https://github.com/openai/Video-Pre-Training) 运行代码，其 MIT 许可证保留于 `vendor/video-pre-training/LICENSE`。来源归属及分发说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

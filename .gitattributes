@@ -1,7 +1,2 @@
-hymm/dataset/data_kits/test/*.csv filter=lfs diff=lfs merge=lfs -text
-hymm/dataset/data_kits/test_video/*/*.csv filter=lfs diff=lfs merge=lfs -text
-hymm/dataset/data_kits/test/*.csv filter=lfs diff=lfs merge=lfs -text
-hymm/dataset/data_kits/test/zh_short_caption_1000.csv filter=lfs diff=lfs merge=lfs -text
-hymm/dataset/data_kits/test_video/**.csv filter=lfs diff=lfs merge=lfs -text
-hymm/dataset/data_kits/test_video/Arena/i2v_eval_64_0818.csv filter=lfs diff=lfs merge=lfs -text
-*.csv text eol=lf
+weights/*.pt filter=lfs diff=lfs merge=lfs -text
+assets/*.mp4 filter=lfs diff=lfs merge=lfs -text

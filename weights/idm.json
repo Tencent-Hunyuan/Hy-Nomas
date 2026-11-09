@@ -1,0 +1,81 @@
+{
+  "name": "Hy-Nomas IDM",
+  "format": "hy-nomas-idm-v1",
+  "file": "idm.pt",
+  "sha256": "b8c4da9851826edbb50dde4f3f12fed5732b4fe1e4739242ae712a9895e07fb8",
+  "bytes": 1895984723,
+  "model_tensors": 108,
+  "image_hw": [
+    96,
+    128
+  ],
+  "frames": 144,
+  "buckets": 24,
+  "label_names": [
+    "w",
+    "a",
+    "s",
+    "d",
+    "mouse_right",
+    "mouse_up_right",
+    "mouse_up",
+    "mouse_up_left",
+    "mouse_left",
+    "mouse_down_left",
+    "mouse_down",
+    "mouse_down_right",
+    "special",
+    "up",
+    "down",
+    "shake",
+    "roll_clockwise",
+    "roll_counterclockwise"
+  ],
+  "velocity_axes": [
+    "right",
+    "down",
+    "forward",
+    "yaw_right",
+    "pitch_down",
+    "roll_clockwise"
+  ],
+  "velocity_units": "model-native regression values; not calibrated physical speed",
+  "shake_source": "main18[15]",
+  "postprocessing": "Group MAX and temporal MAX; temporal MIN for Static",
+  "benchmark_sampling": "uniform144",
+  "supported_sampling": [
+    "windows24fps",
+    "uniform144"
+  ],
+  "default_sampling": "windows24fps",
+  "clip_camera_motion": {
+    "level": "clip",
+    "classes": [
+      "Move_Down",
+      "Move_In",
+      "Move_Left",
+      "Move_Out",
+      "Move_Right",
+      "Move_Up",
+      "Pan_Left",
+      "Pan_Right",
+      "Roll_Clockwise",
+      "Roll_Counterclockwise",
+      "Static",
+      "Tilt_Down",
+      "Tilt_Up",
+      "Zoom_In",
+      "Zoom_Out"
+    ]
+  },
+  "parameter_count": 473986521,
+  "clip_head": {
+    "file": "clip_head.json",
+    "format": "hy-nomas-idm-clip-head-v1",
+    "sha256": "37bb68057066f7306a47ac1bda3e9a0e1d712a0d32909b73fd0ba490b1d2aec0",
+    "bytes": 17773,
+    "sampling": "uniform144",
+    "trainable_parameters": 210,
+    "blend_alpha": 0.3
+  }
+}

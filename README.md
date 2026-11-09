@@ -1,471 +1,705 @@
 <p align="left">
-    <a href="README_CN.md">中文</a>&nbsp;｜&nbsp;English
-</p>
-<br>
-
-<p align="center">
-    <img src="assets/logo-en.png" alt="Hy-Nomas" width="400"/> <br>
+  <a href="README_CN.md">中文</a>&nbsp;｜&nbsp;English
 </p>
 
-<h1 align="center">
-    Hy-Nomas: Towards Free-Form Interactive <br> World Generation
-</h1>
+<h1 align="center">Hy-Nomas IDM</h1>
 
-**Hy-Nomas** is a free-form interactive world generation model controlled by multi-turn text and camera inputs. It runs on a single RTX 4090 with low-memory inference, supports LoRA fine-tuning for downstream tasks, and includes an interactive web demo.
+**Hy-Nomas IDM** estimates camera motion from video. Built on the VPT visual backbone, it produces temporal action probabilities, zoom probabilities, velocity predictions, subject motion quality scores (`motion_score`), and clip-level camera motion predictions. The package includes model weights and an independent inference API for use with [Hy-Nomas](https://github.com/Tencent-Hunyuan/Hy-Nomas).
 
-<div align="center" style="line-height: 1;">
+**Coming soon: a dedicated IDM for games, built on the same architecture.**
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
-&nbsp;&nbsp;
-<a href="https://huggingface.co/tencent/Hy-Nomas" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Hy--Nomas-ffc107?color=ffc107&logoColor=white" alt="Hy-Nomas"></a>
-&nbsp;&nbsp;
-<a href="https://huggingface.co/datasets/tencent/Hy-Nomas-Bench" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Hy--Nomas--Bench-ffc107?color=ffc107&logoColor=white" alt="Hy-Nomas-Bench"></a>
-&nbsp;&nbsp;
-<a href="https://x.com/TencentHunyuan/status/2113676827114053892" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/Hy-black.svg?logo=x" height="22" alt="Hy on X"></a>
+## Contents
 
-</div>
+- [Model Overview](#model-overview)
+- [Camera Pose Estimation](#camera-pose-estimation)
+- [Environment Setup](#environment-setup)
+- [Inference](#inference)
+- [Inputs and Outputs](#inputs-and-outputs)
+- [Reproducing Metrics](#reproducing-metrics)
+- [Package Layout](#package-layout)
+- [Acknowledgements](#acknowledgements)
 
-<p align="center">
-    🖥️&nbsp;<a href="https://hy-nomas.hy.tencent.com/demo"><b>Interactive Demo</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    🌐&nbsp;<a href="https://hy-nomas.hy.tencent.com/"><b>Project Website</b></a>&nbsp;&nbsp;|&nbsp;&nbsp;
-    📄&nbsp;<a href="https://arxiv.org/abs/2610.36729"><b>Technical Report</b></a>
-</p>
+## Model Overview
 
-<p align="center">
-    👏 Join our <a href="./assets/wechat.png" target="_blank">WeChat community</a>
-</p>
+| Property | Description |
+|---|---|
+| Backbone | VPT |
+| Parameters | Approximately 0.474B (473,986,521) |
+| Input | 144 RGB frames, 96 × 128 pixels (height × width) |
+| Temporal output | 24 bins per window, one bin every 0.25 seconds |
+| Predictions | 18 action probabilities, 2 zoom probabilities, 6 velocity values per bin |
+| Motion Score | Predicts the subject's motion quality in the video using a trained regression head (`motion_score`) |
+| Clip-level predictions | 15 camera motion classes for the entire input video (`clip_camera_motion`) |
+| Clip-level head | 15 linear classifiers with 13 features each, 210 parameters, blend weight 0.3 |
+| Model assets | `weights/idm.pt`, `weights/idm.json`, and `weights/clip_head.json` |
 
-## 🔥 News
+On CameraBench, temporal aggregation of frame-level predictions achieves **88.68% mAP**. Freezing the model, training a lightweight clip-level head on the CameraBench training set, and blending its predictions with the original predictions improves mAP to **89.19%**. Both results are clip-level macro mAP, evaluated with uniform sampling across each video over 969 videos, 15 classes, and 7,679 known labels. Both methods are included; enable them with `--sampling uniform` and `--sampling uniform --clip-head`, respectively.
 
-- 🤝 **Nov 3, 2026 — Community showcases:** [@BennyDaBall_OG](https://x.com/BennyDaBall_OG) demonstrates adding video-conditioned audio to Hy-Nomas videos with LTX-2.5 — [Watch the audio demo](https://x.com/BennyDaBall_OG/status/2117675372024070250). [@preluluofficial](https://x.com/preluluofficial) previews interactive microdrama roleplay built with Hy-Nomas — [Watch the roleplay demo](https://x.com/preluluofficial/status/2117563133120176449). See [Community Contributions](#-community-contributions).
-- 🖼️ **Oct 31, 2026 — Image reference in the demo:** Upload an image to initialize your world, then continue with text prompts and camera control. Try the [interactive demo](https://hy-nomas.hy.tencent.com/demo) or see the [deployment guide](apps/README.md#start-with-a-reference-image).
-- 🎬 **Oct 29, 2026 — Hy-Nomas vs Genie 4:** Watch the [video comparison](https://x.com/TencentHunyuan/status/2115851165904814283), featuring Genie 4 examples recreated with Hy-Nomas.
-- 📄 **Oct 27, 2026 — Technical report is available on arXiv:** [arXiv](https://arxiv.org/abs/2610.36729).
-- 🤝 **Oct 26, 2026 — Community integrations:** Run Hy-Nomas with [SGLang](https://github.com/sgl-project/sglang/pull/46124), [ComfyUI](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas), or [Reactor Runtime](reactor/README.md). See [Community Contributions](#-community-contributions) for details.
-- 📄 **Oct 26, 2026 — Technical report:** Updated the [Hy-Nomas technical report](https://github.com/Tencent-Hunyuan/Hy-Nomas/blob/main/Hy_Nomas_Tech_Report.pdf).
-- 🌍 **Oct 25, 2026 — WanGP support:** [WanGP v18.81](https://github.com/deepbeepmeep/WanGP), by [@deepbeepmeep](https://x.com/deepbeepmeep), adds Hy-Nomas world generation with keyboard exploration and text-driven events. See the [announcement](https://x.com/deepbeepmeep/status/2114503683295662230) and [integration commit](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99).
-- 🛠️ **Oct 23, 2026 — Diffusers inference:** Added a [Diffusers inference example](#inference-with-diffusers).
-- 🎮 **Oct 21, 2026 — Interactive demo:** Explore multi-turn text and camera control in the [online demo](https://hy-nomas.hy.tencent.com/demo), or follow the [deployment guide](apps/README.md) to run it yourself.
-- 🚀 **Oct 21, 2026 — Initial code release:** Training and inference code include [LoRA fine-tuning](#lora-fine-tuning) and [single-GPU inference](#inference-with-low-mem-gpu). Get the [model weights](https://huggingface.co/tencent/Hy-Nomas) to start exploring.
+### CameraBench Results by Category
 
-## 🎥 Demo
+<table>
+<thead>
+<tr>
+<th rowspan="2">Model</th>
+<th rowspan="2">Params</th>
+<th colspan="6">Translation (Dolly / Pedestal / Truck)</th>
+<th colspan="2">Zooming</th>
+<th colspan="6">Rotation (Pan / Tilt / Roll)</th>
+<th rowspan="2">Static</th>
+<th rowspan="2">Overall</th>
+</tr>
+<tr>
+<th>In</th>
+<th>Out</th>
+<th>Up</th>
+<th>Down</th>
+<th>Right</th>
+<th>Left</th>
+<th>In</th>
+<th>Out</th>
+<th>Right</th>
+<th>Left</th>
+<th>Up</th>
+<th>Down</th>
+<th>CW</th>
+<th>CCW</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hy-Nomas IDM</strong></td>
+<td align="center">0.474B</td>
+<td align="center">95.46</td>
+<td align="center">80.48</td>
+<td align="center">70.49</td>
+<td align="center">84.60</td>
+<td align="center">88.54</td>
+<td align="center">92.75</td>
+<td align="center">80.10</td>
+<td align="center">87.21</td>
+<td align="center">94.77</td>
+<td align="center">97.20</td>
+<td align="center">92.12</td>
+<td align="center">85.84</td>
+<td align="center">95.95</td>
+<td align="center">95.77</td>
+<td align="center">88.84</td>
+<td align="center"><strong>88.68</strong></td>
+</tr>
+<tr>
+<td><a href="https://3dagentworld.github.io/CameraVLM/">CameraVLM</a></td>
+<td align="center">9B</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">88.20</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/html/2610.17242v1#S4">GPT-6 Astra (high)</a></td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">—</td>
+<td align="center">82.50</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">Qwen2.5-VL-72B (SFT)</a></td>
+<td align="center">72B</td>
+<td align="center">86.8</td>
+<td align="center">41.3</td>
+<td align="center">30.5</td>
+<td align="center">50.6</td>
+<td align="center">70.7</td>
+<td align="center">52.6</td>
+<td align="center">57.1</td>
+<td align="center">78.5</td>
+<td align="center">81.9</td>
+<td align="center">86.6</td>
+<td align="center">79.1</td>
+<td align="center">70.4</td>
+<td align="center">35.0</td>
+<td align="center">43.8</td>
+<td align="center">76.6</td>
+<td align="center">62.8</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">Qwen2.5-VL-7B (SFT)</a></td>
+<td align="center">7B</td>
+<td align="center">83.9</td>
+<td align="center">38.6</td>
+<td align="center">27.8</td>
+<td align="center">47.8</td>
+<td align="center">67.9</td>
+<td align="center">50.0</td>
+<td align="center">54.5</td>
+<td align="center">75.8</td>
+<td align="center">79.2</td>
+<td align="center">83.8</td>
+<td align="center">76.3</td>
+<td align="center">67.6</td>
+<td align="center">32.3</td>
+<td align="center">41.0</td>
+<td align="center">73.6</td>
+<td align="center">60.0</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">MegaSAM</a></td>
+<td align="center">—</td>
+<td align="center">87.0</td>
+<td align="center">58.3</td>
+<td align="center">43.0</td>
+<td align="center">48.4</td>
+<td align="center">59.1</td>
+<td align="center">58.0</td>
+<td align="center">11.1</td>
+<td align="center">10.2</td>
+<td align="center">77.9</td>
+<td align="center">82.4</td>
+<td align="center">75.6</td>
+<td align="center">57.7</td>
+<td align="center">67.4</td>
+<td align="center">76.9</td>
+<td align="center">60.1</td>
+<td align="center">58.2</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">CUT3R</a></td>
+<td align="center">—</td>
+<td align="center">88.0</td>
+<td align="center">65.5</td>
+<td align="center">38.7</td>
+<td align="center">54.6</td>
+<td align="center">42.5</td>
+<td align="center">36.5</td>
+<td align="center">15.9</td>
+<td align="center">21.3</td>
+<td align="center">59.1</td>
+<td align="center">65.0</td>
+<td align="center">65.0</td>
+<td align="center">47.5</td>
+<td align="center">60.7</td>
+<td align="center">66.2</td>
+<td align="center">37.6</td>
+<td align="center">50.9</td>
+</tr>
+<tr>
+<td><a href="https://linzhiqiu.github.io/papers/camerabench/">MASt3R</a></td>
+<td align="center">0.689B</td>
+<td align="center">65.4</td>
+<td align="center">34.3</td>
+<td align="center">35.1</td>
+<td align="center">59.6</td>
+<td align="center">43.7</td>
+<td align="center">38.1</td>
+<td align="center">42.2</td>
+<td align="center">46.6</td>
+<td align="center">66.6</td>
+<td align="center">58.0</td>
+<td align="center">63.2</td>
+<td align="center">40.3</td>
+<td align="center">50.4</td>
+<td align="center">53.5</td>
+<td align="center">45.6</td>
+<td align="center">49.5</td>
+</tr>
+</tbody>
+</table>
 
-https://github.com/user-attachments/assets/e2e05b2b-9024-4b0e-9926-6eed05356b76
+Baseline data sources: [CameraBench leaderboard](https://sy77777en.github.io/CameraBench/leaderboard/table.html) and [CameraVLM, Table 1](https://arxiv.org/html/2610.17242v1#S4).
 
-[Watch the full-resolution video](https://hy-nomas.hy.tencent.com/gallery/hy_nomas_promo.mp4)
+### Camera Pose Estimation
 
-## 🧩 Community Contributions
+Hy-Nomas IDM reconstructs camera trajectories by integrating its predicted translational and angular velocities over six-second windows. ATE and translation RPE are measured in meters; rotation RPE is measured in degrees. Lower is better, and bold values mark the lowest result in each column within the Offline and Streaming groups.
 
-If you develop/use Hy-Nomas in your projects, welcome to let us know.
+<!-- BEGIN CAMERA POSE RESULTS -->
+<table>
+<thead>
+<tr>
+<th rowspan="2">Model</th>
+<th colspan="3">ScanNet</th>
+<th colspan="3">TUM RGB-D (dynamic)</th>
+<th colspan="3">Sintel</th>
+</tr>
+<tr>
+<th>ATE (m) ↓</th>
+<th>RPE<sub>t</sub> (m) ↓</th>
+<th>RPE<sub>r</sub> (°) ↓</th>
+<th>ATE (m) ↓</th>
+<th>RPE<sub>t</sub> (m) ↓</th>
+<th>RPE<sub>r</sub> (°) ↓</th>
+<th>ATE (m) ↓</th>
+<th>RPE<sub>t</sub> (m) ↓</th>
+<th>RPE<sub>r</sub> (°) ↓</th>
+</tr>
+</thead>
+<tbody>
+<tr><th colspan="10" align="left">Offline</th></tr>
+<tr>
+<td>DUSt3R-GA</td>
+<td align="center">0.081</td>
+<td align="center">0.028</td>
+<td align="center">0.784</td>
+<td align="center">0.083</td>
+<td align="center">0.017</td>
+<td align="center">3.567</td>
+<td align="center">0.417</td>
+<td align="center">0.250</td>
+<td align="center">5.796</td>
+</tr>
+<tr>
+<td>MASt3R-GA</td>
+<td align="center">0.078</td>
+<td align="center">0.020</td>
+<td align="center">0.475</td>
+<td align="center">0.038</td>
+<td align="center">0.012</td>
+<td align="center">0.448</td>
+<td align="center">0.185</td>
+<td align="center">0.060</td>
+<td align="center">1.496</td>
+</tr>
+<tr>
+<td>MonST3R-GA</td>
+<td align="center">0.077</td>
+<td align="center">0.018</td>
+<td align="center">0.529</td>
+<td align="center">0.098</td>
+<td align="center">0.019</td>
+<td align="center">0.935</td>
+<td align="center">0.111</td>
+<td align="center">0.044</td>
+<td align="center">0.869</td>
+</tr>
+<tr>
+<td>Fast3R</td>
+<td align="center">0.155</td>
+<td align="center">0.123</td>
+<td align="center">3.491</td>
+<td align="center">0.090</td>
+<td align="center">0.101</td>
+<td align="center">1.425</td>
+<td align="center">0.371</td>
+<td align="center">0.298</td>
+<td align="center">13.750</td>
+</tr>
+<tr>
+<td>FLARE</td>
+<td align="center">0.064</td>
+<td align="center">0.023</td>
+<td align="center">0.971</td>
+<td align="center">0.026</td>
+<td align="center">0.013</td>
+<td align="center">0.475</td>
+<td align="center">0.207</td>
+<td align="center">0.090</td>
+<td align="center">3.015</td>
+</tr>
+<tr>
+<td>VGGT</td>
+<td align="center">0.035</td>
+<td align="center">0.015</td>
+<td align="center">0.380</td>
+<td align="center"><strong>0.009</strong></td>
+<td align="center"><strong>0.008</strong></td>
+<td align="center">0.350</td>
+<td align="center">0.172</td>
+<td align="center">0.061</td>
+<td align="center">0.470</td>
+</tr>
+<tr>
+<td>π³</td>
+<td align="center"><strong>0.031</strong></td>
+<td align="center"><strong>0.013</strong></td>
+<td align="center"><strong>0.347</strong></td>
+<td align="center">0.014</td>
+<td align="center">0.009</td>
+<td align="center"><strong>0.312</strong></td>
+<td align="center"><strong>0.074</strong></td>
+<td align="center"><strong>0.040</strong></td>
+<td align="center"><strong>0.282</strong></td>
+</tr>
+<tr>
+<td>MapAnything</td>
+<td align="center">0.052</td>
+<td align="center">0.025</td>
+<td align="center">0.720</td>
+<td align="center">0.029</td>
+<td align="center">0.023</td>
+<td align="center">0.370</td>
+<td align="center">0.226</td>
+<td align="center">0.077</td>
+<td align="center">0.640</td>
+</tr>
+<tr><th colspan="10" align="left">Streaming</th></tr>
+<tr>
+<td>StreamVGGT</td>
+<td align="center">0.127</td>
+<td align="center">0.041</td>
+<td align="center">1.880</td>
+<td align="center">0.062</td>
+<td align="center">0.030</td>
+<td align="center">0.690</td>
+<td align="center">0.273</td>
+<td align="center">0.109</td>
+<td align="center">0.850</td>
+</tr>
+<tr>
+<td>CUT3R</td>
+<td align="center">0.096</td>
+<td align="center"><strong>0.022</strong></td>
+<td align="center"><strong>0.590</strong></td>
+<td align="center"><strong>0.045</strong></td>
+<td align="center">0.015</td>
+<td align="center"><strong>0.440</strong></td>
+<td align="center">0.215</td>
+<td align="center">0.070</td>
+<td align="center">0.630</td>
+</tr>
+<tr>
+<td>Point3R</td>
+<td align="center">0.097</td>
+<td align="center">0.035</td>
+<td align="center">2.791</td>
+<td align="center">0.058</td>
+<td align="center">0.031</td>
+<td align="center">0.758</td>
+<td align="center">0.442</td>
+<td align="center">0.154</td>
+<td align="center">1.897</td>
+</tr>
+<tr>
+<td>Spann3R</td>
+<td align="center">0.096</td>
+<td align="center">0.023</td>
+<td align="center">0.661</td>
+<td align="center">0.056</td>
+<td align="center">0.021</td>
+<td align="center">0.591</td>
+<td align="center">0.329</td>
+<td align="center">0.110</td>
+<td align="center">4.471</td>
+</tr>
+<tr>
+<td>G2VLM</td>
+<td align="center">0.148</td>
+<td align="center">0.048</td>
+<td align="center">1.220</td>
+<td align="center">0.129</td>
+<td align="center">0.044</td>
+<td align="center">0.700</td>
+<td align="center">0.301</td>
+<td align="center">0.135</td>
+<td align="center">1.450</td>
+</tr>
+<tr>
+<td>Cambrian-P</td>
+<td align="center"><strong>0.078</strong></td>
+<td align="center">0.023</td>
+<td align="center">0.880</td>
+<td align="center">0.046</td>
+<td align="center">0.020</td>
+<td align="center">0.580</td>
+<td align="center">0.239</td>
+<td align="center">0.081</td>
+<td align="center">2.440</td>
+</tr>
+<tr>
+<td>CameraVLM</td>
+<td align="center">0.124</td>
+<td align="center">0.044</td>
+<td align="center">2.177</td>
+<td align="center">0.049</td>
+<td align="center">0.022</td>
+<td align="center">1.440</td>
+<td align="center">0.148</td>
+<td align="center">0.064</td>
+<td align="center">1.420</td>
+</tr>
+<tr>
+<td><strong>Hy-Nomas IDM</strong></td>
+<td align="center">0.1673</td>
+<td align="center">0.0236</td>
+<td align="center">0.9824</td>
+<td align="center">0.1110</td>
+<td align="center"><strong>0.0126</strong></td>
+<td align="center">0.9550</td>
+<td align="center"><strong>0.0923</strong></td>
+<td align="center"><strong>0.0393</strong></td>
+<td align="center"><strong>0.5149</strong></td>
+</tr>
+</tbody>
+</table>
+<!-- END CAMERA POSE RESULTS -->
 
-- **Video-conditioned audio with LTX-2.5** — [Demo and workflow explanation](https://x.com/BennyDaBall_OG/status/2117675372024070250), by [@BennyDaBall_OG](https://x.com/BennyDaBall_OG): A training-free ComfyUI workflow that generates an audio track conditioned on finished Hy-Nomas video, keeping the video latent frozen and muxing the audio onto the original frames. The author credits Hy-Nomas nodes by [@t8star_aix](https://x.com/t8star_aix), built on [@LatentSpacer](https://x.com/LatentSpacer)'s ComfyUI-Hy-Nomas pack.
-- **Prelulu interactive microdramas** — [Roleplay demo](https://x.com/preluluofficial/status/2117563133120176449), by [@preluluofficial](https://x.com/preluluofficial): A preview of interactive roleplay experiences built with Hy-Nomas, letting users talk to characters and explore alternative story directions.
-- **Google TPU demos** — [Mashbox demos](https://mashbox.gg/world), by [@boshjerns](https://x.com/boshjerns): Keyboard-controlled Hy-Nomas world generation on Google TPUs. The [announcement](https://x.com/boshjerns/status/2114962446947651907) reports real-time 720p generation on a v6e-4 slice (4 chips), with 0.933 seconds of compute per second of video and no late frames during a 60-second run.
-- **WanGP** — [WanGP](https://github.com/deepbeepmeep/WanGP), by [@deepbeepmeep](https://x.com/deepbeepmeep): Hy-Nomas support in v18.81 provides text-to-world generation, keyboard navigation and camera control, text-driven events, and adjustable history memory. Explorations can be saved and resumed or recorded as videos. See the [announcement](https://x.com/deepbeepmeep/status/2114503683295662230) and [integration commit](https://github.com/deepbeepmeep/WanGP/commit/c4d3efce4cd896c6e14fcb82787577bfc3181b99).
-- **SGLang** — [SGLang Diffusion](https://github.com/sgl-project/sglang), by [@sgl_project](https://x.com/sgl_project): Hy-Nomas support is merged into `main`, covering offline video jobs and real-time streaming sessions. See the [integration PR](https://github.com/sgl-project/sglang/pull/46124) and [installation guide](https://lmsysorg.mintlify.app/cookbook/diffusion/HY-Nomas/HY-Nomas#hw=h200&placement=resident&nodes=1&gpus_per_node=1&topology_mode=auto&tp_size=1&ulysses_degree=1&ring_degree=1).
-- **ComfyUI** — [ComfyUI-Hy-Nomas](https://github.com/PedroMarinhoDev/ComfyUI-Hy-Nomas), by [@LatentSpacer](https://x.com/LatentSpacer): A community integration with chained video segments and interactive WASD camera control.
-- **Reactor Runtime** — [Hy-Nomas integration guide](reactor/README.md), contributed by [@Rising0321](https://github.com/Rising0321): A streaming service and browser demo with live prompt updates, WASD/arrow camera control, and uploaded camera trajectories while retaining world history. See the [integration PR](https://github.com/Tencent-Hunyuan/Hy-Nomas/pull/3).
+Baseline results and their Offline/Streaming groups are reported in [CameraVLM, Table 2](https://arxiv.org/html/2610.17242v1#S4.T2). The Hy-Nomas IDM row is measured with the released weights using velocity integration.
 
-Thank you to the contributors for building on Hy-Nomas!
+Evaluation follows the public [MonST3R / Cambrian-P protocol](https://github.com/cambrian-mllm/cambrian-p#pose-estimation-performance).
 
-Building with Hy-Nomas? We welcome community projects, integrations, tutorials, and LoRA adapters. Share your work by [opening an issue](https://github.com/Tencent-Hunyuan/Hy-Nomas/issues) or submitting a pull request to add it to this section. Contributions to this repository are covered in the [contribution guide](CONTRIBUTING.md).
+## Environment Setup
 
----
+This operator is compatible with the [Hy-Nomas runtime environment](https://github.com/Tencent-Hunyuan/Hy-Nomas#environment-setup) and can reuse its Python, PyTorch, and CUDA installation.
 
-## Table of Contents
-
-- [🔥 News](#-news)
-- [🎥 Demo](#-demo)
-- [🧩 Community Contributions](#-community-contributions)
-- [Model Introduction](#model-introduction)
-- [Key Features](#key-features)
-- [Usage](#usage)
-  - [Environment Setup](#environment-setup)
-  - [Model Assets](#model-assets)
-  - [Inference](#inference)
-    - [Inference with Source Code](#inference-with-source-code)
-    - [Inference with Low-Mem GPU](#inference-with-low-mem-gpu)
-    - [Inference with Diffusers](#inference-with-diffusers)
-    - [Inference with SGLang](#inference-with-sglang)
-  - [Interactive Demo](#interactive-demo)
-    - [Reactor Runtime](#reactor-runtime)
-    - [Web Demo](#web-demo)
-- [LoRA Fine-Tuning](#lora-fine-tuning)
-  - [SFT Data Preparation](#sft-data-preparation)
-  - [Offline Sequence Packing](#offline-sequence-packing)
-  - [Training and Merging](#training-and-merging)
-- [Contributing](CONTRIBUTING.md)
-- [Security](SECURITY.md)
-- [License](#license)
-- [Acknowledgement](#acknowledgement)
-- [Citation](#citation)
-- [Contact Us](#contact-us)
-
----
-
-## Model Introduction
-
-**Hy-Nomas** is a free-form interactive video world generation model. It supports free-form multi-turn text prompt control or camera control. This repository provides the training, inference, interactive demo, and data annotation code.
-
-## Key Features
-
-- **Segment-based generation:** Autoregressive segment-wise world generation controlled by either segment level prompt or camera control signal, maintaining a lifelong KV cache for consistency.
-- **Free-form Prompt Control:** Control the world generation with any kind of free form user prompt to generate imaginary object, style, scene, and actions.
-- **Camera control:** Condition generation on camera trajectories alongside text prompts.
-- **Distilled inference:** Inference uses 4-8 denoising steps and a finetuned PixelUMM decoder for 32-channel DCAE-V latents.
-- **Interactive demo:** A web interface supports generation across multiple turns and decoding at segment boundaries.
-- **Fine-tuning and data preparation:** Lora fine-tuning with customized video dataset, and prepare training data from local videos with our annotation workflow.
-
-## Usage
-
-### Environment Setup
-
-Choose one of the following two setup options. **We strongly recommend the pre-packaged Docker image**, which provides the Python environment, PyTorch, and the required CUDA attention kernels together.
-
-#### Option 1: Pre-packaged Docker Image (Recommended)
-
-Prepare a Linux host with a compatible NVIDIA driver, Docker, and NVIDIA Container Toolkit. Run these commands from the repository root:
+For standalone use, the environment can be reduced to this package's `requirements.txt`. Use Linux, Python 3.10–3.13, and an NVIDIA GPU with BF16 support; install a CUDA-compatible PyTorch build (>=2.3), then install the dependencies below. Run the same command in an existing Hy-Nomas environment to add any missing dependencies:
 
 ```bash
-export HY_NOMAS_IMAGE="hynomasoss/hynomasoss:cu130"
-
-docker pull "$HY_NOMAS_IMAGE"
-docker run --rm -it --gpus all --ipc=host --network=host \
-  -v "$PWD:/workspace/Hy-Nomas" \
-  -w /workspace/Hy-Nomas \
-  "$HY_NOMAS_IMAGE" bash
+python -m pip install -r requirements.txt
 ```
 
-Run the remaining commands inside the container, using its pre-installed Python environment. Place model assets under the mounted repository or add a volume mount for your model directory; use the paths visible inside the container in the launch commands below.
+Only the five direct dependencies above are required; the action-space type definitions used by VPT are bundled. For `--hud`, also make FFmpeg available on `PATH`.
 
-#### Option 2: Manual Installation
+Keep `weights/`, `idm/`, and `vendor/` alongside `infer.py`. Paths are resolved relative to the package, so it can be moved without editing the code. Model weights occupy approximately 1.9 GB. They are configured for Git LFS; a source-only checkout must also obtain the corresponding LFS files.
 
-Prepare Linux, Python 3.12+, uv, a compatible NVIDIA driver, the CUDA 13.0 Toolkit (`nvcc`), and a C++ compiler. Run the following from the repository root:
+## Inference
+
+### Command Line
+
+Run these commands from the package directory:
 
 ```bash
-uv sync --extra all
-source .venv/bin/activate
+# Single video
+python infer.py --video /path/to/input.mp4 --output outputs/input.json
+
+# All MP4 files directly inside a directory
+python infer.py --video /path/to/videos --output outputs/videos.json
+
+# Explicit model and device
+python infer.py --video /path/to/input.mp4 --output outputs/input.json \
+  --weights weights/idm.pt --device cuda:0 --precision bf16
+
+# Enable the clip-level head
+python infer.py --video /path/to/input.mp4 --output outputs/input_clip.json \
+  --sampling uniform --clip-head
+
+# CPU inference
+python infer.py --video /path/to/input.mp4 --output outputs/cpu.json \
+  --device cpu --precision fp32
 ```
 
-The `all` extra includes PyTorch 2.10.0 (CUDA 13.0), FlashAttention 2, FlashAttention 3, and MagiAttention. `pyproject.toml` configures the PyTorch CUDA index, the official FA3 source, and disables build isolation for the attention kernels so their builds can use the environment's PyTorch. Kernel compilation may take some time.
+The default is `--sampling windows`: consecutive six-second windows sampled at 24 FPS, using CUDA BF16 autocast and FP32 model weights. Directory inputs are processed in filename order. The JSON output is updated atomically after each video; an existing output file is overwritten. Invalid inputs and incompatible weights raise errors. CPU inference can be slow; FP32 and different hardware or library versions can produce numerical differences.
 
-### Model Assets
+### Prediction HUD
 
-The model repository contains DiT generation models, LoRA adapters, video autoencoders and decoders, and Nomas-PE for online prompt enhancement.
-
-Download all model weights from `tencent/Hy-Nomas` on Hugging Face, preserving the repository directory structure:
+Add `--hud` to save both prediction JSON and an MP4 with the predictions overlaid:
 
 ```bash
-export Hy_Nomas_Model_Path=/path/to/Hy-Nomas
-hf download tencent/Hy-Nomas --local-dir "${Hy_Nomas_Model_Path}"
+python infer.py --video assets/case_01.mp4 --output outputs/case_01.json --hud --shake-threshold 0.7
 ```
 
-Set `Hy_Nomas_Model_Path` to your download directory once. The commands below reuse its existing value, defaulting to `/path/to/Hy-Nomas` in a new shell. Click a model name below to view its files on Hugging Face.
+This creates `outputs/case_01.json` and `outputs/case_01_hud.mp4`. Directory inputs
+produce one HUD video per input, alongside the JSON. Install FFmpeg and ensure
+`ffmpeg` is on `PATH`. OpenCV is included in the Python requirements.
 
-| Category | Model asset | Purpose |
-|:---|:---|:---|
-| DiT | **[Base autoregressive DiT (FP32)](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/base_ar)** | Non-distilled checkpoint for segment forcing LoRA fine-tuning. |
-| DiT | **[Distilled DiT (FP32)](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/distilled)** | Checkpoint for fast, 4/6/8-step inference and the interactive demo. Also serves as the base for merging fine-tuned LoRA adapters. |
-| DiT | **[Quantized Distilled DiT (INT8)](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/distilled_int8)** | Quantized checkpoint for low-memory inference, including single-GPU deployment. |
-| DiT | **[Cinematic LoRA](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/lora_weights/cinematic)** | LoRA adapter using cinematic data, to be merged into the distilled DiT to enhance the visual quality of generated worlds. |
-| DiT | **[Robotics LoRA](https://huggingface.co/tencent/Hy-Nomas/tree/main/DiT/lora_weights/dual_arm_robotics)** | LoRA adapter trained on the [RealSource-World](https://huggingface.co/datasets/RealmanRobot/RealSource-World) real-world robotic-arm dataset, to be merged into the distilled DiT to enhance the robotics simulation capability of generated worlds. |
-| VAE | **[DCAE-V](https://huggingface.co/tencent/Hy-Nomas/tree/main/VAE/DCAE-V)** | Video autoencoder for encoding training videos into latents and decoding them. |
-| VAE | **[Fine-tuned PixelUMM Decoder](https://huggingface.co/tencent/Hy-Nomas/tree/main/VAE/PixelUMM_FT)** | Decoder for turning generated DCAE-V latents into video frames. |
-| VAE | **[Quantized PixelUMM Decoder (FP8)](https://huggingface.co/tencent/Hy-Nomas/tree/main/VAE/PixelUMM_FT_FP8)** | Decoder with FP8 weights for lower memory use and accelerated decoding. |
-| PE | **[Nomas-PE](https://huggingface.co/tencent/Hy-Nomas/tree/main/PE)** | Online prompt-enhancement model used by the interactive demo to convert user instructions into structured generation prompts. |
+The HUD displays action keys, eight mouse directions, zoom, and model-native
+velocity values. SHAKE is active when its probability is **>= 0.7**; use
+`--shake-threshold` to adjust both the JSON decision and HUD highlight.
+`--rotation-threshold 0.5` controls exclusive rotation decisions and their HUD
+highlight. `--hud-threshold 0.5` controls the other keys and zoom. Raw probabilities
+and video scores are unchanged. The default HUD updates every 0.25 seconds.
+SHAKE shows its predicted probability next to the highlight.
+The rotation dial uses 20-degree cardinal sectors (center +/-10 degrees) and
+70-degree diagonal sectors (center +/-35 degrees). Only the highest-probability
+direction is highlighted when it reaches the rotation threshold; otherwise all sectors
+remain inactive. Ties select the first direction in channel order.
+Output uses H.264 MP4 at the source resolution and average FPS, with audio retained
+when present (AAC). Variable-frame-rate input is rendered at constant average FPS.
+An odd frame dimension is padded by one pixel for H.264 compatibility.
 
-### Inference
+### Examples
 
-#### Inference with Source Code
+<!-- BEGIN CASE VIDEOS -->
 
-Run from the repository root with `configs/experiment/inference.yaml`, overriding the model paths, prompt file, and output directory:
+<table>
+<tr><th>Case 01</th><th>Case 02</th></tr>
+<tr>
+<td width="50%">
 
-```bash
-export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
+![](assets/case_01_hud.mp4)
 
-bash scripts/inference/inference_from_config.sh configs/experiment/inference.yaml \
-  --sp-size 1 --tp-size 8 \
-  dit_weight="${Hy_Nomas_Model_Path}/DiT/distilled/diffusion_pytorch_model_ema_0_995.safetensors" \
-  model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/PixelUMM_FT/diffusion_pytorch_model.safetensors" \
-  inference.prompt=/path/to/prompts.json \
-  inference.save_path=./outputs/distill
-```
+</td>
+<td width="50%">
 
-The inference preset uses **SP=1, TP=8**. Tensor parallelism shards the DiT attention heads (Q/K/V projections and the KV cache) across eight ranks; after attention, one all-to-all returns each rank to its token shard, where the output projection and MLP run with whole weights. It supports the KV-cache rollouts (`seg_ar`, `chunk_ar`) with unquantized DiT weights and cannot be combined with `sp_size > 1`.
+![](assets/case_02_hud.mp4)
 
-#### Inference with Low-Mem GPU
+</td>
+</tr>
+<tr><th>Case 03</th><th>Case 04</th></tr>
+<tr>
+<td width="50%">
 
-**Hy-Nomas supports inference on a single NVIDIA GeForce RTX 4090** with `configs/experiment/single_gpu_low_mem_inference.yaml`. This configuration reduces GPU memory use through:
+![](assets/case_03_hud.mp4)
 
-- **INT8 DiT weights and KV cache:** Store weights and cached keys/values in INT8 while retaining BF16 computation for DiT linear layers and attention.
-- **Sliding-window history:** Bound the retained context instead of letting the KV cache grow with every segment.
-- **CPU offload:** Move the text encoder, DiT, and VAE onto the GPU for their respective processing stages and return them to CPU afterward.
-- **Single-GPU kernels:** Use FlexAttention for the DiT and CUTLASS FP8 for decoding, with sequence parallelism disabled (`sp_size=1`).
+</td>
+<td width="50%">
 
-Use a compatible INT8 DiT checkpoint and FP8 decoder checkpoint. Run on a host or container exposing one GPU to `nvidia-smi`:
+![](assets/case_04_hud.mp4)
 
-```bash
-export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
+</td>
+</tr>
+<tr><th>Case 05</th><th>Case 06</th></tr>
+<tr>
+<td width="50%">
 
-bash scripts/inference/inference_from_config.sh configs/experiment/single_gpu_low_mem_inference.yaml \
-  dit_weight="${Hy_Nomas_Model_Path}/DiT/distilled_int8/diffusion_pytorch_model_ema_0_995_int8.safetensors" \
-  model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/PixelUMM_FT_FP8/diffusion_pytorch_model_fp8.safetensors" \
-  inference.prompt=/path/to/prompts.json \
-  inference.save_path=./outputs/single_gpu
-```
+![](assets/case_05_hud.mp4)
 
-CPU offload requires enough system RAM for the models and adds CPU–GPU transfer overhead. Peak GPU memory depends on resolution and segment length.
+</td>
+<td width="50%">
 
-#### Inference with Diffusers
+![](assets/case_06_hud.mp4)
 
-Upgrade your diffusers to use `HyNomasModularPipeline`.
+</td>
+</tr>
+</table>
 
-```bash
-pip install -e "diffusers[hy-nomas] @ git+https://github.com/jiaxiangc/diffusers.git@hy-nomas"
-```
+<!-- END CASE VIDEOS -->
 
-Hy-Nomas supports multi-turn interactive generation. This example generates two five-second segments.
+### Python API
+
+Make the package directory available on the Python import path:
 
 ```python
-import json
+from idm.runtime import load_model, infer_video
 
-import torch
-from diffusers import HyNomasModularPipeline
-from diffusers.utils import export_to_video
-
-pipe = HyNomasModularPipeline.from_pretrained("tencent/Hy-Nomas-Diffusers")
-pipe.load_components(dtype=torch.bfloat16)
-pipe.to(device="cuda", dtype=torch.bfloat16)
-# Use the FlashAttention and MagiAttention kernels installed with Hy-Nomas.
-pipe.transformer.enable_reference_attention(text_backend="flash_varlen", deterministic=True)
-
-prompts = [
-    {
-        "Style": "Cinematic fantasy", "perspective_view": "Third-person view",
-        "subject_list": [{
-            "subject_id": "fox", "display_name": "a small orange fox",
-            "subject_attribute": "Orange fur, white chest, and a fluffy tail.",
-        }],
-        "segments": [{
-            "visual_description_long": (
-                "A small orange fox stands on a stone path in a luminous forest. "
-                "Blue fireflies drift between the trees."
-            ),
-            "contained_actions": [{
-                "start_time": "00:00.000", "end_time": "00:05.000",
-                "action_description": "The fox walks slowly along the path.",
-            }],
-        }],
-    },
-    {
-        "segments": [{
-            "description_change": "Glowing blue flowers open beside the path as the fox continues forward.",
-            "contained_actions": [{
-                "start_time": "00:00.000", "end_time": "00:05.000",
-                "action_description": "The fox passes the flowers and looks around.",
-            }],
-        }],
-    },
-]
-
-videos = pipe(
-    prompt=[json.dumps(prompt) for prompt in prompts],
-    height=704,
-    width=1280,
-    num_frames=240,
-    segment_latent_lengths=[30, 30],
-    fps=24,
-    num_inference_steps=4,
-    generator=torch.Generator("cpu").manual_seed(42),
-    output="videos",
-)
-export_to_video(videos[0], "hy_nomas_video.mp4", fps=24, quality=None)
+model, metadata = load_model(device="cuda:0")
+result = infer_video(model, "/path/to/input.mp4", shake_threshold=0.7, rotation_threshold=0.5)
+print(result["clip_camera_motion"])
 ```
 
-#### Inference with SGLang
-
-[SGLang Diffusion](https://github.com/sgl-project/sglang) serves Hy-Nomas as offline video jobs and as realtime sessions that receive segments one at a time. It loads `tencent/Hy-Nomas` directly: the first start downloads the distilled DiT, the PixelUMM decoder, and the text encoder, then caches a local pipeline.
-
-SGLang adds the following inference optimizations:
-
-- **Parallelism:** Ulysses sequence parallelism and tensor parallelism for the DiT, with PixelUMM decoding windows spread across GPUs.
-- **Memory:** DiT layerwise offload streams transformer blocks from host memory.
-- **Attention:** Segment attention runs on FlashAttention-3 on Hopper GPUs, about 2× faster than FlexAttention, which serves as the fallback on other GPUs.
-- **Kernel fusion:** Fused elementwise kernels for modulation, QK norm with RoPE, and SwiGLU, bitwise identical to the unfused path.
-
-Run SGLang in its Docker image (recommended) or install it from source. Hy-Nomas support is not yet in a stable release: use the nightly `lmsysorg/sglang:dev` image, rebuilt daily from `main`, and switch to `lmsysorg/sglang:latest` once a release includes Hy-Nomas.
-
-```bash
-docker run --rm -it --gpus all --ipc=host --network=host \
-  -v "$HOME/.cache:/root/.cache" \
-  lmsysorg/sglang:dev bash
-```
-
-Mounting `~/.cache` keeps the downloaded weights and the assembled pipeline across containers. To install from source instead:
-
-```bash
-git clone https://github.com/sgl-project/sglang.git
-cd sglang
-pip install uv
-uv venv --python 3.12
-source .venv/bin/activate
-uv pip install -e "python[diffusion]" --prerelease=allow
-```
-
-Inside the container or the source environment, start a server on one GPU, or on two GPUs with sequence parallelism:
-
-```bash
-sglang serve --model-path tencent/Hy-Nomas --num-gpus 1 --port 30000
-# sglang serve --model-path tencent/Hy-Nomas --num-gpus 2 --sp-degree 2 --port 30000
-```
-
-A request lists its segments, each with a frame count and a structured caption. This example sends the `prompts` from the Diffusers example above as two 120-frame segments:
+To use the clip-level head:
 
 ```python
-import json
-import time
+from idm.clip_head import ClipHead
 
-import requests
-
-base = "http://127.0.0.1:30000"
-captions = [json.dumps(prompt) for prompt in prompts]
-job = requests.post(f"{base}/v1/videos", json={
-    "prompt": captions[0],
-    "prompt_format": "json",
-    "segments": [{"frames": 120, "caption": caption} for caption in captions],
-    "num_frames": 240,
-    "height": 704,
-    "width": 1280,
-    "fps": 24,
-    "num_inference_steps": 8,
-    "guidance_scale": 1.0,
-    "seed": 42,
-}).json()
-while job["status"] not in ("completed", "failed"):
-    time.sleep(2)
-    job = requests.get(f"{base}/v1/videos/{job['id']}").json()
-assert job["status"] == "completed", job
-with open("hy_nomas_sglang.mp4", "wb") as f:
-    f.write(requests.get(f"{base}/v1/videos/{job['id']}/content").content)
+head = ClipHead()  # Loads weights/clip_head.json by default.
+result = head.apply(infer_video(model, "/path/to/input.mp4", sampling="uniform"))
+print(result["clip_camera_motion"])
 ```
 
-The same server accepts realtime WebSocket sessions at `/v1/realtime_video/generate`. Each segment is generated as soon as it arrives, and frames stream back as they are decoded. See the [SGLang Hy-Nomas guide](https://docs.sglang.io/cookbook/diffusion/HY-Nomas/HY-Nomas) for the realtime protocol, camera control, layerwise offload, and the KV cache budget.
+## Inputs and Outputs
 
-### Interactive Demo
-#### Reactor Runtime
+By default, the model processes consecutive **six-second windows at 24 FPS**. Decord decodes RGB frames at 96 × 128 pixels without cropping. Every six encoded frames produce one 0.25-second output bin. The final short window repeats the last frame for padding; only bins within the actual video duration are returned.
 
-The [Reactor integration guide](reactor/README.md) provides a streaming service and browser demo with live prompt updates, combined WASD/arrow camera control, and uploaded camera trajectories while retaining world history. The tested profile uses eight B200 GPUs, Docker with NVIDIA Container Toolkit, the [Reactor CLI](https://docs.reactor.inc/deploy/platform/installation), and Node.js 22.
+For video-level benchmark scoring, `--sampling uniform` samples 144 frames across the entire video using `rint(linspace(0, frame_count - 1, 144))`. This mode returns 24 bins for the whole video, with variable time spacing. The same mode is available through `infer_video(..., sampling="uniform")`.
 
-From this repository root:
+Translation velocities use the model's native scale and camera-local coordinates; angular velocity targets use degrees per second. These regression outputs are not calibrated physical measurements. `sampling` records frame indices and, in window mode, window boundaries and bucket start times.
+
+`clip_camera_motion` aggregates camera motion predictions across all valid windows of the entire input video; `window_motion_scores` records subject motion quality separately for each window.
+
+Output JSON contains `model` metadata and a `samples` list. N is `ceil(duration_seconds × 4)` in window mode, or 24 in uniform mode:
+
+| Field | Shape / meaning |
+|---|---|
+| `motion_prob` | N × 18 action probabilities; order in `model.label_names` |
+| `zoom_prob` | N × 2 probabilities: zoom in, zoom out |
+| `velocity6` | N × 6: right, down, forward, yaw right, pitch down, roll clockwise |
+| `motion_score` | Subject motion quality score; averaged by valid duration in window mode |
+| `window_motion_scores` | Subject motion quality scores for individual windows (window mode) |
+| `shake_prob` | N values from action channel 15 (zero-based) |
+| `shake_active` | N booleans: `shake_prob >= shake_threshold` |
+| `shake_threshold` | SHAKE decision threshold, default 0.7 |
+| `rotation_sector` | N exclusive direction indices: 0 right, 1 up-right, 2 up, 3 up-left, 4 left, 5 down-left, 6 down, 7 down-right; -1 inactive |
+| `rotation_threshold` | Rotation decision threshold, default 0.5 |
+| `clip_camera_motion` | Predictions for 15 camera motion classes across the entire video; blended predictions when the head is enabled |
+| `clip_camera_motion_base` | Original temporal aggregation predictions when the head is enabled |
+| `clip_camera_motion_head` | Standalone classifier predictions when the head is enabled |
+| `clip_head` | Head weight checksum and blending metadata when enabled |
+| `sampling` | Source FPS, frame count, duration, and sampled frame indices |
+
+The 18 action channels are `w`, `a`, `s`, `d`; eight mouse directions (right, up-right, up, up-left, left, down-left, down, down-right); `special`, `up`, `down`, `shake`, `roll_clockwise`, and `roll_counterclockwise`.
+
+Action and zoom logits are converted to probabilities before any aggregation. Pan and tilt use the maximum probability within their direction groups; a diagonal direction may support both. Motion and zoom scores use the maximum across time. Static is computed as `1 - max(motion directions, zoom, shake)` per bin, followed by the minimum across time. The `special` channel is not used as a Static score. These continuous scores are intended for ranking and analysis. The default temporal aggregation applies no velocity fusion or temporal smoothing. `shake_active` and `rotation_sector` are separate threshold-based decisions and do not alter the scores. The rotation decision selects only the most probable direction above or at the threshold, with the first channel winning ties; it is identical in JSON and the HUD.
+
+## Reproducing Metrics
+
+Run these commands from the package directory after setting up the environment.
+
+### CameraBench: AP / mAP
+
+Use the [benchmark videos](https://huggingface.co/datasets/syCen/Videos4CameraBench/tree/1ec8d55f8c380abbb6ea7087e64778f0ca76a68f) and [15 official label splits](https://github.com/linzhiqiu/t2v_metrics/tree/6ecb74f92028f42c7e64546d3a71e98c8c73068f/camerabench/data/binary_classification). The following commands reproduce the released **88.68% mAP** pipeline:
 
 ```bash
-cd reactor
-reactor build
-reactor run --gpus '"device=0,1,2,3,4,5,6,7"' --shm-size 8g --port 8080
+python infer.py --video /path/to/CameraBench/videos --sampling uniform \
+  --precision bf16 --output outputs/camerabench_predictions.json
+python tools/evaluate_camerabench.py \
+  --predictions outputs/camerabench_predictions.json \
+  --labels /path/to/t2v_metrics/camerabench/data/binary_classification \
+  --output outputs/camerabench_metrics.json
 ```
 
-Wait for `curl -fsS http://localhost:8080/health` to report `available`. In another terminal, from the repository root:
+Per-class AP and macro mAP are saved in `outputs/camerabench_metrics.json`. To recompute metrics from existing predictions, run only the second command.
+
+**89.19% mAP:** apply the included clip-level head to those predictions, then score them without rerunning the video model:
 
 ```bash
-cd reactor/demo
-npm ci
-npm run dev -- --port 5173
+python tools/apply_clip_head.py --predictions outputs/camerabench_predictions.json \
+  --output outputs/camerabench_clip_predictions.json
+python tools/evaluate_camerabench.py \
+  --predictions outputs/camerabench_clip_predictions.json \
+  --labels /path/to/t2v_metrics/camerabench/data/binary_classification \
+  --output outputs/camerabench_clip_metrics.json
 ```
 
-Open **http://localhost:5173**, use Runtime endpoint **http://localhost:8080**, press **Connect**, enter a prompt, then press **Start world**. Click the video to explore with WASD and arrow keys. **Update prompt** changes future segments without restarting. See the [SSH and WebRTC guidance](reactor/README.md#remote-servers-and-ssh) when the GPU runs remotely.
+The head weights are stored in `weights/clip_head.json`; final predictions are `0.7 × temporal aggregation + 0.3 × head predictions`. Use `--sampling uniform --clip-head` during initial inference to produce these blended predictions directly.
 
-#### Web Demo
+### ScanNet / TUM-dynamic / Sintel: ATE / RPE
 
-Try the [online interactive demo](https://hy-nomas.hy.tencent.com/demo).
-
-See the [demo deployment guide](apps/README.md) for launching the web gateway and GPU workers, configuring model assets, and running on one or multiple hosts. The demo uses `configs/experiment/inference.yaml` by default.
-
-## LoRA Fine-Tuning
-
-### SFT Data Preparation
-
-Use the [captioning-harness](captioning_harness/README.md) to prepare training data from local videos. It annotates each segment, encodes video frames with DCAE-V, and packages the result as an Arrow or Parquet file for SFT. See the guide for serving K3, running annotation and packing, and attaching normalized camera trajectories.
-
-### Offline Sequence Packing
-
-Build a packing plan from the encoded training file. Run from the repository root:
+Prepare the datasets with the [MonST3R data scripts](https://github.com/Junyi42/monst3r/blob/main/data/evaluation_script.md). `--data-root` points to the directory containing `scannetv2/`, `tum/`, and `sintel/`.
 
 ```bash
-python scripts/data_processing/build_sft_packing_plan.py \
-  --input /path/to/train.arrow \
-  --output /path/to/train_packing.json \
-  --max-seq-len 360000 \
-  --num-groups 16 \
-  --seed 42
+python -m pip install -r requirements-eval.txt
+
+# Predict trajectories and evaluate all three datasets
+python tools/evaluate_pose.py --data-root /path/to/data \
+  --datasets scannet tum sintel --methods velocity_only --output outputs/pose
+
+# Recompute metrics from saved predictions without running the model
+python tools/evaluate_pose.py --data-root /path/to/data \
+  --metrics-only --predictions-root outputs/pose --output outputs/pose_metrics
 ```
 
-This example creates 16 groups for DP16 × SP8 (128 GPUs). Choose a group count that is a multiple of your data-parallel degree, does not exceed the sample count, and has enough capacity under `--max-seq-len`. Use the same training file and row order in the training command, and pass the output JSON as `dataset.token_packing_sorted_groups_path`. See [Sequence Packing](captioning_harness/README.md#offline-sequence-packing) for details.
+For a single dataset, use `--datasets scannet`, `--datasets tum`, or `--datasets sintel`. For the classification-plus-velocity comparison, use `--methods classification_velocity`. Dataset metrics are saved in `outputs/pose/<dataset>/report.json`; the table results are under `summary.velocity_only.full_eligible_set_mean`.
 
-### Training and Merging
+## Package Layout
 
-LoRA fine-tuning starts from a **non-distilled checkpoint** and uses segment forcing training pipeline. After training, merge the learned LoRA weights into the corresponding **distilled checkpoint** to produce a new merged checkpoint for inference.
-
-![LoRA fine-tuning: train on the non-distilled checkpoint, then merge LoRA weights into the distilled checkpoint.](assets/lora-finetuning.svg)
-
-`configs/experiment/sft.yaml` enables LoRA with rank/alpha 256, zero dropout, and Muon at a constant learning rate of `1e-4` for 2,000 steps. Only LoRA parameters are trained.
-
-```bash
-export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
-
-bash scripts/train/train_from_config.sh configs/experiment/sft.yaml \
-  dit_weight="${Hy_Nomas_Model_Path}/DiT/base_ar/diffusion_pytorch_model_fp32.safetensors" \
-  model.vae.checkpoint="${Hy_Nomas_Model_Path}/VAE/DCAE-V/dc-ae-v-1.0-f32t4c32-bf16.pt" \
-  dataset.data_file=/path/to/train.arrow \
-  dataset.token_packing_sorted_groups_path=/path/to/train_packing.json \
-  output_dir=./outputs/segment_lora
+```text
+README.md / README_CN.md    English / Chinese documentation
+infer.py                    Command-line entry point
+idm/                        Model loading, sampling, and score mapping
+weights/                    Backbone, clip-level head weights, and metadata
+vendor/video-pre-training/  VPT runtime and license
+assets/                     Example videos, predictions, and HUD outputs
+requirements.txt            Runtime dependencies
+requirements-eval.txt       Optional pose evaluation dependencies
+tests/                      Output, sampling, HUD, and trajectory tests
+tools/apply_clip_head.py     Apply the clip-level head to saved predictions
+tools/evaluate_camerabench.py CameraBench AP / mAP evaluation
+tools/evaluate_pose.py      ScanNet, TUM-dynamic, and Sintel evaluation
+tools/verify_package.py     Package checksum verification
 ```
 
-The training configuration uses SP8; 128 GPUs give DP16 × SP8. Set the launch size for your hardware and build the packing plan for the corresponding data-parallel degree.
+## Acknowledgements
 
-Export the saved LoRA checkpoint, then merge it into the distilled checkpoint with matching architecture and parameter shapes:
-
-```bash
-export Hy_Nomas_Model_Path="${Hy_Nomas_Model_Path:-/path/to/Hy-Nomas}"
-
-python -m scripts.train.export_lora_checkpoint \
-  ./outputs/segment_lora/checkpoints/global_step-2000 \
-  ./outputs/segment_lora/adapter
-
-python -m scripts.train.merge_lora \
-  --base "${Hy_Nomas_Model_Path}/DiT/distilled/diffusion_pytorch_model_ema_0_995.safetensors" \
-  --adapter ./outputs/segment_lora/adapter \
-  --output ./outputs/merged_model.safetensors
-```
-
-Use `dit_weight=./outputs/merged_model.safetensors` in the [inference command](#inference).
-
-## License
-
-This project is licensed under the [Apache License 2.0](LICENSE).
-
-## Acknowledgement
-
-We thank the teams behind [Gemma 4](https://deepmind.google/models/gemma/gemma-4/), [Qwen3.8](https://qwen.ai/blog?id=qwen3.8), [Kimi-K3](https://github.com/MoonshotAI/Kimi-K3), [DC-AE-V](https://github.com/dc-ai-projects/DC-VideoGen), and [MagiAttention](https://github.com/SandAI-org/MagiAttention) for their valuable contributions to the community and the models, research, and tools that support this project.
-
-## Citation
-
-If you find Hy-Nomas useful in your research, please cite our technical report:
-
-```bibtex
-@article{chen2026hy,
-  title={Hy-Nomas: Towards Free-form Interactive World Generation},
-  author={Chen, Qiaoling and Cheng, Jiaxiang and Deng, Xueqing and Hang, Tiankai and Hou, Ji and Li, Jiaqi and Liu, Yifan and Lu, Tao and Tang, Junshu and Tang, Yu and others},
-  journal={arXiv preprint arXiv:2610.36729},
-  year={2026}
-}
-```
-
-## Contact Us
-
-For questions, non-security bug reports, or suggestions, please open an issue in this repository or contact us at [hy_nomas@tencent.com](mailto:hy_nomas@tencent.com). See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance. Report suspected vulnerabilities privately using [SECURITY.md](SECURITY.md).
-
----
-
-<p align="center">
-    <i>Hy-Nomas · Free-Form Interactive World Generation.</i>
-</p>
+This package uses the [OpenAI VPT](https://github.com/openai/Video-Pre-Training) runtime. Its MIT license is preserved in `vendor/video-pre-training/LICENSE`. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and distribution notes.
