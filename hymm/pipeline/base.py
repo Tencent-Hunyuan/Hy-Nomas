@@ -97,9 +97,21 @@ class BasePipeline(nn.Module):
 
         dit_offload = bool(getattr(args.parallelism, "dit_cpu_offload", False))
         dit_device = torch.device("cpu") if dit_offload else device
+        fp8 = getattr(args.inference, "dit_weight_quantization", "none") == "fp8"
+        # Also rejects a checkpoint whose format does not match the requested mode.
         quantized = resolve_w8_bf16_checkpoint(args.inference, dit_model_path)
         lora_adapter = getattr(args.inference, "lora_adapter", None)
-        if quantized:
+        if fp8:
+            if lora_adapter or target_dtype != torch.bfloat16:
+                raise ValueError("FP8 DiT requires BF16 residuals and an offline merged checkpoint")
+            from hymm.models.dit.modules.fp8_linear import load_fp8_model, verify_fp8_model
+            from hymm.models.dit.modules import load_model
+            self.transformer = load_fp8_model(
+                lambda: load_model(args.dit.model_type, args, {"device": torch.device("meta"), "dtype": torch.bfloat16}),
+                dit_model_path, dit_device,
+            )
+            logger.info(f"FP8 DiT loaded: {verify_fp8_model(self.transformer)} E4M3 projections verified")
+        elif quantized:
             if lora_adapter:
                 raise ValueError("INT8 DiT cannot be combined with inference.lora_adapter")
             if target_dtype != torch.bfloat16:

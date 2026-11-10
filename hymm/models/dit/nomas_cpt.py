@@ -445,7 +445,12 @@ def causal_attention_with_cache_mp(
         raise ValueError("QVG requires single-slot dense Flex segment attention")
     if int8_storage:
         from .modules.int8_kv_cache import dequantize_kv, quantize_kv_pair_into
-    compressed_storage = int8_storage or qvg_storage
+    fp8_storage = storage_format == "fp8"
+    if fp8_storage and (seg_ar_attention_backend != "magi" or is_sp or sparse_context is not None
+                        or "swa_capacity" in kv_cache or not cache_txt or attn_mode != "flash3"
+                        or intra_seg_vid_windows):
+        raise ValueError("FP8 KV cache requires dense single-chunk Magi segment attention without SWA")
+    compressed_storage = int8_storage or qvg_storage or fp8_storage
     kernel_dtype = torch.bfloat16 if compressed_storage else cache_dtype
     if (compressed_storage or "swa_capacity" in kv_cache) and torch.is_grad_enabled():
         raise ValueError("Compressed KV/SWA requires no-grad inference")
@@ -599,6 +604,8 @@ def causal_attention_with_cache_mp(
         new_end = cache_valid_len + cache_write_tokens
         if int8_storage:
             quantize_kv_pair_into(kv_cache, cache_k.detach(), cache_v.detach(), cache_valid_len)
+        elif fp8_storage:
+            pass  # Written below, together with the read path.
         else:
             kv_cache["k"][:, cache_valid_len:new_end] = cache_k.detach()
             kv_cache["v"][:, cache_valid_len:new_end] = cache_v.detach()
@@ -611,6 +618,12 @@ def causal_attention_with_cache_mp(
     # history cache, so attend history + current img only (no txt duplication).
     if qvg_storage:
         pass  # History was decoded directly into the final attention buffers.
+    elif fp8_storage:
+        # The current K/V go behind the history in place, also for a read: the kernel
+        # then reads one FP8 buffer and nothing copies the history.
+        from .modules.fp8_kv_cache import write_current
+        total_len = cache_valid_len + cur_tokens
+        full_k, full_v = write_current(kv_cache, cur_k.detach(), cur_v.detach(), cache_valid_len)
     elif int8_storage or swa_commit:
         # Current keys remain BF16 for their own attention. Only history is decoded.
         if cache_txt:
@@ -783,6 +796,19 @@ def causal_attention_with_cache_mp(
         from hymm.utils.inference_metrics import stage
         with stage("cache_attention"):
             hidden = flex_masked_attention(q_full, full_k, full_v, q_mask, kv_mask)
+    elif attn_mode == "flash3" and fp8_storage:
+        from .modules.attention.cache_layout import attention_layouts
+        from .modules.attention.range_attention import unpad_tokens
+        from .modules.attention.token_padding import inverse_positions, pad_tokens_coalesced
+        from .modules.fp8_kv_cache import fp8_dense_attention
+        S_q = q_full.shape[1]
+        (q_indices, cu_seqlens_q, max_seqlen_q), (k_indices, cu_seqlens_k, max_seqlen_k) = attention_layouts(
+            q_mask, kv_mask, attention_metadata)
+        out_unpad = fp8_dense_attention(
+            unpad_tokens(q_full, q_indices), full_k, full_v, k_indices,
+            cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k, kv_cache)
+        inverse = inverse_positions(q_indices, B * S_q, attention_metadata)
+        hidden = pad_tokens_coalesced(out_unpad.contiguous(), inverse, B, S_q)
     elif attn_mode == "flash3":
         from .modules.attention.range_attention import (
             note_non_range_call, pad_tokens, unpad_tokens)
@@ -1421,8 +1447,8 @@ class MMDoubleStreamBlock(nn.Module):
                 and isinstance(mlp.act, nn.GELU)
                 and mlp.act.approximate == "tanh"
                 and isinstance(mlp.norm, nn.Identity)
-                and isinstance(mlp.fc1, (nn.Linear, Int8StoredBF16Linear))
-                and isinstance(mlp.fc2, (nn.Linear, Int8StoredBF16Linear))
+                and (isinstance(mlp.fc1, (nn.Linear, Int8StoredBF16Linear)) or getattr(mlp.fc1, "is_fp8_linear", False))
+                and (isinstance(mlp.fc2, (nn.Linear, Int8StoredBF16Linear)) or getattr(mlp.fc2, "is_fp8_linear", False))
                 and mlp.drop1.p == 0
                 and mlp.drop2.p == 0
                 for mlp in (self.img_mlp, self.txt_mlp)
@@ -2322,6 +2348,8 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
                 camera_rope_time_offset=_kv_params.get("camera_rope_time_offset", 0),
             )
 
+        if getattr(self, 'fp8_cudagraphs', False):
+            torch.compiler.cudagraph_mark_step_begin()
         if guidance is None:
             guidance = torch.tensor(
                 [6016.0], device=hidden_states.device, dtype=torch.bfloat16
@@ -3382,6 +3410,8 @@ class CPTHYNomasDiffusionTransformer(ModelMixin, ConfigMixin):
             (output_img, new_cache_tokens): The denoised output [B, C, T_chunk, H, W]
                 and the number of tokens added to cache (img, or img+txt) if update_cache.
         """
+        if getattr(self, 'fp8_cudagraphs', False):
+            torch.compiler.cudagraph_mark_step_begin()
         if guidance is None:
             guidance = torch.tensor(
                 [6016.0], device=hidden_states.device, dtype=torch.bfloat16

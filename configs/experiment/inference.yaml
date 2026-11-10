@@ -98,6 +98,10 @@ inference:
   ar_cache_latent_cond_only: false
   use_global_camera_rope_offset: false
   seg_ar_segment_vae_decode: false
+  # fp8: FP8 DiT mode. dit_weight must be a scripts/quantization/convert_dit_fp8.py checkpoint
+  # directory; projections, KV cache and cached attention then run in FP8 (Blackwell, dense
+  # full attention, CFG=1). none keeps the BF16 path.
+  dit_weight_quantization: none
   max_segments: null
   max_iters: null
   skip_existing: true

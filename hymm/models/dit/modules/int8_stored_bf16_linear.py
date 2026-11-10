@@ -20,9 +20,17 @@ NOMAS_SINGLE_FILE_FORMAT = "nomas-int8-bf16-single-v1"
 
 def resolve_w8_bf16_checkpoint(inference_config, checkpoint):
     mode = getattr(inference_config, "dit_weight_quantization", "none")
+    if mode == "fp8":
+        from .fp8_linear import FORMAT
+        manifest = Path(checkpoint).expanduser() / "fp8_manifest.json"
+        if not manifest.is_file() or json.loads(manifest.read_text()).get('format') != FORMAT:
+            raise ValueError("FP8 DiT requires a converted fp8_manifest.json checkpoint directory")
+        return False
     if mode not in {"none", "int8"}:
-        raise ValueError("dit_weight_quantization must be none or int8")
+        raise ValueError("dit_weight_quantization must be none, int8, or fp8")
     path = Path(checkpoint).expanduser()
+    if (path / "fp8_manifest.json").is_file():
+        raise ValueError("FP8 DiT checkpoint requires inference.dit_weight_quantization=fp8")
     if path.is_file():
         with safe_open(str(path), framework="pt", device="cpu") as reader:
             metadata = reader.metadata() or {}
@@ -94,10 +102,10 @@ class Int8StoredBF16Linear(nn.Module):
         return F.linear(x, self.dequant_weight(), self.bias)
 
 
-def linear_weight(module: nn.Module) -> torch.Tensor:
+def linear_weight(module: nn.Module) -> torch.Tensor | nn.Module:
     if isinstance(module, Int8StoredBF16Linear):
         return module.dequant_weight()
-    return module.weight
+    return module if getattr(module, "is_fp8_linear", False) else module.weight
 
 
 def _sha256(path: Path) -> str:
@@ -109,7 +117,7 @@ def _sha256(path: Path) -> str:
 
 
 def linear_dtype(module):
-    return torch.bfloat16 if isinstance(module, Int8StoredBF16Linear) else module.weight.dtype
+    return torch.bfloat16 if isinstance(module, Int8StoredBF16Linear) or getattr(module, "is_fp8_linear", False) else module.weight.dtype
 
 
 def _tensor_sha256(tensor):

@@ -7,6 +7,8 @@ def cache_format(cache):
     mode = cache.get("storage_format")
     if mode is not None:
         return mode
+    if cache["k"].dtype == torch.float8_e4m3fn:
+        return "fp8"
     return "int8" if cache["k"].dtype == torch.int8 else "none"
 
 

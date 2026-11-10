@@ -16,6 +16,7 @@ the whole image sequence: it is gathered before and sharded after each of them. 
 uses plain Megatron TP with all-reduce through DTensor.
 """
 import types
+import os
 from functools import lru_cache
 
 import torch
@@ -23,23 +24,20 @@ import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .nomas_compile_prepost import _modulate, _rms_norm, _rotate_half
+from .nomas_compile_prepost import _modulate, _rms_norm, _rotate_half, _qkv, _mlp
+
+
+def _use_cudagraphs(fp8):
+    override = os.environ.get("HY_DIT_CUDAGRAPHS")
+    return override == "1" if override is not None else fp8 and os.environ.get("HY_DIT_FP8_CUDAGRAPHS", "0") == "1"
 
 
 def _linear(x, weight, bias):
-    return F.linear(x, weight, bias)
-
-
-def _qkv(x, q, qb, k, kb, v, vb):
-    return F.linear(x, q, qb), F.linear(x, k, kb), F.linear(x, v, vb)
-
-
-def _mlp(x, fc1, b1, fc2, b2):
-    return F.linear(F.gelu(F.linear(x, fc1, b1), approximate="tanh"), fc2, b2)
+    return weight(x) if isinstance(weight, nn.Module) else F.linear(x, weight, bias)
 
 
 def _operand(module):
-    return module.weight
+    return module if hasattr(module, 'weight_q') else module.weight
 
 
 def _shard_rows(linear, rank, size):
@@ -129,11 +127,11 @@ def _post_attention(x, attn, o_w, o_b, gate1, shift2, scale2, fc1_w, fc1_b, fc2_
 
 
 @lru_cache(maxsize=None)
-def _maybe_compiled(name, enabled):
+def _maybe_compiled(name, enabled, fp8=False):
     fn = {"pre": _pre_attention, "post": _post_attention}[name]
     if not enabled:
         return fn
-    return torch.compile(fn, fullgraph=True, options={"triton.cudagraphs": False})
+    return torch.compile(fn, fullgraph=True, options={"triton.cudagraphs": _use_cudagraphs(fp8)})
 
 
 def _tp_forward_with_cache(self, img, txt, vec, vec_txt=None, freqs_cis=None, text_mask=None,
@@ -161,7 +159,7 @@ def _tp_forward_with_cache(self, img, txt, vec, vec_txt=None, freqs_cis=None, te
         img_full = comm.gather(img, tp["img_len"])
         txt_full = comm.gather(txt, tp["txt_len"])
 
-    pre = _maybe_compiled("pre", compile_enabled)
+    pre = _maybe_compiled("pre", compile_enabled, getattr(self.img_attn_q, "is_fp8_linear", False))
     (img_q, img_k, img_v, txt_q, txt_k, txt_v,
      img_gate1, img_shift2, img_scale2, img_gate2,
      txt_gate1, txt_shift2, txt_scale2, txt_gate2) = pre(
@@ -191,7 +189,7 @@ def _tp_forward_with_cache(self, img, txt, vec, vec_txt=None, freqs_cis=None, te
     )
     del img_q, img_k, img_v, txt_q, txt_k, txt_v
 
-    post = _maybe_compiled("post", compile_enabled)
+    post = _maybe_compiled("post", compile_enabled, getattr(self.img_attn_proj, "is_fp8_linear", False))
     streams = []
     for x, attn, proj, block_mlp, gate1, shift2, scale2, gate2 in (
         (img, img_attn, self.img_attn_proj, self.img_mlp,
@@ -233,13 +231,21 @@ def apply_dit_tensor_parallel(transformer, group=None):
         raise ValueError(f"heads_num={transformer.heads_num} is not divisible by tp={size}")
     if getattr(transformer, "single_blocks", None):
         raise ValueError("DiT tensor parallelism covers double-stream blocks only")
+    transformer.fp8_cudagraphs = _use_cudagraphs(any(getattr(b.img_attn_q, "is_fp8_linear", False) for b in blocks))
     comm, state = _SeqComm(group, rank, size), {}
     for index, block in enumerate(blocks):
         for name in ("img_attn_q", "img_attn_k", "img_attn_v", "txt_attn_q", "txt_attn_k", "txt_attn_v"):
             linear = getattr(block, name)
-            if type(linear) is not nn.Linear:
+            from .fp8_linear import FP8Linear
+            if isinstance(linear, FP8Linear):
+                linear.shard_rows(rank, size)
+                linear.prepare_for_inference()
+            elif type(linear) is nn.Linear:
+                _shard_rows(linear, rank, size)
+            else:
                 raise ValueError(f"Unsupported TP projection: {type(linear)}")
-            _shard_rows(linear, rank, size)
+        from .fp8_linear import prepare_fp8_qkv
+        prepare_fp8_qkv(block)
         block.heads_num //= size
         block._tp_comm, block._tp_state = comm, state
         block._tp_first, block._tp_last = index == 0, index == len(blocks) - 1

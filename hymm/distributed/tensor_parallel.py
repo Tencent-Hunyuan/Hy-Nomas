@@ -29,8 +29,8 @@ def validate_tensor_parallel_config(args):
         raise ValueError("Tensor parallel cannot be combined with sequence parallel (sp_size must be 1)")
     if getattr(inference, "rollout_type", "seg_ar") == "one_shot":
         raise ValueError("Tensor parallel supports the KV-cache rollouts (seg_ar, chunk_ar), not one_shot")
-    if getattr(inference, "dit_weight_quantization", "none") != "none":
-        raise ValueError("Tensor parallel currently requires unquantized DiT weights")
+    if getattr(inference, "dit_weight_quantization", "none") not in ("none", "fp8"):
+        raise ValueError("Tensor parallel supports BF16 or FP8 DiT weights, not INT8")
     if getattr(inference, "lora_adapter", None):
         raise ValueError("Tensor parallel does not yet support LoRA adapters")
     if getattr(parallelism, "dit_cpu_offload", False):

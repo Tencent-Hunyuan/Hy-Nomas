@@ -1,0 +1,35 @@
+# @package _global_
+# FP8 DiT preset (Blackwell SM100/SM103): E4M3 attention/MLP projections, an FP8 KV cache and
+# FP8 cached attention. Everything else is inherited from the shared inference preset.
+#
+# dit_weight must be a checkpoint directory written by scripts/quantization/convert_dit_fp8.py
+# (fp8_manifest.json + shards); a BF16 or INT8 checkpoint is rejected at load time.
+# The FP8 KV cache is part of this mode and has no separate switch. It covers dense full
+# attention only, so the sliding window and sparse attention stay off and CFG stays 1.
+# Requires a MagiAttention build with the FP8 SM100 forward.
+defaults:
+  - /experiment/inference
+  - _self_
+
+name: inference_fp8
+
+dit_weight: /path/to/hy-nomas-fp8
+
+model:
+  dit:
+    seg_ar_attention_backend: magi
+
+parallelism:
+  sp_size: 1
+
+inference:
+  dit_weight_quantization: fp8
+  kv_cache_quantization: none
+  rollout_type: seg_ar
+  cfg_scale_video: 1.0
+  camera_cfg_scale: 1.0
+  sliding_window:
+    enabled: false
+  sparse_attention:
+    enabled: false
+  torch_compile: true

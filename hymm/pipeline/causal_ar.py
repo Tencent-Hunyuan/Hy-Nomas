@@ -357,6 +357,12 @@ class CPTCausalInferencePipeline(BasePipeline):
 
         validate_kv_cache_config(args)
         self.kv_storage_format = quantization_mode(inf_cfg)
+        if getattr(inf_cfg, "dit_weight_quantization", "none") == "fp8":
+            # The FP8 DiT always keeps an FP8 KV cache read by the FP8 attention kernel.
+            from hymm.models.dit.modules.fp8_kv_cache import validate_fp8_mode
+
+            validate_fp8_mode(args)
+            self.kv_storage_format = "fp8"
         self.int8_kv_storage = self.kv_storage_format == "int8"
         self.qvg_kv_storage = self.kv_storage_format == "qvg"
         self.cache_noise_sigma = float(
@@ -523,6 +529,11 @@ class CPTCausalInferencePipeline(BasePipeline):
 
     def _initialize_kv_cache(self, batch_size, max_cache_tokens, dtype, device):
         qvg_storage = getattr(self, "qvg_kv_storage", False)
+        storage_format = getattr(self, "kv_storage_format", "none")
+        fp8_storage = storage_format == "fp8"
+        if fp8_storage:
+            # FP8 history read directly by the Magi FP8 forward; see fp8_kv_cache.
+            dtype = torch.float8_e4m3fn
         head_dim = self.hidden_size // self.heads_num
         head_shards = nccl_info.sp_size * nccl_info.tp_size
         if self.heads_num % head_shards:
@@ -553,7 +564,7 @@ class CPTCausalInferencePipeline(BasePipeline):
                 "inference.interactive_kv_cache_cpu_mode=phase_swap"
             )
         if cpu_offload:
-            if self.int8_kv_storage or qvg_storage:
+            if self.int8_kv_storage or qvg_storage or fp8_storage:
                 raise ValueError("Compressed KV cannot use PhaseSwappedKVCache")
             reusable = (
                 isinstance(self.kv_cache, PhaseSwappedKVCache)
@@ -624,7 +635,7 @@ class CPTCausalInferencePipeline(BasePipeline):
         logger.info(
             f"KV cache initialized: {self.num_double_blocks} blocks, "
             f"max_tokens={max_cache_tokens}, heads={cache_heads}, "
-            f"format={'qvg' if qvg_storage else 'int8' if self.int8_kv_storage else 'none'}, "
+            f"format={storage_format}, "
             f"storage={'cpu-phase_swap' if cpu_offload else 'gpu'}, "
             f"pinned={getattr(self.kv_cache, 'pin_memory_enabled', False)}"
         )

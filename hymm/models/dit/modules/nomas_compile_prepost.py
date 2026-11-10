@@ -1,7 +1,7 @@
 """Optional inference-only torch.compile boundaries around Nomas cache attention.
 
-The functions take parameter tensors explicitly so all 54 DiT blocks can share
-one compiled graph per input shape. Attention, cache updates, and distributed
+The functions take parameter tensors (or FP8 projection modules) explicitly so
+DiT blocks can share compiled graphs per input shape. Attention, cache updates, and distributed
 communication remain outside these graphs.
 """
 
@@ -9,6 +9,22 @@ from functools import lru_cache
 
 import torch
 import torch.nn.functional as F
+
+
+def _linear(x, weight, bias):
+    return weight(x) if isinstance(weight, torch.nn.Module) else F.linear(x, weight, bias)
+
+
+def _qkv(x, q, qb, k, kb, v, vb):
+    if getattr(q, 'is_fp8_linear', False):
+        return q.forward_qkv(x, k, v)
+    return F.linear(x, q, qb), F.linear(x, k, kb), F.linear(x, v, vb)
+
+
+def _mlp(x, fc1, b1, fc2, b2):
+    if getattr(fc1, 'fused_gelu_quant', False) and getattr(fc2, 'is_fp8_linear', False):
+        return fc2.forward_gelu(fc1.forward_no_bias(x), b1)
+    return _linear(F.gelu(_linear(x, fc1, b1), approximate='tanh'), fc2, b2)
 
 
 def _modulate(x, shift, scale):
@@ -34,17 +50,16 @@ def pre_attention(
     img_q_norm_w, img_k_norm_w, txt_q_norm_w, txt_k_norm_w,
     heads, qk_eps,
 ):
-    img_parts = F.linear(F.silu(vec), img_mod_w, img_mod_b).chunk(6, dim=-1)
-    txt_parts = F.linear(F.silu(vec_txt), txt_mod_w, txt_mod_b).chunk(6, dim=-1)
+    img_parts = _linear(F.silu(vec), img_mod_w, img_mod_b).chunk(6, dim=-1)
+    txt_parts = _linear(F.silu(vec_txt), txt_mod_w, txt_mod_b).chunk(6, dim=-1)
 
     img_hidden = _modulate(
         F.layer_norm(img, (img.shape[-1],), eps=1e-6),
         img_parts[0], img_parts[1],
     )
     head_dim = img.shape[-1] // heads
-    img_q = F.linear(img_hidden, img_q_w, img_q_b).reshape(img.shape[0], -1, heads, head_dim)
-    img_k = F.linear(img_hidden, img_k_w, img_k_b).reshape(img.shape[0], -1, heads, head_dim)
-    img_v = F.linear(img_hidden, img_v_w, img_v_b).reshape(img.shape[0], -1, heads, head_dim)
+    img_q, img_k, img_v = (y.reshape(img.shape[0], -1, heads, head_dim) for y in
+        _qkv(img_hidden, img_q_w, img_q_b, img_k_w, img_k_b, img_v_w, img_v_b))
     img_q = _rms_norm(img_q, img_q_norm_w, qk_eps).to(img_v)
     img_k = _rms_norm(img_k, img_k_norm_w, qk_eps).to(img_v)
     cos = cos.view(1, img_q.shape[1], 1, head_dim).to(img_q.device)
@@ -56,9 +71,8 @@ def pre_attention(
         F.layer_norm(txt, (txt.shape[-1],), eps=1e-6),
         txt_parts[0], txt_parts[1],
     )
-    txt_q = F.linear(txt_hidden, txt_q_w, txt_q_b).reshape(txt.shape[0], -1, heads, head_dim)
-    txt_k = F.linear(txt_hidden, txt_k_w, txt_k_b).reshape(txt.shape[0], -1, heads, head_dim)
-    txt_v = F.linear(txt_hidden, txt_v_w, txt_v_b).reshape(txt.shape[0], -1, heads, head_dim)
+    txt_q, txt_k, txt_v = (y.reshape(txt.shape[0], -1, heads, head_dim) for y in
+        _qkv(txt_hidden, txt_q_w, txt_q_b, txt_k_w, txt_k_b, txt_v_w, txt_v_b))
     txt_q = _rms_norm(txt_q, txt_q_norm_w, qk_eps).to(txt_v)
     txt_k = _rms_norm(txt_k, txt_k_norm_w, qk_eps).to(txt_v)
 
@@ -77,24 +91,20 @@ def post_attention(
     img_fc1_w, img_fc1_b, img_fc2_w, img_fc2_b,
     txt_fc1_w, txt_fc1_b, txt_fc2_w, txt_fc2_b,
 ):
-    img = img + F.linear(img_attn, img_o_w, img_o_b) * img_gate1.unsqueeze(1)
+    img = img + _linear(img_attn, img_o_w, img_o_b) * img_gate1.unsqueeze(1)
     img_hidden = _modulate(
         F.layer_norm(img, (img.shape[-1],), eps=1e-6),
         img_shift2, img_scale2,
     )
-    img_hidden = F.linear(img_hidden, img_fc1_w, img_fc1_b)
-    img_hidden = F.gelu(img_hidden, approximate="tanh")
-    img_hidden = F.linear(img_hidden, img_fc2_w, img_fc2_b)
+    img_hidden = _mlp(img_hidden, img_fc1_w, img_fc1_b, img_fc2_w, img_fc2_b)
     img = img + img_hidden * img_gate2.unsqueeze(1)
 
-    txt = txt + F.linear(txt_attn, txt_o_w, txt_o_b) * txt_gate1.unsqueeze(1)
+    txt = txt + _linear(txt_attn, txt_o_w, txt_o_b) * txt_gate1.unsqueeze(1)
     txt_hidden = _modulate(
         F.layer_norm(txt, (txt.shape[-1],), eps=1e-6),
         txt_shift2, txt_scale2,
     )
-    txt_hidden = F.linear(txt_hidden, txt_fc1_w, txt_fc1_b)
-    txt_hidden = F.gelu(txt_hidden, approximate="tanh")
-    txt_hidden = F.linear(txt_hidden, txt_fc2_w, txt_fc2_b)
+    txt_hidden = _mlp(txt_hidden, txt_fc1_w, txt_fc1_b, txt_fc2_w, txt_fc2_b)
     txt = txt + txt_hidden * txt_gate2.unsqueeze(1)
     return img, txt
 

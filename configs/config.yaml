@@ -352,7 +352,9 @@ inference:
   # null: convert the entire output video; positive integer: frames per uint8/CPU chunk.
   output_chunk_frames: null
   lora_adapter: null
-  dit_weight_quantization: none  # int8 requires a validated W8 checkpoint
+  # none | int8 | fp8. int8 and fp8 require a validated offline checkpoint. fp8 (Blackwell) runs
+  # E4M3 projections and also keeps an FP8 KV cache read by the FP8 attention kernel.
+  dit_weight_quantization: none
   kv_cache_quantization: none   # none | int8 | qvg; compressed storage uses BF16 attention
   qvg_kv_cache:
     preset: upstream_default   # quant-videogen==0.1.0 real Triton PRQ codec
