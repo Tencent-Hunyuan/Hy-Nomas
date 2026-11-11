@@ -6,10 +6,59 @@
 
 **Hy-Nomas IDM** estimates camera motion from video. Built on the VPT visual backbone, it produces temporal action probabilities, zoom probabilities, velocity predictions, subject motion quality scores (`motion_score`), and clip-level camera motion predictions. The package includes model weights and an independent inference API for use with [Hy-Nomas](https://github.com/Tencent-Hunyuan/Hy-Nomas).
 
+## Examples
+
+<!-- BEGIN CASE VIDEOS -->
+
+<table>
+<tr><th>Case 05</th><th>Case 06</th></tr>
+<tr>
+<td width="50%">
+
+https://github.com/user-attachments/assets/f6c9d496-43ae-4a72-aea1-b9a61c196462
+
+</td>
+<td width="50%">
+
+https://github.com/user-attachments/assets/da1079e4-1db3-43ec-9dc9-d5e9ed77b80c
+
+</td>
+</tr>
+<tr><th>Case 03</th><th>Case 04</th></tr>
+<tr>
+<td width="50%">
+
+https://github.com/user-attachments/assets/70450b25-5159-4bab-9f1f-e0673e663ae3
+
+</td>
+<td width="50%">
+
+https://github.com/user-attachments/assets/f2ac835b-8285-4f79-966a-57ef865fe4e8
+
+</td>
+</tr>
+<tr><th>Case 01</th><th>Case 02</th></tr>
+<tr>
+<td width="50%">
+
+https://github.com/user-attachments/assets/b1b95045-8272-45cc-972a-cf9a214961c3
+
+</td>
+<td width="50%">
+
+https://github.com/user-attachments/assets/8781ddb6-43eb-459e-8e27-3d8cba45732e
+
+</td>
+</tr>
+</table>
+
+<!-- END CASE VIDEOS -->
+
 **Coming soon: a dedicated IDM for games, built on the same architecture.**
 
 ## Contents
 
+- [Examples](#examples)
 - [Model Overview](#model-overview)
 - [Camera Pose Estimation](#camera-pose-estimation)
 - [Environment Setup](#environment-setup)
@@ -530,54 +579,6 @@ Output uses H.264 MP4 at the source resolution and average FPS, with audio retai
 when present (AAC). Variable-frame-rate input is rendered at constant average FPS.
 An odd frame dimension is padded by one pixel for H.264 compatibility.
 
-### Examples
-
-<!-- BEGIN CASE VIDEOS -->
-
-<table>
-<tr><th>Case 01</th><th>Case 02</th></tr>
-<tr>
-<td width="50%">
-
-https://github.com/user-attachments/assets/7ca29e6e-ba03-4a29-8d43-e5baad75ed95
-
-</td>
-<td width="50%">
-
-https://github.com/user-attachments/assets/8781ddb6-43eb-459e-8e27-3d8cba45732e
-
-</td>
-</tr>
-<tr><th>Case 03</th><th>Case 04</th></tr>
-<tr>
-<td width="50%">
-
-https://github.com/user-attachments/assets/70bc84e1-8d63-4f94-ab0d-94be54967cee
-
-</td>
-<td width="50%">
-
-https://github.com/user-attachments/assets/7edf6c02-4ee7-4b43-8ae6-911687afe797
-
-</td>
-</tr>
-<tr><th>Case 05</th><th>Case 06</th></tr>
-<tr>
-<td width="50%">
-
-https://github.com/user-attachments/assets/bc08f78c-c4f8-4b44-9a90-09f0b6cfdb51
-
-</td>
-<td width="50%">
-
-https://github.com/user-attachments/assets/058724b2-c65c-41d4-b618-84895b2ca2aa
-
-</td>
-</tr>
-</table>
-
-<!-- END CASE VIDEOS -->
-
 ### Python API
 
 Make the package directory available on the Python import path:
@@ -706,7 +707,7 @@ This project uses the same [LICENSE](LICENSE) as the Hy-Nomas main branch: Apach
 
 The IDM package also bundles the following third-party code:
 
-- [OpenAI VPT](https://github.com/openai/Video-Pre-Training): `vendor/video-pre-training/lib`, except `gym3_types.py`, contains derived runtime code. Copyright (c) 2022 OpenAI; licensed under MIT. The original license is preserved in [vendor/video-pre-training/LICENSE](vendor/video-pre-training/LICENSE).
+- [OpenAI VPT](https://github.com/openai/Video-Pre-Training): The runtime code in [vendor/video-pre-training/lib](vendor/video-pre-training/lib) is derived from VPT. The file [gym3_types.py](vendor/video-pre-training/lib/gym3_types.py) comes from gym3 and is attributed separately below. Copyright (c) 2022 OpenAI; licensed under MIT. The original license is preserved in [vendor/video-pre-training/LICENSE](vendor/video-pre-training/LICENSE).
 - [OpenAI gym3](https://github.com/openai/gym3): `vendor/video-pre-training/lib/gym3_types.py` contains bundled type definitions. Copyright (c) 2020 OpenAI; licensed under MIT. The original license is preserved in [vendor/gym3/LICENSE](vendor/gym3/LICENSE). Its integer-product helper uses Python's `math.prod`; no gym3 installation is required.
 
 CameraBench videos and labels are not included in this package.

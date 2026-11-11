@@ -6,10 +6,59 @@
 
 **Hy-Nomas IDM** 用于从视频中识别相机运动。模型采用 VPT 视觉骨干，输出时序动作概率、变焦概率、速度预测、主体运动质量评分（`motion_score`），以及 clip-level 相机运动预测。本包提供模型权重和独立推理 API，便于在 [Hy-Nomas](https://github.com/Tencent-Hunyuan/Hy-Nomas) 中使用。
 
+## 可视化示例
+
+<!-- BEGIN CASE VIDEOS -->
+
+<table>
+<tr><th>Case 05</th><th>Case 06</th></tr>
+<tr>
+<td width="50%">
+
+https://github.com/user-attachments/assets/f6c9d496-43ae-4a72-aea1-b9a61c196462
+
+</td>
+<td width="50%">
+
+https://github.com/user-attachments/assets/da1079e4-1db3-43ec-9dc9-d5e9ed77b80c
+
+</td>
+</tr>
+<tr><th>Case 03</th><th>Case 04</th></tr>
+<tr>
+<td width="50%">
+
+https://github.com/user-attachments/assets/70450b25-5159-4bab-9f1f-e0673e663ae3
+
+</td>
+<td width="50%">
+
+https://github.com/user-attachments/assets/f2ac835b-8285-4f79-966a-57ef865fe4e8
+
+</td>
+</tr>
+<tr><th>Case 01</th><th>Case 02</th></tr>
+<tr>
+<td width="50%">
+
+https://github.com/user-attachments/assets/b1b95045-8272-45cc-972a-cf9a214961c3
+
+</td>
+<td width="50%">
+
+https://github.com/user-attachments/assets/8781ddb6-43eb-459e-8e27-3d8cba45732e
+
+</td>
+</tr>
+</table>
+
+<!-- END CASE VIDEOS -->
+
 **即将发布：采用相同架构、面向游戏场景的专用 IDM。**
 
 ## 目录
 
+- [可视化示例](#可视化示例)
 - [模型概览](#模型概览)
 - [相机位姿估计](#相机位姿估计)
 - [环境配置](#环境配置)
@@ -524,54 +573,6 @@ SHAKE 的默认激活条件为概率 **>= 0.7**，可通过 `--shake-threshold` 
 输出为 H.264 MP4，使用源分辨率和平均帧率，有音轨时保留音频（AAC）。
 可变帧率输入会按平均帧率输出恒定帧率视频；奇数边长补一个像素以兼容 H.264。
 
-### 示例
-
-<!-- BEGIN CASE VIDEOS -->
-
-<table>
-<tr><th>Case 01</th><th>Case 02</th></tr>
-<tr>
-<td width="50%">
-
-https://github.com/user-attachments/assets/7ca29e6e-ba03-4a29-8d43-e5baad75ed95
-
-</td>
-<td width="50%">
-
-https://github.com/user-attachments/assets/8781ddb6-43eb-459e-8e27-3d8cba45732e
-
-</td>
-</tr>
-<tr><th>Case 03</th><th>Case 04</th></tr>
-<tr>
-<td width="50%">
-
-https://github.com/user-attachments/assets/70bc84e1-8d63-4f94-ab0d-94be54967cee
-
-</td>
-<td width="50%">
-
-https://github.com/user-attachments/assets/7edf6c02-4ee7-4b43-8ae6-911687afe797
-
-</td>
-</tr>
-<tr><th>Case 05</th><th>Case 06</th></tr>
-<tr>
-<td width="50%">
-
-https://github.com/user-attachments/assets/bc08f78c-c4f8-4b44-9a90-09f0b6cfdb51
-
-</td>
-<td width="50%">
-
-https://github.com/user-attachments/assets/058724b2-c65c-41d4-b618-84895b2ca2aa
-
-</td>
-</tr>
-</table>
-
-<!-- END CASE VIDEOS -->
-
 ### Python API
 
 将本包目录加入 Python 模块搜索路径后：
@@ -700,7 +701,7 @@ tools/evaluate_pose.py      ScanNet、TUM-dynamic 与 Sintel 评测
 
 IDM 包还包含以下第三方代码：
 
-- [OpenAI VPT](https://github.com/openai/Video-Pre-Training)：`vendor/video-pre-training/lib`（不含 `gym3_types.py`）包含基于 VPT 的运行代码，版权归属为 Copyright (c) 2022 OpenAI，采用 MIT 许可证。原始许可证保留于 [vendor/video-pre-training/LICENSE](vendor/video-pre-training/LICENSE)。
+- [OpenAI VPT](https://github.com/openai/Video-Pre-Training)：[vendor/video-pre-training/lib](vendor/video-pre-training/lib) 中的运行代码基于 VPT。其中 [gym3_types.py](vendor/video-pre-training/lib/gym3_types.py) 来自 gym3，归属在下一条单独说明。VPT 代码版权归属为 Copyright (c) 2022 OpenAI，采用 MIT 许可证。原始许可证保留于 [vendor/video-pre-training/LICENSE](vendor/video-pre-training/LICENSE)。
 - [OpenAI gym3](https://github.com/openai/gym3)：`vendor/video-pre-training/lib/gym3_types.py` 包含随包提供的类型定义，版权归属为 Copyright (c) 2020 OpenAI，采用 MIT 许可证。原始许可证保留于 [vendor/gym3/LICENSE](vendor/gym3/LICENSE)。其中整数乘积辅助函数使用 Python 的 `math.prod`，无需安装 gym3。
 
 本包不包含 CameraBench 视频和标注。

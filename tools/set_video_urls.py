@@ -17,14 +17,14 @@ ROOT = Path(__file__).resolve().parents[1]
 START = '<!-- BEGIN CASE VIDEOS -->'
 END = '<!-- END CASE VIDEOS -->'
 PATTERN = re.compile(r'https://github\.com/user-attachments/assets/[0-9a-fA-F-]{36}')
-KEYS = tuple(f'case_{i:02d}' for i in range(1, 7))
+KEYS = tuple(f'case_{i:02d}' for i in (5, 6, 3, 4, 1, 2))
 
 
 def case_table(media):
     """Two columns, with a standalone media paragraph in each table cell."""
     rows = []
     for start in range(0, len(KEYS), 2):
-        labels = ''.join(f'<th>Case {i+1:02d}</th>' for i in range(start, start+2))
+        labels = ''.join(f'<th>Case {KEYS[i][-2:]}</th>' for i in range(start, start+2))
         cells = '\n'.join(f'<td width="50%">\n\n{media[KEYS[i]]}\n\n</td>'
                           for i in range(start, start+2))
         rows.append(f'<tr>{labels}</tr>\n<tr>\n{cells}\n</tr>')
